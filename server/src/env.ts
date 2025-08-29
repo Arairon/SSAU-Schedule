@@ -5,6 +5,7 @@ configDotenv();
 
 export const env = createEnv({
   server: {
+    SCHED_BOT_TOKEN: z.string(),
     SCHED_DATABASE_URL: z.url(),
     SCHED_CREDENTIALS_KEY: z
       .string()
@@ -17,6 +18,7 @@ export const env = createEnv({
       .enum(["development", "production"])
       .optional()
       .default("production"),
+    PRISMA_LOGS: z.coerce.boolean().default(false),
   },
 
   /**
