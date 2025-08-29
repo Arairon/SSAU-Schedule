@@ -1,0 +1,39 @@
+{
+  "name": "ssau-sched",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "db:generate": "prisma migrate dev",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "build": "npx tsc",
+    "dev": "pnpx nodemon",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GPL-3.0-only",
+  "packageManager": "pnpm@10.14.0",
+  "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "@t3-oss/env-core": "^0.13.8",
+    "axios": "^1.11.0",
+    "dotenv": "^17.2.1",
+    "fastify": "^5.5.0",
+    "pino": "^9.9.0",
+    "pino-pretty": "^13.1.1",
+    "typescript": "^5.9.2",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "zod": "^4.1.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.15.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0"
+  }
+}
