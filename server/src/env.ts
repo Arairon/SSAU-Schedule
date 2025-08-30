@@ -6,7 +6,10 @@ configDotenv();
 export const env = createEnv({
   server: {
     SCHED_BOT_TOKEN: z.string(),
+    SCHED_BOT_DOMAIN: z.string(),
+    SCHED_BOT_ADMIN_TGID: z.coerce.number().int().default(0),
     SCHED_DATABASE_URL: z.url(),
+    SCHED_REDIS_URL: z.url(),
     SCHED_CREDENTIALS_KEY: z
       .string()
       .min(64, "The credentials key must be at least 64 characters long."),

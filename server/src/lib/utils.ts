@@ -46,7 +46,7 @@ export function getLessonDate(weekNumber: number, weekDay: number) {
 
 export function getPersonShortname(fullname: string) {
   const [surname, name, secondname] = fullname.split(" ");
-  return `${surname} ${name[0]}.` + (secondname && secondname + ".");
+  return `${surname} ${name[0]}.` + (secondname ? secondname[0] + "." : "");
 }
 
 export type ReturnObj<T> =

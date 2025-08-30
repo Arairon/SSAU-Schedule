@@ -23,8 +23,17 @@ function resetAuth(
   }
   user.authCookie = null;
   user.authCookieExpiresAt = new Date(0);
+  user.sessionExpiresAt = user.authCookieExpiresAt;
   if (!opts?.dontUpdateDb)
     return db.user.update({ where: { id: user.id }, data: user });
+}
+
+async function saveCredentials(
+  userId: number,
+  credentials: { username: string; password: string }
+) {
+  credentials.password = creds.encrypt(credentials.password);
+  await db.user.update({ where: { id: userId }, data: credentials });
 }
 
 function applyCookie(user: User, rawcookie: string) {
@@ -266,4 +275,6 @@ export const lk = {
   relog,
   updateUserInfo,
   ensureAuth,
+  saveCredentials,
+  resetAuth,
 };

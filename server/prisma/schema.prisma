@@ -50,7 +50,7 @@ model Week {
   updatedAt DateTime @default(value: "1970-01-01T00:00:00.000Z")
 
   lessons Lesson[]
-  user    User     @relation(fields: [userId], references: [id])
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId  Int
   group   Group?   @relation(fields: [groupId], references: [id])
   groupId Int?
@@ -129,7 +129,7 @@ model User {
 
 model Ics {
   id         Int      @id
-  user       User     @relation(fields: [id], references: [id])
+  user       User     @relation(fields: [id], references: [id], onDelete: Cascade)
   validUntil DateTime @default(value: "1970-01-01T00:00:00.000Z")
   file       Bytes    @default("")
 
@@ -139,7 +139,7 @@ model Ics {
 
 model CachedWeekTimetable {
   id         Int      @id @default(autoincrement())
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     Int
   groupId    Int?
   weekNumber Int
