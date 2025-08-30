@@ -195,27 +195,8 @@ async function init_bot(bot: Telegraf<Context>) {
 async function init(fastify: FastifyInstance) {
   const TOKEN = env.SCHED_BOT_TOKEN;
 
-  const store: SessionStore<Session> = {
-    async get(key) {
-      const value = await fastify.redis.get(key);
-      log.debug(`GET ${key} => ${value}`);
-
-      return value ? JSON.parse(value) : null;
-    },
-
-    async set(key, value) {
-      log.debug(`SET ${key} => ${JSON.stringify(value)}`);
-      await fastify.redis.set(key, JSON.stringify(value));
-    },
-
-    async delete(key) {
-      log.debug(`DEL ${key}`);
-      await fastify.redis.del(key);
-    },
-  };
-
   await fastify.register(
-    fp<{ token: string; store: typeof store }>(
+    fp<{ token: string }>(
       async (fastify, opts) => {
         log.debug("Registering bot..");
 
@@ -224,7 +205,6 @@ async function init(fastify: FastifyInstance) {
         bot.use(
           session({
             defaultSession: getDefaultSession,
-            store,
           })
         );
 
@@ -238,7 +218,6 @@ async function init(fastify: FastifyInstance) {
     ),
     {
       token: TOKEN,
-      store,
     }
   );
 

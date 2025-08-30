@@ -2,7 +2,7 @@ import fastify, { FastifyReply, FastifyRequest } from "fastify";
 import { env } from "./env";
 import log from "./logger";
 import userRoutes from "./api/user";
-import init_redis from "./redis";
+// import init_redis from "./redis";
 import init_bot from "./bot";
 
 const server = fastify({
@@ -18,7 +18,7 @@ const server = fastify({
 });
 
 async function start() {
-  await init_redis(server);
+  // await init_redis(server);
   await init_bot(server);
   server.register(userRoutes);
   server.listen({ port: env.SCHED_PORT }, (err, addr) => {
