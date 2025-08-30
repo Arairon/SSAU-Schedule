@@ -1,13 +1,23 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from "fastify";
 import log from "../logger";
 import { db } from "../db";
-import z from "zod";
+import z from "ajv-ts";
 import { lk } from "../lib/lk";
 import { creds } from "../lib/credentials";
-import { getWeekFromDate } from "../lib/utils";
+import { getLessonDate, getWeekFromDate } from "../lib/utils";
 import { schedule } from "../lib/schedule";
+import { findGroup, findGroupOrTeacherInSsau } from "../lib/misc";
 
 async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
+  const userIdParamSchema = {
+    $id: "userId",
+    type: "object",
+    properties: {
+      userId: {
+        type: "number",
+      },
+    },
+  };
   fastify.post(
     "/api/user/new",
     {
@@ -16,7 +26,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       },
     },
     async (req, res) => {
-      const body = z.object({ id: z.coerce.number() }).parse(req.body);
+      const body = z.object({ id: z.number() }).parse(req.body);
       if (await db.user.findUnique({ where: { id: body.id } })) {
         return res
           .status(400)
@@ -36,8 +46,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
 
   fastify.get(
     "/api/user/:userId",
+    { schema: { params: userIdParamSchema } },
     async (req: FastifyRequest<{ Params: { userId: number } }>, res) => {
-      const userId = z.coerce.number().int().parse(req.params.userId);
+      const userId = z.number().int().parse(req.params.userId);
       const info = await db.user
         .findUnique({ where: { id: userId } })
         .catch((error) => {
@@ -52,6 +63,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
     "/api/user/:userId/login",
     {
       schema: {
+        params: userIdParamSchema,
         body: {
           type: "object",
           properties: {
@@ -63,7 +75,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       },
     },
     async (req: FastifyRequest<{ Params: { userId: number } }>, res) => {
-      const userId = z.coerce.number().int().parse(req.params.userId);
+      const userId = z.number().int().parse(req.params.userId);
       const { username, password, saveCredentials } = z
         .object({
           username: z.string(),
@@ -111,8 +123,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
 
   fastify.post(
     "/api/user/:userId/relog",
+    { schema: { params: userIdParamSchema } },
     async (req: FastifyRequest<{ Params: { userId: number } }>, res) => {
-      const userId = z.coerce.number().int().parse(req.params.userId);
+      const userId = z.number().int().parse(req.params.userId);
       const user = await db.user.findUnique({ where: { id: userId } });
       if (!user)
         return res
@@ -146,8 +159,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
 
   fastify.get(
     "/api/user/:userId/info",
+    { schema: { params: userIdParamSchema } },
     async (req: FastifyRequest<{ Params: { userId: number } }>, res) => {
-      const userId = z.coerce.number().int().parse(req.params.userId);
+      const userId = z.number().int().parse(req.params.userId);
       const user = await db.user.findUnique({ where: { id: userId } });
       if (!user)
         return res
@@ -171,25 +185,113 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
     "/api/user/:userId/schedule/update",
     {
       schema: {
+        params: userIdParamSchema,
         querystring: {
           type: "object",
-          properties: { week: { type: "string", default: "0" } },
+          properties: {
+            week: { type: "string", default: "0" },
+            group: { type: "string", default: "" },
+            groupId: { type: "number", default: 0 },
+          },
         },
       },
     },
     async (
       req: FastifyRequest<{
         Params: { userId: number };
-        Querystring: { week: string };
+        Querystring: { week: string; group: string; groupId: number };
       }>,
       res
     ) => {
-      const userId = z.coerce.number().int().parse(req.params.userId);
-      const weeks: number[] = z
-        .array(z.coerce.number().int())
-        .parse((req.query.week ?? "0").split(","));
-      await schedule.updateWeekRangeForUser({ weeks, userId });
-      res.status(200).send(weeks);
+      const userId = req.params.userId;
+      const weeks: number[] = (req.query.week ?? "0")
+        .split(",")
+        .map((v) => parseInt(v));
+      const group = await findGroup({
+        groupId: req.query.groupId,
+        groupName: req.query.group,
+      });
+      const upd = await schedule.updateWeekRangeForUser({
+        weeks,
+        userId,
+        groupId: group?.id || undefined,
+      });
+      res.status(200).send(upd);
+    }
+  );
+
+  fastify.get(
+    "/api/user/:userId/schedule",
+    {
+      schema: {
+        params: userIdParamSchema,
+        querystring: {
+          type: "object",
+          properties: {
+            week: { type: "number", default: 0, minimum: 0, maximum: 52 },
+            group: { type: "string", default: "" },
+            groupId: { type: "number", default: 0 },
+            ignoreCached: { type: "boolean", default: false },
+          },
+        },
+      },
+    },
+    async (
+      req: FastifyRequest<{
+        Params: { userId: number };
+        Querystring: {
+          week: number;
+          group: string;
+          groupId: number;
+          ignoreCached: boolean;
+        };
+      }>,
+      res
+    ) => {
+      const userId = req.params.userId;
+      const user = await db.user.findUnique({ where: { id: userId } });
+      if (!user)
+        return res.status(404).send({
+          error: "user not found",
+          message: "Cannot find specified user",
+        });
+      const group = await findGroup({
+        groupId: req.query.groupId,
+        groupName: req.query.group,
+      });
+      const timetable = await schedule.getWeekTimetable(user, req.query.week, {
+        ignoreCached: req.query.ignoreCached,
+        groupId: group?.id || undefined,
+      });
+      res.status(200).send(timetable);
+    }
+  );
+
+  fastify.get("/api/debug/now", (req, res) => res.send([new Date()]));
+  fastify.get(
+    "/api/debug/getWeekNumber/:n1",
+    {
+      schema: {
+        params: { type: "object", properties: { n1: { type: "number" } } },
+      },
+    },
+    (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
+      return res.status(200).send(getWeekFromDate(new Date(req.params.n1)));
+    }
+  );
+  fastify.get(
+    "/api/debug/getDate/:n1/:n2",
+    {
+      schema: {
+        params: {
+          type: "object",
+          properties: { n1: { type: "number" }, n2: { type: "number" } },
+        },
+      },
+    },
+    (req: FastifyRequest<{ Params: { n1: number; n2: number } }>, res) => {
+      const { n1, n2 } = req.params;
+      return res.status(200).send(getLessonDate(n1, n2));
     }
   );
 }

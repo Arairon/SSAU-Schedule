@@ -10,6 +10,7 @@ import {
 import log from "../logger";
 import { ReturnObj } from "./utils";
 import jwt from "jsonwebtoken";
+import { ensureGroupExists } from "./misc";
 
 function resetAuth(
   user: User,
@@ -26,11 +27,7 @@ function resetAuth(
     return db.user.update({ where: { id: user.id }, data: user });
 }
 
-function applyCookie(
-  user: User,
-  rawcookie: string,
-  opts?: { saveInDb?: boolean }
-) {
+function applyCookie(user: User, rawcookie: string) {
   const cookie = rawcookie.split(";")[0] + ";";
   const decodedCookie = decodeURIComponent(
     decodeURIComponent(cookie.slice(5, cookie.length - 1))
@@ -48,7 +45,6 @@ function applyCookie(
     sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
   };
   Object.assign(user, update);
-  if (opts?.saveInDb) db.user.update({ where: { id: user.id }, data: update });
   return { ok: true };
 }
 
@@ -129,6 +125,7 @@ async function getTokenUsingCredentials(
 }
 
 async function relog(user: User) {
+  log.debug("Relogging...", { user: user.id });
   if (!user.username || !user.password)
     return {
       ok: false,
@@ -148,12 +145,27 @@ async function updateCookie(user: User) {
       error: "no cookie",
       message: "User does not have cookie saved",
     };
-  const resp = await axios.head("https://lk.ssau.ru/", {
-    withCredentials: true,
-    headers: {
-      Cookie: user.authCookie,
-    },
-  });
+  log.debug("Updating cookie...", { user: user.id });
+  let resp;
+  try {
+    resp = await axios.head("https://lk.ssau.ru/", {
+      withCredentials: true,
+      headers: {
+        Cookie: user.authCookie,
+      },
+      maxRedirects: 0,
+      validateStatus: (s) => s === 200,
+    });
+  } catch {
+    log.warn("Failed to update cookie: failed to get cookie", {
+      user: user.id,
+    });
+    return {
+      ok: false,
+      error: "invalid auth",
+      message: "Unable to refresh session",
+    };
+  }
   const cookie = (resp.headers["set-cookie"] as string[]).find((cookie) =>
     cookie.includes("auth=")
   );
@@ -173,6 +185,7 @@ async function updateCookie(user: User) {
       message: "lk.ssau.ru returned an invalid cookie",
     };
   }
+  await db.user.update({ where: { id: user.id }, data: user });
   log.debug(`Updated cookie`, { user: user.id });
   return { ok: true };
 }
@@ -190,7 +203,6 @@ async function ensureAuth(user: User) {
       if (res.ok) return true;
       return false;
     }
-    return false;
   } else return true;
 }
 
@@ -201,7 +213,7 @@ async function axiosReqForbiddenHandler(err: AxiosError, user: User) {
   }
 }
 
-async function updateUserInfo(user: User) {
+async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
   log.info("Updating user info", { user: user.id });
   if (!(await ensureAuth(user)))
     return {
@@ -242,23 +254,10 @@ async function updateUserInfo(user: User) {
   const groups = UserGroupsSchema.parse(userGroups.data);
   const group = groups[0]; // I HOPE the first one will always be the main one... Though there might be more
   await ensureGroupExists(group);
-  user.groupId = group.id;
+  // Allow for custom groups
+  if (opts?.overrideGroup || !user.groupId) user.groupId = group.id;
   await db.user.update({ where: { id: user.id }, data: user });
   return { ok: true, data: user };
-}
-
-async function ensureGroupExists(group: UserGroupType) {
-  const data = {
-    id: group.id,
-    name: group.name,
-    specId: group.spec.id,
-    specName: group.spec.name,
-  };
-  await db.group.upsert({
-    where: { id: group.id },
-    update: data,
-    create: data,
-  });
 }
 
 export const lk = {

@@ -7,8 +7,8 @@ const f = format.combine(
   format.timestamp(),
   format.align(),
   format.printf(
-    (info) => `${info.timestamp} ${info.level} [${info.user}]: ${info.message}`,
-  ),
+    (info) => `${info.timestamp} ${info.level} [${info.user}]: ${info.message}`
+  )
 );
 
 const rotatingLogFile = new winston.transports.DailyRotateFile({

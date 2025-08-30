@@ -10,10 +10,11 @@ datasource db {
 model Group {
   id       Int      @id
   name     String
-  specId   Int
-  specName String
+  specId   Int      @default(0)
+  specName String   @default("Unknown")
   lessons  Lesson[]
-  User     User[]
+  user     User[]
+  weeks    Week[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
@@ -22,10 +23,10 @@ model Group {
 model Flow {
   id             Int      @id
   name           String
-  disciplineId   Int
-  disciplineName String
+  disciplineId   Int      @default(0)
+  disciplineName String   @default("Unknown")
   lessons        Lesson[]
-  User           User[]
+  user           User[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
@@ -42,61 +43,85 @@ model Teacher {
   updatedAt DateTime @updatedAt()
 }
 
+model Week {
+  id        String   @id
+  year      Int
+  number    Int
+  updatedAt DateTime @default(value: "1970-01-01T00:00:00.000Z")
+
+  lessons Lesson[]
+  user    User     @relation(fields: [userId], references: [id])
+  userId  Int
+  group   Group?   @relation(fields: [groupId], references: [id])
+  groupId Int?
+
+  createdAt    DateTime @default(now())
+  db_updatedAt DateTime @updatedAt()
+
+  @@unique([userId, year, number])
+}
+
 enum LessonType {
-  Lection
-  Practice
-  Lab
-  Other
+  Lection // 1
+  Lab // 2
+  Practice // 3
+  Other // 4
+  Exam // 5
+  Consult // 6
   Military
   Window
-  Exam
-  Consult
   CourseWork
   Test
   Unknown
 }
 
 model Lesson {
-  id            Int        @id // I trust in ssau's autoincremented ids :D
-  type          LessonType
-  discipline    String
-  isOnline      Boolean
-  building      String?
-  room          String?
-  groups        Group[]
-  flows         Flow[]
-  isIet         Boolean    @default(false)
-  subgroup      Int?
-  teacher       Teacher    @relation(fields: [teacherId], references: [id])
-  teacherId     Int
-  dayTimeSlot   Int
-  date          DateTime
-  startTime     DateTime
-  endTime       DateTime
-  weekNumber    Int
-  weekday       Int
-  conferenceUrl String?
+  id                  Int                   @id // I trust in ssau's autoincremented ids :D
+  type                LessonType
+  discipline          String
+  validUntil          DateTime
+  isOnline            Boolean
+  building            String?
+  room                String?
+  groups              Group[]
+  flows               Flow[]
+  isIet               Boolean               @default(false)
+  subgroup            Int?
+  teacher             Teacher               @relation(fields: [teacherId], references: [id])
+  teacherId           Int
+  dayTimeSlot         Int
+  date                DateTime
+  beginTime           DateTime
+  endTime             DateTime
+  week                Week[]
+  weekNumber          Int
+  weekday             Int
+  conferenceUrl       String?
+  CachedWeekTimetable CachedWeekTimetable[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 }
 
 model User {
-  id                  Int      @id
+  id                  Int                   @id
   staffId             Int? // LK id
   fullname            String?
-  group               Group?   @relation(fields: [groupId], references: [id])
+  group               Group?                @relation(fields: [groupId], references: [id])
   groupId             Int?
   flows               Flow[]
   authCookie          String?
-  authCookieExpiresAt DateTime @default(value: "1970-01-01T00:00:00.000Z")
-  sessionExpiresAt    DateTime @default(value: "1970-01-01T00:00:00.000Z")
+  authCookieExpiresAt DateTime              @default(value: "1970-01-01T00:00:00.000Z")
+  sessionExpiresAt    DateTime              @default(value: "1970-01-01T00:00:00.000Z")
   username            String?
   password            String?
-  notifyOnNextLesson  Boolean  @default(true)
-  notifyOnNextDay     Boolean  @default(true)
-  notifyOnNextWeek    Boolean  @default(true)
-  Ics                 Ics?
+  notifyOnNextLesson  Boolean               @default(true)
+  notifyOnNextDay     Boolean               @default(true)
+  notifyOnNextWeek    Boolean               @default(true)
+  subgroup            Int?
+  ics                 Ics?
+  cachedTimetables    CachedWeekTimetable[]
+  weeks               Week[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
@@ -110,4 +135,15 @@ model Ics {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
+}
+
+model CachedWeekTimetable {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  groupId    Int?
+  weekNumber Int
+  validUntil DateTime
+  lessons    Lesson[]
+  data       Json
 }

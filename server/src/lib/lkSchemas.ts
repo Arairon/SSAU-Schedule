@@ -1,39 +1,39 @@
-import z from "zod";
+import s from "ajv-ts";
 
-export const UserDetailsSchema = z.object({
-  staffId: z.number(),
-  fullName: z.string(),
-  name: z.string(),
-  surname: z.string(),
-  secondname: z.string(),
-  avatar: z.string(),
-  login: z.string(),
-  permissions: z.array(z.number()),
-  staticPages: z.array(z.any()),
-  studentLevel: z.object({
-    id: z.number(),
-    name: z.string(),
-    code: z.string(),
+export const UserDetailsSchema = s.object({
+  staffId: s.number(),
+  fullName: s.string(),
+  name: s.string(),
+  surname: s.string(),
+  secondname: s.string(),
+  avatar: s.string(),
+  login: s.string(),
+  permissions: s.array(s.number()),
+  staticPages: s.array(s.any()),
+  studentLevel: s.object({
+    id: s.number(),
+    name: s.string(),
+    code: s.string(),
   }),
 });
 
-export const UserGroupSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  spec: z.object({
-    id: z.number(),
-    name: z.string(),
-    code: z.string(),
+export const UserGroupSchema = s.object({
+  id: s.number(),
+  name: s.string(),
+  spec: s.object({
+    id: s.number(),
+    name: s.string(),
+    code: s.string(),
   }),
-  studyForm: z.object({
-    id: z.number(),
-    name: z.string(),
-    code: z.string(),
+  studyForm: s.object({
+    id: s.number(),
+    name: s.string(),
+    code: s.string(),
   }),
-  studyLevel: z.object({
-    id: z.number(),
-    name: z.string(),
+  studyLevel: s.object({
+    id: s.number(),
+    name: s.string(),
   }),
 });
-export type UserGroupType = z.infer<typeof UserGroupSchema>;
-export const UserGroupsSchema = z.array(UserGroupSchema);
+export type UserGroupType = s.infer<typeof UserGroupSchema>;
+export const UserGroupsSchema = s.array(UserGroupSchema);
