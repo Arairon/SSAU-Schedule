@@ -329,7 +329,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
     },
     async (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
       const user = await db.user.findUnique({ where: { id: req.params.n1 } });
-      const timetable = await schedule.getWeekTimetable(user!, 3, {
+      const timetable = await schedule.getWeekTimetable(user!, 0, {
         //groupId: 531023227,
       });
       const html = await generateTimetableImageHtml(timetable);
@@ -345,7 +345,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
     },
     async (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
       const user = await db.user.findUnique({ where: { id: req.params.n1 } });
-      const timetable = await schedule.getTimetableWithImage(user!, 3, {
+      const timetable = await schedule.getTimetableWithImage(user!, 0, {
         //groupId: 531023227,
       });
       return res

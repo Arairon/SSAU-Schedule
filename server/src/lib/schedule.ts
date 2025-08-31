@@ -207,7 +207,7 @@ async function getWeekTimetable(
   const Week =
     opts?.groupId && opts.groupId !== user.groupId
       ? await getDbWeekForFGroup(opts.groupId)
-      : await getDbWeek({ user, week });
+      : await getDbWeek({ user, week: weekNumber });
   if (!Week) {
     log.debug("Requested uncached week. Updating", { user: user.id });
     await updateWeekForUser(user, weekNumber, {
@@ -331,27 +331,45 @@ async function getDbWeekForFGroup(groupId: number) {
   });
 }
 
-async function getDbWeek(
-  inp: ({ weekId: string } | { userId: number } | { user: User }) & {
+async function getDbWeek( // TODO: Remake week search. Add common weeks for ietless group search
+  inp: (
+    | { weekId: string }
+    | { userId: number }
+    | { user: User }
+    | { groupId: number }
+  ) & {
+    weekId?: string;
+    userId?: number;
+    groupId?: number;
+    user?: User;
     year?: number;
     week?: number;
-    groupId?: number;
   },
   opts?: { update?: boolean },
 ) {
   const now = new Date();
   const upd = opts?.update ? now : undefined;
   if ("weekId" in inp) {
+    // Returns week even if no update
     return await db.week.update({
       where: { id: inp.weekId },
       data: { updatedAt: upd },
     });
   }
-  const userId = "user" in inp ? inp.user.id : inp.userId;
+  const userId = (inp.user ? inp.user.id : inp.userId) ?? undefined;
+  const user =
+    inp.user ??
+    (userId ? await db.user.findUnique({ where: { id: userId } }) : null);
+  const owner = user?.id ?? "common";
   const year = inp.year || getCurrentYearId();
   const week = inp.week || getWeekFromDate(now);
-  const groupId = inp.groupId || undefined;
-  const weekId = `${userId}/${year}/${week}`;
+  const groupId = inp.groupId || user?.groupId || 0;
+  if (!groupId) {
+    log.error(`${owner}/${groupId}/${year}/${week} Groupless week`, {
+      user: userId,
+    });
+  }
+  const weekId = `${owner}/${groupId}/${year}/${week}`;
   return await db.week.upsert({
     where: { id: weekId },
     create: {
@@ -470,6 +488,7 @@ async function updateWeekForUser(
   );
   if (!(await lk.ensureAuth(user))) throw new Error("Auth error");
   const someoneElsesGroup = opts?.groupId && opts.groupId !== user.groupId;
+  const groupId = someoneElsesGroup ? opts.groupId : user.groupId;
   log.debug(
     `Updating week ${week.id} (${opts?.groupId ?? user.groupId}) ` +
       (someoneElsesGroup ? "[foreign]" : ""),
@@ -485,7 +504,7 @@ async function updateWeekForUser(
       params: {
         yearId: year,
         week: weekNumber,
-        groupId: someoneElsesGroup ? opts.groupId : user.groupId,
+        groupId: groupId,
         userType: "student",
       },
     },
@@ -657,7 +676,7 @@ async function updateWeekForUser(
     for (const lessonInfo of lessonList.weeks) {
       const date = getLessonDate(lessonInfo.week, info.weekday);
       const timeslot = TimeSlotMap[info.dayTimeSlot];
-      const weekId = `${user.id}/${year}/${lessonInfo.week}`;
+      const weekId = `${someoneElsesGroup ? "common" : user.id}/${groupId}/${year}/${week}`;
       const lesson = {
         id: lessonInfo.id,
         isOnline: !!lessonInfo.isOnline,
@@ -678,7 +697,7 @@ async function updateWeekForUser(
                     userId: user.id,
                     year,
                     number: lessonInfo.week,
-                    groupId: opts?.groupId ?? user.groupId,
+                    groupId: opts?.groupId ?? user.groupId!,
                   },
                 },
               }

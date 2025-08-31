@@ -19,7 +19,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Practice: {
       name: "Практика",
@@ -31,7 +31,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Lab: {
       name: "Лабораторная",
@@ -43,7 +43,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Other: {
       name: "Прочее",
@@ -55,7 +55,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     CourseWork: {
       name: "Курсовая",
@@ -67,7 +67,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Consult: {
       name: "Консультация",
@@ -79,7 +79,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Exam: {
       name: "Экзамен",
@@ -91,7 +91,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Test: {
       name: "Тест",
@@ -103,7 +103,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Military: {
       name: "Воен. Каф",
@@ -115,7 +115,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Window: {
       name: "Окно",
@@ -127,7 +127,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
     Unknown: {
       name: "Неизвестно",
@@ -140,7 +140,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
       groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left",
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
     },
   },
 };

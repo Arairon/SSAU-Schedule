@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Group {
-  id       Int      @id
+  id       Int       @id
   name     String
-  specId   Int      @default(0)
-  specName String   @default("Unknown")
+  specId   Int       @default(0)
+  specName String    @default("Unknown")
   lessons  Lesson[]
   user     User[]
   weeks    Week[]
+  ics      GroupIcs?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
@@ -50,15 +51,15 @@ model Week {
   updatedAt DateTime @default(value: "1970-01-01T00:00:00.000Z")
 
   lessons Lesson[]
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId  Int
-  group   Group?   @relation(fields: [groupId], references: [id])
-  groupId Int?
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  Int?
+  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId Int
 
   createdAt    DateTime @default(now())
   db_updatedAt DateTime @updatedAt()
 
-  @@unique([userId, year, number])
+  //@@unique([userId, year, number])
 }
 
 enum LessonType {
@@ -119,7 +120,7 @@ model User {
   notifyOnNextDay     Boolean               @default(true)
   notifyOnNextWeek    Boolean               @default(true)
   subgroup            Int?
-  ics                 Ics?
+  ics                 UserIcs?
   cachedTimetables    CachedWeekTimetable[]
   weeks               Week[]
 
@@ -127,9 +128,19 @@ model User {
   updatedAt DateTime @updatedAt()
 }
 
-model Ics {
+model UserIcs {
   id         Int      @id
   user       User     @relation(fields: [id], references: [id], onDelete: Cascade)
+  validUntil DateTime @default(value: "1970-01-01T00:00:00.000Z")
+  file       Bytes    @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+model GroupIcs {
+  id         Int      @id
+  group      Group    @relation(fields: [id], references: [id], onDelete: Cascade)
   validUntil DateTime @default(value: "1970-01-01T00:00:00.000Z")
   file       Bytes    @default("")
 

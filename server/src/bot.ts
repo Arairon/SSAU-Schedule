@@ -9,7 +9,7 @@ import log from "./logger";
 import { db } from "./db";
 import { fmt } from "telegraf/format";
 import { lk } from "./lib/lk";
-import { getPersonShortname, getWeekFromDate } from "./lib/utils";
+import { formatBigInt, getPersonShortname, getWeekFromDate } from "./lib/utils";
 import { loginScene } from "./scenes/login";
 import { schedule } from "./lib/schedule";
 import { Message } from "telegraf/types";
@@ -91,6 +91,8 @@ async function sendTimetable(
     return;
   }
   if (week < 0 || week > 52) return;
+  console.log(week, opts);
+  const startTime = process.hrtime.bigint();
   const user = await db.user.findUnique({ where: { id: ctx.from.id } });
   const group =
     opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
@@ -133,8 +135,15 @@ async function sendTimetable(
   ctx.session.scheduleViewer.message = msg.message_id;
   ctx.session.scheduleViewer.week = timetable.timetable.week;
   ctx.session.scheduleViewer.groupId = timetable.timetable.groupId;
+
+  const endTime = process.hrtime.bigint();
+  log.debug(
+    `[BOT] Image viewer [F:${timetable.timetable.foreignGroup} I:${timetable.timetable.withIet}] ${timetable.timetable.groupId}/${timetable.timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    { user: timetable.timetable.user },
+  );
 }
 
+//TODO: Ensure commands are guarded against non logged in users or fall them back to 'common'
 async function init_bot(bot: Telegraf<Context>) {
   bot.launch(() => log.info("Bot started!"));
 
