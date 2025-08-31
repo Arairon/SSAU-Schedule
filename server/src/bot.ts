@@ -6,6 +6,7 @@ import {
   Scenes,
   session,
   Telegraf,
+  type Context as TelegrafContext,
   type SessionStore,
 } from "telegraf";
 import { message } from "telegraf/filters";
@@ -14,12 +15,12 @@ import { env } from "./env";
 import { Context, Session } from "./types";
 import log from "./logger";
 import { db } from "./db";
-import { fmt } from "telegraf/format";
+import { bold, fmt, italic } from "telegraf/format";
 import { lk } from "./lib/lk";
 import { formatBigInt, getPersonShortname, getWeekFromDate } from "./lib/utils";
 import { loginScene } from "./scenes/login";
 import { schedule } from "./lib/schedule";
-import { Message } from "telegraf/types";
+import { CallbackQuery, Message, Update } from "telegraf/types";
 import { findGroup, findGroupOrOptions } from "./lib/misc";
 
 function getDefaultSession(): Session {
@@ -90,7 +91,12 @@ const stage = new Scenes.Stage([loginScene]);
 async function sendTimetable(
   ctx: Context,
   week: number,
-  opts?: { groupId?: number; ignoreCached?: boolean; forceUpdate?: boolean },
+  opts?: {
+    groupId?: number;
+    ignoreCached?: boolean;
+    forceUpdate?: boolean;
+    queryCtx?: TelegrafContext<Update.CallbackQueryUpdate<CallbackQuery>>;
+  },
 ) {
   if (!ctx?.from?.id) {
     log.error(
@@ -126,14 +132,23 @@ async function sendTimetable(
     }, 100);
   }
 
-  const timetable = await schedule.getTimetableWithImage(user!, week, {
-    groupId: group,
-    forceUpdate: opts?.forceUpdate ?? undefined,
-  });
-
-  if (temp.timeout) clearTimeout(temp.timeout);
-  if (temp.msg) {
-    ctx.deleteMessage(temp.msg.message_id);
+  let timetable;
+  try {
+    timetable = await schedule.getTimetableWithImage(user!, week, {
+      groupId: group,
+      forceUpdate: opts?.forceUpdate ?? undefined,
+    });
+  } catch {
+    ctx.reply(fmt`
+Произошла ошибка при обновлении.
+Попробуйте повторно войти в аккаунт через /login
+        `);
+    return;
+  } finally {
+    if (temp.timeout) clearTimeout(temp.timeout);
+    if (temp.msg) {
+      ctx.deleteMessage(temp.msg.message_id);
+    }
   }
 
   const buttonsMarkup = Markup.inlineKeyboard([
@@ -158,17 +173,23 @@ async function sendTimetable(
         `Image already uploaded. Changing image inplace to ${timetable.image.tgId}`,
         { user: ctx.from.id },
       );
-      await ctx.telegram.editMessageMedia(
-        chatId,
-        existingMessage,
-        undefined,
-        {
-          type: "photo",
-          media: timetable.image.tgId,
-          caption: `Расписание на ${timetable.timetable.week} неделю`,
-        },
-        buttonsMarkup,
-      );
+      try {
+        await ctx.telegram.editMessageMedia(
+          chatId,
+          existingMessage,
+          undefined,
+          {
+            type: "photo",
+            media: timetable.image.tgId,
+            caption: `Расписание на ${timetable.timetable.week} неделю`,
+          },
+          buttonsMarkup,
+        );
+      } catch (e) {
+        if (opts?.queryCtx) {
+          opts.queryCtx.answerCbQuery("Ничего не изменилось");
+        }
+      }
     } else {
       log.debug(`Image has no tgId, deleting old message and uploading new`, {
         user: ctx.from.id,
@@ -218,6 +239,16 @@ async function init_bot(bot: Telegraf<Context>) {
     if (ctx.message && "text" in ctx.message)
       log.debug(`${ctx.message.text}`, { user: ctx?.from?.id ?? -1 });
     next();
+  });
+
+  bot.catch((err, ctx) => {
+    ctx.reply(
+      `Что-то пошло не так. Свяжитесь с ${env.SCHED_BOT_ADMIN_CONTACT}.`,
+    );
+    log.error(
+      `Bot threw an error: E: ${JSON.stringify(err)} C: ${JSON.stringify(ctx)}`,
+      { user: ctx.from?.id },
+    );
   });
 
   bot.start(async (ctx) => {
@@ -300,7 +331,11 @@ async function init_bot(bot: Telegraf<Context>) {
     const user = await db.user.findUnique({ where: { id: ctx.from.id } })!;
     await lk.resetAuth(user!, { resetCredentials: true });
     const msg = await ctx.reply(
-      fmt`Сессия завершена, а данные для входа удалены (если были).`,
+      fmt`
+Сессия завершена, а данные для входа удалены (если были).
+Внимание: Если вы собираетесь в будующем входить в ${bold("другой")} аккаунт ссау, то вам следует сбросить данные о себе через /start
+Если же вы собираетесь продолжать использовать текущий аккаут - сбрасывать ничего не нужно.
+      `,
     );
     ctx.session.tempMessages.push({
       id: msg.message_id,
@@ -320,22 +355,32 @@ async function init_bot(bot: Telegraf<Context>) {
 
   bot.action("schedule_button_next", async (ctx) => {
     const week = ctx.session.scheduleViewer.week + 1;
-    sendTimetable(ctx, week);
+    if (week === 53) {
+      ctx.answerCbQuery(
+        "Расписания на 53 неделю не существует. Это первая неделя следующего года",
+      );
+      return;
+    }
+    sendTimetable(ctx, week, { queryCtx: ctx });
   });
 
   bot.action("schedule_button_prev", async (ctx) => {
     const week = ctx.session.scheduleViewer.week - 1;
-    sendTimetable(ctx, week);
+    if (week === 0) {
+      ctx.answerCbQuery("Расписания на нулевую неделю не существует");
+      return;
+    }
+    sendTimetable(ctx, week, { queryCtx: ctx });
   });
 
   bot.action("schedule_button_refresh", async (ctx) => {
     const week = ctx.session.scheduleViewer.week;
-    sendTimetable(ctx, week);
+    sendTimetable(ctx, week, { queryCtx: ctx });
   });
 
   bot.action("schedule_button_forceupdate", async (ctx) => {
     const week = ctx.session.scheduleViewer.week;
-    sendTimetable(ctx, week, { forceUpdate: true });
+    sendTimetable(ctx, week, { forceUpdate: true, queryCtx: ctx });
   });
 
   bot.hears(/\d{4}(?:-\d+)?D?/, async (ctx) => {
@@ -359,9 +404,19 @@ async function init_bot(bot: Telegraf<Context>) {
     sendTimetable(ctx, 0, { groupId: group.id });
   });
 
+  // debug command used to test error handling
+  bot.command("suicide", (ctx) => {
+    if (ctx.from.id === env.SCHED_BOT_ADMIN_TGID) throw new Error("Well, fuck");
+    else
+      ctx.reply(
+        fmt`Ты. Ужасный. Человек.\n${italic('Я серьёзно, тут так и написано: "Ужасный человек"')}`,
+      );
+  });
+
   bot.on(message("text"), async (ctx) => {
     log.debug(`[ignored: message fell]`, { user: ctx.from.id });
   });
+
   // bot.on(message("photo"), async (ctx) => {
   //   ctx.session.messages.push({ photo: ctx.message });
   // });

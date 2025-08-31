@@ -8,6 +8,7 @@ export const env = createEnv({
     SCHED_BOT_TOKEN: z.string(),
     SCHED_BOT_DOMAIN: z.string(),
     SCHED_BOT_ADMIN_TGID: z.coerce.number().int().default(0),
+    SCHED_BOT_ADMIN_CONTACT: z.string().default("@arairon"),
     SCHED_DATABASE_URL: z.url(),
     // SCHED_REDIS_URL: z.url(),
     SCHED_CREDENTIALS_KEY: z

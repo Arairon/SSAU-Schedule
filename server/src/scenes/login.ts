@@ -12,6 +12,7 @@ import { deleteTempMessages } from "../bot";
 export const loginScene = new Scenes.BaseScene<Context>("LK_LOGIN");
 
 type loginSceneData = {
+  messageId: number;
   username: string;
   password: string;
   name: string;
@@ -22,6 +23,7 @@ loginScene.enter(async (ctx: Context) => {
   if (!userId) return ctx.scene.leave();
   log.debug("Entered login scene", { user: userId });
   ctx.session.sceneData = {
+    messageId: 0,
     username: "",
     password: "",
     name: "",
@@ -31,11 +33,14 @@ loginScene.enter(async (ctx: Context) => {
 Вход в личный кабинет
 Введите логин:
     `,
-    Markup.inlineKeyboard([Markup.button.callback("❌ Отмена", "login_cancel")])
+    Markup.inlineKeyboard([
+      Markup.button.callback("❌ Отмена", "login_cancel"),
+    ]),
   );
+  ctx.session.sceneData.messageId = msg.message_id;
   ctx.session.tempMessages.push({
     id: msg.message_id,
-    deleteOn: ["scene_leave", "scene_next"],
+    deleteAfter: new Date(Date.now() + 300_000),
   });
 });
 
@@ -49,12 +54,16 @@ loginScene.on(message("text"), async (ctx) => {
   if (!sceneData.username) {
     // Username input
     sceneData.username = text;
+    ctx.deleteMessage(ctx.message.message_id);
     ctx.session.tempMessages.push({
       id: ctx.message.message_id,
       deleteOn: ["scene_leave"],
     });
     await deleteTempMessages(ctx, "scene_next");
-    const msg = await ctx.reply(
+    const msg = await ctx.telegram.editMessageText(
+      ctx.chat.id,
+      ctx.session.sceneData.messageId,
+      undefined,
       fmt`
 Вход в личный кабинет
 Логин: ${text}
@@ -63,23 +72,34 @@ loginScene.on(message("text"), async (ctx) => {
       Markup.inlineKeyboard([
         Markup.button.callback("❌ Отмена", "login_cancel"),
         Markup.button.callback("⬅️ Назад", "login_reenter"),
-      ])
+      ]),
     );
-    ctx.session.tempMessages.push({
-      id: msg.message_id,
-      deleteOn: ["scene_next", "scene_leave"],
-    });
   } else if (!sceneData.password) {
     // Password input
     sceneData.password = text;
     await ctx.deleteMessage(ctx.message.message_id);
     await deleteTempMessages(ctx, "scene_next");
+    await ctx.telegram.editMessageText(
+      ctx.chat.id,
+      ctx.session.sceneData.messageId,
+      undefined,
+      fmt`
+Вход в личный кабинет
+Логин: ${sceneData.username}
+Пароль: \*\*\*\*\*\*\*\*
+Пробуем войти...
+    `,
+      Markup.inlineKeyboard([]),
+    );
     const { username, password } = sceneData;
     const user = await db.user.findUnique({ where: { id: userId } });
     const loginRes = await lk.login(user!, { username, password });
     if (!loginRes.ok) {
       sceneData.password = "";
-      const msg = await ctx.reply(
+      const msg = await ctx.telegram.editMessageText(
+        ctx.chat.id,
+        ctx.session.sceneData.messageId,
+        undefined,
         fmt`
 Вход в личный кабинет
 Логин: ${sceneData.username}
@@ -90,18 +110,16 @@ loginScene.on(message("text"), async (ctx) => {
         Markup.inlineKeyboard([
           Markup.button.callback("❌ Отмена", "login_cancel"),
           Markup.button.callback("⬅️ Назад", "login_reenter"),
-        ])
+        ]),
       );
-      ctx.session.tempMessages.push({
-        id: msg.message_id,
-        deleteOn: ["scene_next", "scene_leave"],
-      });
       return;
     } else {
-      sceneData.password = "";
       const upd = await lk.updateUserInfo(user!);
       sceneData.name = upd.ok ? (upd.data?.fullname ?? "") : "";
-      const msg = await ctx.reply(
+      const msg = await ctx.telegram.editMessageText(
+        ctx.chat.id,
+        ctx.session.sceneData.messageId,
+        undefined,
         fmt`
 Вход в личный кабинет
 Логин: ${sceneData.username}
@@ -113,23 +131,25 @@ loginScene.on(message("text"), async (ctx) => {
         Markup.inlineKeyboard([
           Markup.button.callback("❌ Нет", "login_complete_dontsave"),
           Markup.button.callback("✅ Да", "login_complete_save"),
-        ])
+        ]),
       );
-      ctx.session.tempMessages.push({
-        id: msg.message_id,
-        deleteOn: ["scene_next", "scene_leave"],
-      });
     }
   }
 });
 
 loginScene.action("login_complete_dontsave", (ctx) => {
   const sceneData = ctx.session.sceneData as loginSceneData;
-  ctx.reply(fmt`
+  ctx.telegram.editMessageText(
+    ctx.chat?.id,
+    ctx.session.sceneData.messageId,
+    undefined,
+    fmt`
 Вход в личный кабинет
 Логин: ${sceneData.username}
 Пароль: \*\*\*\*\*\*\*\*
-Вход успешен! ${sceneData.name ? `Вы вошли как '${getPersonShortname(sceneData.name)}'` : ``}`);
+Вход успешен! ${sceneData.name ? `Вы вошли как '${getPersonShortname(sceneData.name)}'` : ``}`,
+    Markup.inlineKeyboard([]),
+  );
   ctx.session.loggedIn = true;
   ctx.scene.leave();
 });
@@ -138,21 +158,31 @@ loginScene.action("login_complete_save", async (ctx) => {
   const sceneData = ctx.session.sceneData as loginSceneData;
   const { username, password } = sceneData;
   await lk.saveCredentials(ctx.from.id, { username, password });
-  ctx.reply(fmt`
+  ctx.telegram.editMessageText(
+    ctx.chat?.id,
+    ctx.session.sceneData.messageId,
+    undefined,
+    fmt`
 Вход в личный кабинет
 Логин: ${sceneData.username}
 Пароль: \*\*\*\*\*\*\*\*
 Вход успешен! ${sceneData.name ? `Вы вошли как '${getPersonShortname(sceneData.name)}'` : ``}
-Данные для входа сохранены`);
+Данные для входа сохранены`,
+    Markup.inlineKeyboard([]),
+  );
   ctx.session.loggedIn = true;
   ctx.scene.leave();
 });
 
 loginScene.action("login_cancel", (ctx) => {
+  if (ctx.session.sceneData.messageId)
+    ctx.deleteMessage(ctx.session.sceneData.messageId);
   ctx.scene.leave();
 });
 
 loginScene.action("login_reenter", (ctx) => {
+  if (ctx.session.sceneData.messageId)
+    ctx.deleteMessage(ctx.session.sceneData.messageId);
   ctx.scene.reenter();
 });
 

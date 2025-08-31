@@ -509,6 +509,7 @@ async function updateWeekForUser(
   weekN: number,
   opts?: { groupId?: number },
 ) {
+  if (!(await lk.ensureAuth(user))) throw new Error("Auth error");
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
   const year = getCurrentYearId();
@@ -521,7 +522,6 @@ async function updateWeekForUser(
     },
     { update: true },
   );
-  if (!(await lk.ensureAuth(user))) throw new Error("Auth error");
   const someoneElsesGroup = opts?.groupId && opts.groupId !== user.groupId;
   const groupId = someoneElsesGroup ? opts.groupId : user.groupId;
   log.debug(

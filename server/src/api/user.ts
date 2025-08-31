@@ -356,6 +356,10 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
   );
 
   fastify.get("/api/debug/now", (req, res) => res.send([new Date()]));
+  fastify.post("/api/debug/test", (req, res) => {
+    console.log(creds.decrypt(creds.encrypt(req.body as string)));
+    res.send(creds.decrypt(creds.encrypt(req.body as string)));
+  });
   fastify.get(
     "/api/debug/html/:n1",
     {

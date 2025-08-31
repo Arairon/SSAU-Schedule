@@ -14,7 +14,7 @@ import { ensureGroupExists } from "./misc";
 
 function resetAuth(
   user: User,
-  opts?: { dontUpdateDb?: boolean; resetCredentials?: boolean }
+  opts?: { dontUpdateDb?: boolean; resetCredentials?: boolean },
 ) {
   log.debug("Reset auth for user", { user: user.id });
   if (opts?.resetCredentials) {
@@ -30,7 +30,7 @@ function resetAuth(
 
 async function saveCredentials(
   userId: number,
-  credentials: { username: string; password: string }
+  credentials: { username: string; password: string },
 ) {
   credentials.password = creds.encrypt(credentials.password);
   await db.user.update({ where: { id: userId }, data: credentials });
@@ -39,7 +39,7 @@ async function saveCredentials(
 function applyCookie(user: User, rawcookie: string) {
   const cookie = rawcookie.split(";")[0] + ";";
   const decodedCookie = decodeURIComponent(
-    decodeURIComponent(cookie.slice(5, cookie.length - 1))
+    decodeURIComponent(cookie.slice(5, cookie.length - 1)),
   );
   const rawtoken = JSON.parse(decodedCookie)?.token;
   const token = jwt.decode(rawtoken) as jwt.JwtPayload;
@@ -59,7 +59,7 @@ function applyCookie(user: User, rawcookie: string) {
 
 async function login(
   user: User,
-  opts?: { username?: string; password?: string; saveCredentials?: boolean }
+  opts?: { username?: string; password?: string; saveCredentials?: boolean },
 ): Promise<ReturnObj<User>> {
   const username = opts?.username ?? user.username ?? null;
   const password =
@@ -98,7 +98,7 @@ async function login(
 
 async function getTokenUsingCredentials(
   username: string,
-  password: string
+  password: string,
 ): Promise<ReturnObj<string>> {
   const resp = await axios.post(
     "https://lk.ssau.ru/account/login",
@@ -107,7 +107,7 @@ async function getTokenUsingCredentials(
       headers: { "next-action": "1252ba737dc8b273d570c2ab86b99d4a56d85f35" },
       withCredentials: true,
       validateStatus: () => true,
-    }
+    },
   );
   if (resp.status === 200) {
     // OK is invalid username/password. Yes. This makes a LOT of sense
@@ -120,7 +120,7 @@ async function getTokenUsingCredentials(
   if (resp.status === 303) {
     // Successful login
     const cookie = (resp.headers["set-cookie"] as string[]).find((cookie) =>
-      cookie.includes("auth=")
+      cookie.includes("auth="),
     );
     if (!cookie)
       return {
@@ -176,7 +176,7 @@ async function updateCookie(user: User) {
     };
   }
   const cookie = (resp.headers["set-cookie"] as string[]).find((cookie) =>
-    cookie.includes("auth=")
+    cookie.includes("auth="),
   );
   if (!cookie) {
     log.warn("Failed to update cookie: No cookie", { user: user.id });
@@ -238,7 +238,7 @@ async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
         headers: {
           Cookie: user.authCookie,
         },
-      }
+      },
     );
   } catch (e) {
     const err = e as AxiosError;
@@ -258,7 +258,7 @@ async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
       headers: {
         Cookie: user.authCookie,
       },
-    }
+    },
   );
   const groups = UserGroupsSchema.parse(userGroups.data);
   const group = groups[0]; // I HOPE the first one will always be the main one... Though there might be more
