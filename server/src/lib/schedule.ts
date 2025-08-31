@@ -93,7 +93,7 @@ export type WeekTimetable = {
   days: WeekTimetableDay[];
 };
 
-async function getTimetableImage(
+async function getTimetableWithImage(
   user: User,
   week: number,
   opts?: {
@@ -106,20 +106,23 @@ async function getTimetableImage(
 ) {
   const weekNumber = week || getWeekFromDate(new Date());
   if (opts && opts?.groupId === user.groupId) opts.groupId = undefined;
-  // if (!opts?.ignoreCached && !opts?.forceUpdate) {
-  //   const cachedImage = await getWeekTimetableFromCache(
-  //     user,
-  //     weekNumber,
-  //     opts?.groupId ?? user.groupId ?? undefined,
-  //     { requireImage: true }
-  //   );
-  //   if (cachedImage) {
-  //     log.debug("Timetable Image good enough. Returning cached", {
-  //       user: user.id,
-  //     });
-  //     return cachedImage;//buffer.from
-  //   }
-  // }
+  if (opts?.forceUpdate) opts.ignoreCached = true;
+
+  if (!opts?.ignoreCached) {
+    const cachedImage = await getWeekTimetableFromCache(
+      user,
+      weekNumber,
+      opts?.groupId ?? user.groupId ?? undefined,
+      { requireImage: true },
+    );
+    if (cachedImage) {
+      log.debug("Timetable Image good enough. Returning cached", {
+        user: user.id,
+      });
+      return cachedImage; //buffer.from
+    }
+  }
+
   const timetable = await getWeekTimetable(user, week, opts);
   const image = await generateTimetableImage(timetable);
 
@@ -166,10 +169,10 @@ async function getWeekTimetableFromCache(
     },
     orderBy: { updatedAt: "desc" },
   });
-  if (timetable?.data)
+  if (timetable?.data && timetable.image)
     return {
       timetable: timetable.data as object as WeekTimetable,
-      image: timetable.image,
+      image: Buffer.from(timetable.image, "base64"),
     };
 
   return null;
@@ -188,7 +191,9 @@ async function getWeekTimetable(
 ) {
   const weekNumber = week || getWeekFromDate(new Date());
   if (opts && opts?.groupId === user.groupId) opts.groupId = undefined;
-  if (!opts?.ignoreCached && !opts?.forceUpdate) {
+  if (opts?.forceUpdate) opts.ignoreCached = true;
+
+  if (!opts?.ignoreCached) {
     const cached = await getWeekTimetableFromCache(
       user,
       weekNumber,
@@ -199,9 +204,10 @@ async function getWeekTimetable(
       return cached.timetable;
     }
   }
-  const Week = opts?.groupId
-    ? await getDbWeekForFGroup(opts.groupId)
-    : await getDbWeek({ user, week });
+  const Week =
+    opts?.groupId && opts.groupId !== user.groupId
+      ? await getDbWeekForFGroup(opts.groupId)
+      : await getDbWeek({ user, week });
   if (!Week) {
     log.debug("Requested uncached week. Updating", { user: user.id });
     await updateWeekForUser(user, weekNumber, {
@@ -213,6 +219,13 @@ async function getWeekTimetable(
     await updateWeekForUser(user, weekNumber, {
       groupId: opts?.groupId ?? undefined,
     });
+  } else if (opts?.forceUpdate) {
+    log.debug("Requested forceUpdate. Updating week", { user: user.id });
+    await updateWeekForUser(user, weekNumber, {
+      groupId: opts?.groupId ?? undefined,
+    });
+  } else {
+    log.debug("Week Timetable looks good.", { user: user.id });
   }
   log.debug(`${Week?.id ?? "[uncached]"} Generating timetable`, {
     user: user.id,
@@ -654,7 +667,7 @@ async function updateWeekForUser(
         date: date,
         beginTime: new Date(date.getTime() + timeslot.beginDelta),
         endTime: new Date(date.getTime() + timeslot.endDelta),
-        validUntil: new Date(date.getTime() + 2592000), // 30 days
+        validUntil: new Date(date.getTime() + 2592000_000), // 30 days. Let Week updates and others handle invalidation
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
             ? {
@@ -749,5 +762,5 @@ export const schedule = {
   updateWeekForUser,
   updateWeekRangeForUser,
   getWeekTimetable,
-  getTimetableImage,
+  getTimetableWithImage,
 };

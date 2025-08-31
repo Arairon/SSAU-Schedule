@@ -307,10 +307,14 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
         groupId: req.query.groupId,
         groupName: req.query.group,
       });
-      const timetable = await schedule.getTimetableImage(user, req.query.week, {
-        ignoreCached: req.query.ignoreCached,
-        groupId: group?.id || undefined,
-      });
+      const timetable = await schedule.getTimetableWithImage(
+        user,
+        req.query.week,
+        {
+          ignoreCached: req.query.ignoreCached,
+          groupId: group?.id || undefined,
+        },
+      );
       res.status(200).send(timetable);
     },
   );
@@ -341,7 +345,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
     },
     async (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
       const user = await db.user.findUnique({ where: { id: req.params.n1 } });
-      const timetable = await schedule.getTimetableImage(user!, 3, {
+      const timetable = await schedule.getTimetableWithImage(user!, 3, {
         //groupId: 531023227,
       });
       return res

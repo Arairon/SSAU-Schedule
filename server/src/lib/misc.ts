@@ -65,7 +65,7 @@ type GroupTeacherSearchResponse = {
   text: string;
 };
 export async function findGroupOrTeacherInSsau(
-  text: string
+  text: string,
 ): Promise<GroupTeacherSearchResponse[]> {
   log.debug(`Trying to find '${text}' in ssau.ru/rasp`);
   try {
@@ -91,7 +91,7 @@ export async function findGroupOrTeacherInSsau(
           Cookie: cookies.join(";"),
         },
         withCredentials: true,
-      }
+      },
     );
     return resp.data;
   } catch {
@@ -104,19 +104,43 @@ export async function findGroup(
   inp: { groupName?: string; groupId?: number } & (
     | { groupName: string }
     | { groupId: number }
-  )
+  ),
+) {
+  const group = await findGroupOrOptions(inp);
+  if (Array.isArray(group)) {
+    if (group.length === 1) return group[0];
+  } else {
+    return group;
+  }
+  return null;
+}
+
+export async function findGroupOrOptions(
+  inp: { groupName?: string; groupId?: number } & (
+    | { groupName: string }
+    | { groupId: number }
+  ),
 ) {
   if (inp.groupId) {
     const group = await db.group.findUnique({ where: { id: inp.groupId } });
     if (group) return group;
   }
   if (inp.groupName) {
-    const existingGroup = await db.group.findFirst({
-      where: { name: { startsWith: inp.groupName } },
-    });
-    if (existingGroup) return existingGroup;
-    const possibleGroups = await findGroupOrTeacherInSsau(inp.groupName);
-    if (possibleGroups.length === 1) return possibleGroups[0];
+    const name = inp.groupName.trim();
+    if (name.length >= 11) {
+      // 6101-090301 (D optional)
+      const existingGroup = await db.group.findFirst({
+        where: { name: { startsWith: name } },
+      });
+      if (existingGroup) return existingGroup;
+    } else {
+      const existingGroup = await db.group.findFirst({
+        where: { name: name },
+      });
+      if (existingGroup) return existingGroup;
+    }
+    const possibleGroups = await findGroupOrTeacherInSsau(name);
+    return possibleGroups;
   }
   return null;
 }

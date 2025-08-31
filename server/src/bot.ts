@@ -12,6 +12,8 @@ import { lk } from "./lib/lk";
 import { getPersonShortname, getWeekFromDate } from "./lib/utils";
 import { loginScene } from "./scenes/login";
 import { schedule } from "./lib/schedule";
+import { Message } from "telegraf/types";
+import { findGroup, findGroupOrOptions } from "./lib/misc";
 
 function getDefaultSession(): Session {
   return {
@@ -58,8 +60,8 @@ export function deleteTempMessages(ctx: Context, event: string) {
           (wildcardEvent && msg.deleteOn.find((ev) => ev.startsWith(event))) ||
           msg.deleteOn.find(
             (ev) =>
-              ev.endsWith("*") && event.startsWith(ev.slice(0, ev.length - 1))
-          ))
+              ev.endsWith("*") && event.startsWith(ev.slice(0, ev.length - 1)),
+          )),
     )
     .map((msg) => msg.id);
 
@@ -69,13 +71,69 @@ export function deleteTempMessages(ctx: Context, event: string) {
     if (!uniqueTargets.includes(msg)) uniqueTargets.push(msg);
   }
   ctx.session.tempMessages = ctx.session.tempMessages.filter(
-    (msg) => !uniqueTargets.includes(msg.id)
+    (msg) => !uniqueTargets.includes(msg.id),
   );
   console.log(target, event);
   if (uniqueTargets.length > 0) ctx.deleteMessages(uniqueTargets);
 }
 
 const stage = new Scenes.Stage([loginScene]);
+
+async function sendTimetable(
+  ctx: Context,
+  week: number,
+  opts?: { groupId?: number; ignoreCached?: boolean; forceUpdate?: boolean },
+) {
+  if (!ctx?.from?.id) {
+    log.error(
+      `Some otherwordly being requested a timetable... ${JSON.stringify(ctx)}`,
+    );
+    return;
+  }
+  if (week < 0 || week > 52) return;
+  const user = await db.user.findUnique({ where: { id: ctx.from.id } });
+  const group =
+    opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
+  if (ctx.session.scheduleViewer.message) {
+    ctx.deleteMessage(ctx.session.scheduleViewer.message);
+  }
+
+  const temp: { msg: Message.TextMessage | null } = { msg: null };
+  const tempMsgTimeout = setTimeout(async () => {
+    temp.msg = await ctx.reply("Создание изображения...");
+  }, 100);
+
+  const timetable = await schedule.getTimetableWithImage(user!, week, {
+    groupId: group,
+    forceUpdate: opts?.forceUpdate ?? undefined,
+  });
+
+  clearTimeout(tempMsgTimeout);
+  if (temp.msg) {
+    ctx.deleteMessage(temp.msg.message_id);
+  }
+  const msg = await ctx.replyWithPhoto(
+    { source: timetable.image },
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback("⬅️", "schedule_button_prev"),
+        Markup.button.callback("🔄", "schedule_button_refresh"),
+        Markup.button.callback("➡️", "schedule_button_next"),
+      ],
+      ctx.from.id === env.SCHED_BOT_ADMIN_TGID
+        ? [
+            Markup.button.callback(
+              "[admin] Обновить насильно",
+              "schedule_button_forceupdate",
+            ),
+          ]
+        : [],
+    ]),
+  );
+  ctx.session.scheduleViewer.message = msg.message_id;
+  ctx.session.scheduleViewer.week = timetable.timetable.week;
+  ctx.session.scheduleViewer.groupId = timetable.timetable.groupId;
+}
 
 async function init_bot(bot: Telegraf<Context>) {
   bot.launch(() => log.info("Bot started!"));
@@ -107,7 +165,7 @@ async function init_bot(bot: Telegraf<Context>) {
         Markup.inlineKeyboard([
           Markup.button.callback("Отмена", "start_reset_cancel"),
           Markup.button.callback("Да, сбросить", "start_reset_confirm"),
-        ])
+        ]),
       );
 
       ctx.session.tempMessages.push({
@@ -168,7 +226,7 @@ async function init_bot(bot: Telegraf<Context>) {
     const user = await db.user.findUnique({ where: { id: ctx.from.id } })!;
     await lk.resetAuth(user!, { resetCredentials: true });
     const msg = await ctx.reply(
-      fmt`Сессия завершена, а данные для входа удалены (если были).`
+      fmt`Сессия завершена, а данные для входа удалены (если были).`,
     );
     ctx.session.tempMessages.push({
       id: msg.message_id,
@@ -183,8 +241,48 @@ async function init_bot(bot: Telegraf<Context>) {
   });
 
   bot.command("schedule", async (ctx) => {
-    const user = await db.user.findUnique({ where: { id: ctx.from.id } });
-    const timetable = await schedule.getWeekTimetable(user!, 0);
+    sendTimetable(ctx, 0);
+  });
+
+  bot.action("schedule_button_next", async (ctx) => {
+    const week = ctx.session.scheduleViewer.week + 1;
+    sendTimetable(ctx, week);
+  });
+
+  bot.action("schedule_button_prev", async (ctx) => {
+    const week = ctx.session.scheduleViewer.week - 1;
+    sendTimetable(ctx, week);
+  });
+
+  bot.action("schedule_button_refresh", async (ctx) => {
+    const week = ctx.session.scheduleViewer.week;
+    sendTimetable(ctx, week);
+  });
+
+  bot.action("schedule_button_forceupdate", async (ctx) => {
+    const week = ctx.session.scheduleViewer.week;
+    sendTimetable(ctx, week, { forceUpdate: true });
+  });
+
+  bot.hears(/\d{4}(?:-\d+)?D?/, async (ctx) => {
+    const group = await findGroupOrOptions({
+      groupName: ctx.message.text.trim(),
+    });
+    if (!group || (Array.isArray(group) && group.length === 0)) {
+      ctx.reply("Группа или похожие на неё группы на найдены");
+      return;
+    }
+    if (Array.isArray(group)) {
+      if (group.length === 1) {
+        sendTimetable(ctx, 0, { groupId: group[0].id });
+      } else {
+        ctx.reply(
+          `Найдены следующие группы:\n${group.map((gr) => gr.text).join(", ")}`,
+        );
+      }
+      return;
+    }
+    sendTimetable(ctx, 0, { groupId: group.id });
   });
 
   bot.on(message("text"), async (ctx) => {
@@ -212,7 +310,7 @@ async function init(fastify: FastifyInstance) {
         bot.use(
           session({
             defaultSession: getDefaultSession,
-          })
+          }),
         );
 
         await init_bot(bot);
@@ -221,11 +319,11 @@ async function init(fastify: FastifyInstance) {
       },
       {
         name: "arais-sched-bot",
-      }
+      },
     ),
     {
       token: TOKEN,
-    }
+    },
   );
 
   return fastify;
