@@ -11,11 +11,14 @@ export type Message = {
 export interface SceneSession extends Scenes.SceneSessionData {}
 
 export interface Session extends SceneSession {
-  lastMessage?: TGMessage.TextMessage;
   tempMessages: { id: number; deleteAfter?: Date; deleteOn?: string[] }[];
-  flags: string[];
   sceneData: any;
   loggedIn: boolean;
+  scheduleViewer: {
+    message: number;
+    week: number;
+    groupId?: number;
+  };
 }
 
 export interface Context extends TelegrafContext<Update> {

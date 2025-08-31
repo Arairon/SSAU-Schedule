@@ -142,8 +142,13 @@ model CachedWeekTimetable {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     Int
   groupId    Int?
+  // handle ietless
   weekNumber Int
   validUntil DateTime
   lessons    Lesson[]
   data       Json
+  image      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
 }

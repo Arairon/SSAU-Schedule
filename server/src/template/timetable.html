@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="./timetable.css">
+  <meta charset="UTF-8">
+</head>
+
+<body class="bg-black flex flex-col gap-2 w-full items-stretch p-2">
+  <header class="bg-white rounded-lg items-center flex flex-col p-1">
+    <a class="text-lg font-bold">Моё расписание, X неделя</a>
+  </header>
+  <nav class="flex flex-row justify-between gap-2 font-bold text-center">
+    <div class="bg-green-400 rounded-lg flex-1 p-1">Лекция</div>
+    <div class="bg-red-400 rounded-lg flex-1 p-1">Практика</div>
+    <div class="bg-purple-500 rounded-lg flex-1 p-1">Лабораторная</div>
+    <div class="bg-orange-400 rounded-lg flex-1 p-1">Прочее</div>
+    <div class="bg-pink-500 rounded-lg flex-1 p-1">Курсовая</div>
+    <!-- <div class="bg-blue-400 rounded-lg flex-1 p-1">Консультация</div>
+      <div class="bg-black rounded-lg flex-1 p-1 text-white outline-2 ountline-white">Экзамен</div> -->
+  </nav>
+  <main class="grid gap-1 text-md leading-5 text-center grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] grid-rows-auto">
+    <!-- Rows is dynamic: max lessonCount+1 -->
+    <!-- Row 1: Weekdays -->
+    <div class="bg-cyan-400 rounded-lg font-bold p-2 flex flex-col justify-center">
+      Время
+    </div>
+    <div class="bg-cyan-400 rounded-lg font-bold p-2">
+      Пн 01.09
+    </div>
+    <div class="bg-cyan-400 rounded-lg font-bold p-2">
+      Вт 02.09
+    </div>
+    <div class="bg-cyan-400 rounded-lg font-bold p-2">
+      Ср 03.09
+    </div>
+    <div class="bg-cyan-400 rounded-lg font-bold p-2">
+      Чт 01.09
+    </div>
+    <div class="bg-cyan-400 rounded-lg font-bold p-2">
+      Пт 01.09
+    </div>
+    <div class="bg-cyan-400 rounded-lg font-bold p-2">
+      Сб 01.09
+    </div>
+    <!-- Row 2+: lessons. First col is time-->
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      08:00
+      <hr>09:35
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Компьютерная графика</p>
+          <hr class="my-1">
+          <p>Кудрина М.А.</p>
+          <p class="w-full flex flex-row font-bold">
+            <a class=" flex-1 grow">14 - 423</a>
+            <a>Подгруппа: 1</a>
+          </p>
+          <p class="text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left">
+            <a>6101-090301D</a>
+            <a>6102-090301D</a>
+            <a>6103-090301D</a>
+            <a>6104-090301D</a>
+            <a>6105-090301D</a>
+            <a>6106-090301D</a>
+          </p>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Компьютерная графика</p>
+          <hr class="my-1">
+          <p>Кудрина М.А.</p>
+          <p class="w-full flex flex-row font-bold">
+          <a class=" flex-1 grow">14 - 423</a>
+          <a>Подгруппа: 1</a>
+          </p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-red-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Компьютерная графика</p>
+          <hr class="my-1">
+          <p>Кудрина М.А.</p>
+          <p class="w-full flex flex-row font-bold">
+            <a class=" flex-1 grow">14 - 423</a>
+            <a>Подгруппа: 1</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white/90 border-black border-2 border-dashed rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl hidden"></div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      08:00
+      <hr>09:35
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      08:00
+      <hr>09:35
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      08:00
+      <hr>09:35
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg px-1 py-2">
+      <div class="bg-green-400 p-1 rounded-xl"></div>
+      <div class="px-1 text-left">
+        <p class="font-bold">Компьютерная графика</p>
+        <hr class="my-1">
+        <p>Кудрина М.А.</p>
+        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+      </div>
+    </div>
+
+  </main>
+</body>
+
+</html>

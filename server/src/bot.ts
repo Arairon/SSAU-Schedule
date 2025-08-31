@@ -9,16 +9,20 @@ import log from "./logger";
 import { db } from "./db";
 import { fmt } from "telegraf/format";
 import { lk } from "./lib/lk";
-import { getPersonShortname } from "./lib/utils";
+import { getPersonShortname, getWeekFromDate } from "./lib/utils";
 import { loginScene } from "./scenes/login";
+import { schedule } from "./lib/schedule";
 
 function getDefaultSession(): Session {
   return {
-    lastMessage: undefined,
     tempMessages: [],
-    flags: [],
     sceneData: {},
     loggedIn: false,
+    scheduleViewer: {
+      message: 0,
+      week: 0,
+      groupId: undefined,
+    },
   };
 }
 
@@ -90,11 +94,11 @@ async function init_bot(bot: Telegraf<Context>) {
     if (!existingUser) {
       start(ctx, userId);
     } else {
-      // ctx.session.tempMessages.push({
-      //   id: ctx.message.message_id,
-      //   deleteAfter: new Date(Date.now() + 300_000),
-      //   deleteOn: ["start_reset_cancel"],
-      // });
+      ctx.session.tempMessages.push({
+        id: ctx.message.message_id,
+        deleteAfter: new Date(Date.now() + 300_000),
+        deleteOn: ["start_reset_cancel"],
+      });
       const msg = await ctx.reply(
         fmt`
 Вы уверены что хотите сбросить все настройки?
@@ -106,11 +110,11 @@ async function init_bot(bot: Telegraf<Context>) {
         ])
       );
 
-      // ctx.session.tempMessages.push({
-      //   id: msg.message_id,
-      //   deleteAfter: new Date(Date.now() + 300_000),
-      //   deleteOn: ["start_reset_*"],
-      // });
+      ctx.session.tempMessages.push({
+        id: msg.message_id,
+        deleteAfter: new Date(Date.now() + 300_000),
+        deleteOn: ["start_reset_*"],
+      });
     }
   });
 
@@ -128,33 +132,31 @@ async function init_bot(bot: Telegraf<Context>) {
   });
 
   bot.command("login", async (ctx) => {
-    if (ctx.session.loggedIn) {
-      const user = await db.user.findUnique({ where: { id: ctx.from.id } })!;
-      if (user) {
-        if (user.username && user.password) {
-          const msg = await ctx.reply(fmt`
+    const user = await db.user.findUnique({ where: { id: ctx.from.id } })!;
+    if (user) {
+      ctx.session.loggedIn = true;
+      if (user.username && user.password) {
+        const msg = await ctx.reply(fmt`
 Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.
 Если вы хотите выйти - используйте /logout
       `);
-          // ctx.session.tempMessages.push({
-          //   id: msg.message_id,
-          //   deleteAfter: new Date(Date.now() + 60_000),
-          // });
-          return;
-        }
-        if (user.authCookie && user.sessionExpiresAt > new Date()) {
-          const msg = await ctx.reply(fmt`
+        ctx.session.tempMessages.push({
+          id: msg.message_id,
+          deleteAfter: new Date(Date.now() + 60_000),
+        });
+        return;
+      }
+      if (user.authCookie && user.sessionExpiresAt > new Date()) {
+        const msg = await ctx.reply(fmt`
 Ваша сессия как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}' всё ещё активна.
 Если вы хотите её прервать, используйте /logout
       `);
-          // ctx.session.tempMessages.push({
-          //   id: msg.message_id,
-          //   deleteAfter: new Date(Date.now() + 60_000),
-          // });
-          return;
-        }
+        ctx.session.tempMessages.push({
+          id: msg.message_id,
+          deleteAfter: new Date(Date.now() + 60_000),
+        });
+        return;
       }
-      return;
     }
     deleteTempMessages(ctx, "scene_enter");
     deleteTempMessages(ctx, "login");
@@ -178,6 +180,11 @@ async function init_bot(bot: Telegraf<Context>) {
     log.debug(JSON.stringify(ctx.scene.current));
     deleteTempMessages(ctx, "scene_*");
     ctx.scene.leave();
+  });
+
+  bot.command("schedule", async (ctx) => {
+    const user = await db.user.findUnique({ where: { id: ctx.from.id } });
+    const timetable = await schedule.getWeekTimetable(user!, 0);
   });
 
   bot.on(message("text"), async (ctx) => {

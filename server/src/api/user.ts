@@ -41,7 +41,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
         });
       log.info(`User created`, { user: user.id });
       return res.status(200).send();
-    }
+    },
   );
 
   fastify.get(
@@ -56,7 +56,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
           return res;
         });
       res.status(200).send(info);
-    }
+    },
   );
 
   fastify.post(
@@ -116,9 +116,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       return res.status(200).send(
         Object.assign({}, user, {
           password: "[redacted]",
-        })
+        }),
       );
-    }
+    },
   );
 
   fastify.post(
@@ -152,9 +152,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       return res.status(200).send(
         Object.assign({}, user, {
           password: "[redacted]",
-        })
+        }),
       );
-    }
+    },
   );
 
   fastify.get(
@@ -176,9 +176,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       return res.status(200).send(
         Object.assign({}, user, {
           password: "[redacted]",
-        })
+        }),
       );
-    }
+    },
   );
 
   fastify.post(
@@ -201,7 +201,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
         Params: { userId: number };
         Querystring: { week: string; group: string; groupId: number };
       }>,
-      res
+      res,
     ) => {
       const userId = req.params.userId;
       const weeks: number[] = (req.query.week ?? "0")
@@ -217,7 +217,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
         groupId: group?.id || undefined,
       });
       res.status(200).send(upd);
-    }
+    },
   );
 
   fastify.get(
@@ -246,7 +246,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
           ignoreCached: boolean;
         };
       }>,
-      res
+      res,
     ) => {
       const userId = req.params.userId;
       const user = await db.user.findUnique({ where: { id: userId } });
@@ -264,20 +264,74 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
         groupId: group?.id || undefined,
       });
       res.status(200).send(timetable);
-    }
+    },
+  );
+
+  fastify.get(
+    "/api/user/:userId/schedule/image",
+    {
+      schema: {
+        params: userIdParamSchema,
+        querystring: {
+          type: "object",
+          properties: {
+            week: { type: "number", default: 0, minimum: 0, maximum: 52 },
+            group: { type: "string", default: "" },
+            groupId: { type: "number", default: 0 },
+            ignoreCached: { type: "boolean", default: false },
+          },
+        },
+      },
+    },
+    async (
+      req: FastifyRequest<{
+        Params: { userId: number };
+        Querystring: {
+          week: number;
+          group: string;
+          groupId: number;
+          ignoreCached: boolean;
+        };
+      }>,
+      res,
+    ) => {
+      const userId = req.params.userId;
+      const user = await db.user.findUnique({ where: { id: userId } });
+      if (!user)
+        return res.status(404).send({
+          error: "user not found",
+          message: "Cannot find specified user",
+        });
+      const group = await findGroup({
+        groupId: req.query.groupId,
+        groupName: req.query.group,
+      });
+      const timetable = await schedule.getTimetableImage(user, req.query.week, {
+        ignoreCached: req.query.ignoreCached,
+        groupId: group?.id || undefined,
+      });
+      res.status(200).send(timetable);
+    },
   );
 
   fastify.get("/api/debug/now", (req, res) => res.send([new Date()]));
   fastify.get(
-    "/api/debug/getWeekNumber/:n1",
+    "/api/debug/image/:n1",
     {
       schema: {
         params: { type: "object", properties: { n1: { type: "number" } } },
       },
     },
-    (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
-      return res.status(200).send(getWeekFromDate(new Date(req.params.n1)));
-    }
+    async (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
+      const user = await db.user.findUnique({ where: { id: req.params.n1 } });
+      const timetable = await schedule.getTimetableImage(user!, 3, {
+        //groupId: 531023227,
+      });
+      return res
+        .status(200)
+        .header("content-type", "text/html")
+        .send(timetable.image);
+    },
   );
   fastify.get(
     "/api/debug/getDate/:n1/:n2",
@@ -292,7 +346,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
     (req: FastifyRequest<{ Params: { n1: number; n2: number } }>, res) => {
       const { n1, n2 } = req.params;
       return res.status(200).send(getLessonDate(n1, n2));
-    }
+    },
   );
 }
 

@@ -16,6 +16,7 @@ import {
   ensureGroupExists,
   ensureTeacherExists,
 } from "./misc";
+import { generateTimetableImage } from "./scheduleImage";
 
 function getCurrentYearId() {
   const today = new Date();
@@ -28,7 +29,7 @@ async function getWeekLessons(
   user: User,
   week: number,
   groupId?: number,
-  opts?: { ignoreIet?: boolean }
+  opts?: { ignoreIet?: boolean },
 ) {
   const lessons = await db.lesson.findMany({
     where: {
@@ -37,7 +38,7 @@ async function getWeekLessons(
       groups: { some: { id: groupId ?? user.groupId! } },
       isIet: false,
     },
-    include: { groups: true },
+    include: { groups: true, teacher: true },
   });
   if (!opts?.ignoreIet || groupId !== user.groupId)
     return { lessons, ietLessons: [], all: lessons };
@@ -49,15 +50,16 @@ async function getWeekLessons(
       flows: { some: { user: { some: { id: user.id } } } },
       isIet: true,
     },
-    include: { flows: true },
+    include: { flows: true, teacher: true },
   });
   return { lessons, ietLessons, all: [...lessons, ...ietLessons] };
 }
 
-type TimetableLesson = {
+export type TimetableLesson = {
   id: number;
   type: $Enums.LessonType;
   discipline: string;
+  teacher: string;
   isOnline: boolean;
   building: string | null;
   room: string | null;
@@ -69,10 +71,10 @@ type TimetableLesson = {
   beginTime: Date;
   endTime: Date;
   conferenceUrl: string | null;
-  alts: number[];
+  alts: TimetableLesson[];
 };
 
-type WeekTimetableDay = {
+export type WeekTimetableDay = {
   user: number;
   week: number;
   weekday: number;
@@ -82,16 +84,74 @@ type WeekTimetableDay = {
   lessonCount: number;
 };
 
-type WeekTimetable = {
+export type WeekTimetable = {
   user: number;
   week: number;
   days: WeekTimetableDay[];
 };
 
+async function getTimetableImage(
+  user: User,
+  week: number,
+  opts?: {
+    ignoreCached?: boolean;
+    dontCache?: boolean;
+    forceUpdate?: boolean;
+    ignoreIet?: boolean;
+    groupId?: number;
+  },
+) {
+  const weekNumber = week || getWeekFromDate(new Date());
+  if (opts && opts?.groupId === user.groupId) opts.groupId = undefined;
+  // if (!opts?.ignoreCached && !opts?.forceUpdate) {
+  //   const cachedImage = await getWeekTimetableFromCache(
+  //     user,
+  //     weekNumber,
+  //     opts?.groupId ?? user.groupId ?? undefined,
+  //     { requireImage: true }
+  //   );
+  //   if (cachedImage) {
+  //     log.debug("Timetable Image good enough. Returning cached", {
+  //       user: user.id,
+  //     });
+  //     return cachedImage;
+  //   }
+  // }
+  const timetable = await getWeekTimetable(user, week, opts);
+  const image = await generateTimetableImage(timetable);
+
+  if (!opts?.dontCache) {
+    const existing = await db.cachedWeekTimetable.findFirst({
+      where: {
+        userId: user.id,
+        weekNumber: weekNumber,
+        validUntil: { gt: new Date() },
+      },
+    });
+    if (existing)
+      await db.cachedWeekTimetable.update({
+        where: { id: existing.id },
+        data: { validUntil: new Date() },
+      });
+    await db.cachedWeekTimetable.create({
+      data: {
+        userId: user.id,
+        weekNumber: weekNumber,
+        validUntil: new Date(Date.now() + 604800_000), // 7 days
+        data: timetable,
+        image: image,
+        groupId: opts?.groupId ?? user.groupId,
+      },
+    });
+  }
+  return { timetable, image };
+}
+
 async function getWeekTimetableFromCache(
   user: User,
   week: number,
-  groupId?: number
+  groupId?: number,
+  opts?: { requireImage?: boolean },
 ) {
   const timetable = await db.cachedWeekTimetable.findFirst({
     where: {
@@ -99,9 +159,16 @@ async function getWeekTimetableFromCache(
       weekNumber: week,
       groupId: groupId || undefined,
       validUntil: { gt: new Date() },
+      image: opts?.requireImage ? { not: null } : undefined,
     },
+    orderBy: { updatedAt: "desc" },
   });
-  if (timetable?.data) return timetable.data as object as WeekTimetable;
+  if (timetable?.data)
+    return {
+      timetable: timetable.data as object as WeekTimetable,
+      image: timetable.image,
+    };
+
   return null;
 }
 
@@ -114,18 +181,20 @@ async function getWeekTimetable(
     forceUpdate?: boolean;
     ignoreIet?: boolean;
     groupId?: number;
-  }
+  },
 ) {
   const weekNumber = week || getWeekFromDate(new Date());
   if (opts && opts?.groupId === user.groupId) opts.groupId = undefined;
   if (!opts?.ignoreCached && !opts?.forceUpdate) {
-    log.debug("Timetable good enough. Returning cached", { user: user.id });
     const cached = await getWeekTimetableFromCache(
       user,
       weekNumber,
-      opts?.groupId ?? user.groupId ?? undefined
+      opts?.groupId ?? user.groupId ?? undefined,
     );
-    if (cached) return cached;
+    if (cached) {
+      log.debug("Timetable good enough. Returning cached", { user: user.id });
+      return cached.timetable;
+    }
   }
   const Week = opts?.groupId
     ? await getDbWeekForFGroup(opts.groupId)
@@ -176,6 +245,7 @@ async function getWeekTimetable(
       id: lesson.id,
       type: lesson.type,
       discipline: lesson.discipline,
+      teacher: lesson.teacher.name,
       isOnline: lesson.isOnline,
       isIet: lesson.isIet,
       building: lesson.building,
@@ -193,13 +263,13 @@ async function getWeekTimetable(
     if ("flows" in lesson) ttLesson.flows = lesson.flows.map((f) => f.name);
 
     const alts = day.lessons.filter(
-      (l) => l.dayTimeSlot === lesson.dayTimeSlot
+      (l) => l.dayTimeSlot === lesson.dayTimeSlot,
     );
     if (alts.length > 0) {
       alts.forEach((alt) => {
-        ttLesson.alts.push(alt.id);
-        alt.alts.push(ttLesson.id);
+        ttLesson.alts.push(alt);
       });
+      day.lessons = day.lessons.filter((l) => !alts.includes(l));
     } else {
       day.lessonCount += 1;
     }
@@ -248,7 +318,7 @@ async function getDbWeek(
     week?: number;
     groupId?: number;
   },
-  opts?: { update?: boolean }
+  opts?: { update?: boolean },
 ) {
   const now = new Date();
   const upd = opts?.update ? now : undefined;
@@ -296,22 +366,76 @@ function getLessonTypeEnum(type: number) {
   return LessonTypeMap[type];
 }
 
-const TimeSlotMap = [
-  { name: "00:00-00:00", beginTime: 0, endTime: 0 },
-  { name: "08:00-09:35", beginTime: 28800_000, endTime: 34500_000 },
-  { name: "09:45-11:20", beginTime: 35100_000, endTime: 40800_000 },
-  { name: "11:30-13:05", beginTime: 41400_000, endTime: 47100_000 },
-  { name: "13:30-15:05", beginTime: 48600_000, endTime: 54300_000 },
-  { name: "15:15-16:50", beginTime: 54900_000, endTime: 60600_000 },
-  { name: "17:00-18:35", beginTime: 61200_000, endTime: 66900_000 },
-  { name: "18:45-20:15", beginTime: 67500_000, endTime: 72900_000 },
-  { name: "20:25-21:55", beginTime: 73500_000, endTime: 78900_000 },
+export const TimeSlotMap = [
+  {
+    name: "00:00-00:00",
+    beginTime: "00:00",
+    endTime: "00:00",
+    beginDelta: 0,
+    endDelta: 0,
+  },
+  {
+    name: "08:00-09:35",
+    beginTime: "08:00",
+    endTime: "09:35",
+    beginDelta: 28800_000,
+    endDelta: 34500_000,
+  },
+  {
+    name: "09:45-11:20",
+    beginTime: "09:45",
+    endTime: "11:20",
+    beginDelta: 35100_000,
+    endDelta: 40800_000,
+  },
+  {
+    name: "11:30-13:05",
+    beginTime: "11:30",
+    endTime: "13:05",
+    beginDelta: 41400_000,
+    endDelta: 47100_000,
+  },
+  {
+    name: "13:30-15:05",
+    beginTime: "13:30",
+    endTime: "15:05",
+    beginDelta: 48600_000,
+    endDelta: 54300_000,
+  },
+  {
+    name: "15:15-16:50",
+    beginTime: "15:15",
+    endTime: "16:50",
+    beginDelta: 54900_000,
+    endDelta: 60600_000,
+  },
+  {
+    name: "17:00-18:35",
+    beginTime: "17:00",
+    endTime: "18:35",
+    beginDelta: 61200_000,
+    endDelta: 66900_000,
+  },
+  {
+    name: "18:45-20:15",
+    beginTime: "18:45",
+    endTime: "20:15",
+    beginDelta: 67500_000,
+    endDelta: 72900_000,
+  },
+  {
+    name: "20:25-21:55",
+    beginTime: "20:25",
+    endTime: "21:55",
+    beginDelta: 73500_000,
+    endDelta: 78900_000,
+  },
 ];
 
 async function updateWeekForUser(
   user: User,
   weekN: number,
-  opts?: { groupId?: number }
+  opts?: { groupId?: number },
 ) {
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
@@ -323,14 +447,14 @@ async function updateWeekForUser(
       week: weekNumber,
       groupId: opts?.groupId ?? user.groupId ?? undefined,
     },
-    { update: true }
+    { update: true },
   );
   if (!(await lk.ensureAuth(user))) throw new Error("Auth error");
   const someoneElsesGroup = opts?.groupId && opts.groupId !== user.groupId;
   log.debug(
     `Updating week ${week.id} (${opts?.groupId ?? user.groupId}) ` +
       (someoneElsesGroup ? "[foreign]" : ""),
-    { user: user.id }
+    { user: user.id },
   );
 
   const res = await axios.get(
@@ -345,7 +469,7 @@ async function updateWeekForUser(
         groupId: someoneElsesGroup ? opts.groupId : user.groupId,
         userType: "student",
       },
-    }
+    },
   );
   const {
     success,
@@ -355,7 +479,7 @@ async function updateWeekForUser(
   if (error) {
     log.error(
       `Error receiving schedule. ${getCurrentYearId()}/${weekNumber}/${user.groupId}`,
-      { user: user.id }
+      { user: user.id },
     );
     log.error(JSON.stringify(error));
     return;
@@ -402,7 +526,7 @@ async function updateWeekForUser(
       if (group.subgroup !== info.subgroup) {
         log.error(
           `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
-          { user: user.id }
+          { user: user.id },
         );
         info.subgroup = null;
       }
@@ -412,7 +536,7 @@ async function updateWeekForUser(
     if (info.type === LessonType.Unknown) {
       log.error(
         `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
-        { user: user.id }
+        { user: user.id },
       );
     }
 
@@ -420,7 +544,7 @@ async function updateWeekForUser(
     if (lessonList.teachers.length > 1) {
       log.error(
         `SSAU Strikes again! Apparently there can be multiple teachers on a lesson: ${JSON.stringify(lessonList)}`,
-        { user: user.id }
+        { user: user.id },
       );
     }
 
@@ -439,8 +563,8 @@ async function updateWeekForUser(
         room: lessonInfo.room?.name,
         weekNumber: lessonInfo.week,
         date: date,
-        beginTime: new Date(date.getTime() + timeslot.beginTime),
-        endTime: new Date(date.getTime() + timeslot.endTime),
+        beginTime: new Date(date.getTime() + timeslot.beginDelta),
+        endTime: new Date(date.getTime() + timeslot.endDelta),
         validUntil: new Date(now.getTime() + 2592000), // 30 days from now
       };
       Object.assign(lesson, info);
@@ -484,7 +608,7 @@ async function updateWeekForUser(
       if (flow.subgroup !== info.subgroup) {
         log.error(
           `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
-          { user: user.id }
+          { user: user.id },
         );
         info.subgroup = null;
       }
@@ -494,7 +618,7 @@ async function updateWeekForUser(
     if (info.type === LessonType.Unknown) {
       log.error(
         `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
-        { user: user.id }
+        { user: user.id },
       );
     }
 
@@ -502,7 +626,7 @@ async function updateWeekForUser(
     if (lessonList.teachers.length > 1) {
       log.error(
         `SSAU Strikes again! Apparently there can be multiple teachers on a lesson: ${JSON.stringify(lessonList)}`,
-        { user: user.id }
+        { user: user.id },
       );
     }
 
@@ -522,8 +646,8 @@ async function updateWeekForUser(
         room: lessonInfo.room?.name,
         weekNumber: lessonInfo.week,
         date: date,
-        beginTime: new Date(date.getTime() + timeslot.beginTime),
-        endTime: new Date(date.getTime() + timeslot.endTime),
+        beginTime: new Date(date.getTime() + timeslot.beginDelta),
+        endTime: new Date(date.getTime() + timeslot.endDelta),
         validUntil: new Date(date.getTime() + 2592000), // 30 days
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
@@ -602,7 +726,7 @@ async function updateWeekRangeForUser(
     user?: User;
     userId?: number;
     groupId?: number;
-  } & ({ user: User } | { userId: number })
+  } & ({ user: User } | { userId: number }),
 ) {
   const user =
     opts.user ?? (await db.user.findUnique({ where: { id: opts.userId } }));
@@ -619,4 +743,5 @@ export const schedule = {
   updateWeekForUser,
   updateWeekRangeForUser,
   getWeekTimetable,
+  getTimetableImage,
 };

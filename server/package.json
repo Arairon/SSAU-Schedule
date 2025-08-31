@@ -11,7 +11,9 @@
     "build": "npx tsc",
     "dev": "pnpx nodemon",
     "start": "node dist/index.js",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache"
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
+    "css": "pnpx @tailwindcss/cli -i src/template/base.css -o src/template/timetable.css --minify",
+    "css:watch": "pnpx @tailwindcss/cli -i src/template/base.css -o src/template/timetable.css --watch --minify"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +29,7 @@
     "fastify": "^5.5.0",
     "fastify-plugin": "^5.0.1",
     "jsonwebtoken": "^9.0.2",
+    "node-html-to-image": "^5.0.0",
     "pino": "^9.9.0",
     "pino-pretty": "^13.1.1",
     "telegraf": "^4.16.3",
@@ -36,11 +39,13 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.1.12",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.3.0",
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
     "prisma": "^6.15.0",
+    "tailwindcss": "^4.1.12",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0"
   }
