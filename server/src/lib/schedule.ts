@@ -2,6 +2,7 @@ import { $Enums, Lesson, LessonType, User } from "@prisma/client";
 import axios from "axios";
 import {
   FIRST_STUDY_DAY,
+  formatSentence,
   getLessonDate,
   getPersonShortname,
   getWeekFromDate,
@@ -263,7 +264,7 @@ async function getWeekTimetable(
     const ttLesson: TimetableLesson = {
       id: lesson.id,
       type: lesson.type,
-      discipline: lesson.discipline,
+      discipline: formatSentence(lesson.discipline),
       teacher: lesson.teacher.name,
       isOnline: lesson.isOnline,
       isIet: lesson.isIet,
@@ -538,10 +539,12 @@ async function updateWeekForUser(
   const updatedLessons: number[] = [];
   const lessonsInThisWeek: number[] = [];
   log.debug("Updating lessons", { user: user.id });
+
+  const lessonValidUntilDate = new Date(now.getTime() + 2592000_000); // 30 days from now
   for (const lessonList of weekSched.lessons) {
     // Create shared info for all lessons in list
     const info = {
-      discipline: lessonList.discipline.name,
+      discipline: formatSentence(lessonList.discipline.name),
       conferenceUrl: lessonList.conference?.url,
       weekday: lessonList.weekday.id,
       teacherId: lessonList.teachers[0].id,
@@ -603,7 +606,7 @@ async function updateWeekForUser(
         date: date,
         beginTime: new Date(date.getTime() + timeslot.beginDelta),
         endTime: new Date(date.getTime() + timeslot.endDelta),
-        validUntil: new Date(now.getTime() + 2592000), // 30 days from now
+        validUntil: lessonValidUntilDate, // 30 days from now
       };
       Object.assign(lesson, info);
 
@@ -623,7 +626,7 @@ async function updateWeekForUser(
   for (const lessonList of weekSched.ietLessons) {
     // Create shared info for all lessons in list
     const info = {
-      discipline: lessonList.flows[0].discipline.name,
+      discipline: formatSentence(lessonList.flows[0].discipline.name),
       conferenceUrl: lessonList.conference?.url,
       weekday: lessonList.weekday.id,
       teacherId: lessonList.teachers[0].id,
@@ -686,7 +689,7 @@ async function updateWeekForUser(
         date: date,
         beginTime: new Date(date.getTime() + timeslot.beginDelta),
         endTime: new Date(date.getTime() + timeslot.endDelta),
-        validUntil: new Date(date.getTime() + 2592000_000), // 30 days. Let Week updates and others handle invalidation
+        validUntil: lessonValidUntilDate, // 30 days. Let Week updates and others handle invalidation
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
             ? {

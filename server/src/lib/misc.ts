@@ -5,6 +5,20 @@ import { TeacherType } from "./scheduleSchemas";
 import { getPersonShortname } from "./utils";
 import log from "../logger";
 
+export const LessonTypeName: Record<string, string> = {
+  Lection: "Лекция",
+  Practice: "Практика",
+  Lab: "Лабораторная",
+  Other: "Другое",
+  Military: "Воен. Каф.",
+  Window: "Окно",
+  Exam: "Экзамен",
+  Consult: "Консультация",
+  CourseWork: "Курсовая",
+  Test: "Тест",
+  Unknown: "Неизвестно",
+};
+
 export async function ensureGroupExists(group: {
   id: number;
   name: string;

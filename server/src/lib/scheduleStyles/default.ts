@@ -14,7 +14,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-green-400 rounded-lg",
       barColor: "bg-green-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -26,7 +26,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-red-400 rounded-lg",
       barColor: "bg-red-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -38,7 +38,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-purple-500 rounded-lg",
       barColor: "bg-purple-500",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -50,7 +50,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-orange-400 rounded-lg",
       barColor: "bg-orange-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -62,7 +62,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-pink-500 rounded-lg hidden",
       barColor: "bg-pink-500",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -74,7 +74,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-blue-400 rounded-lg",
       barColor: "bg-blue-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -86,7 +86,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-black rounded-lg text-white outline-2 ountline-white",
       barColor: "bg-black",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -98,7 +98,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-gray-700 rounded-lg text-white hidden",
       barColor: "bg-gray-700",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -110,7 +110,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle: "bg-green-600 rounded-lg hidden",
       barColor: "bg-green-600",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
@@ -135,7 +135,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
         "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden",
       barColor: "bg-black",
       cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold capitalize",
+      nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",

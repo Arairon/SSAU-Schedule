@@ -53,6 +53,10 @@ export function formatBigInt(x: BigInt | number) {
   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+export function formatSentence(string: string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 export type ReturnObj<T> =
   | {
       ok: boolean;

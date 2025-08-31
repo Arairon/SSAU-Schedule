@@ -8,6 +8,7 @@ import { getLessonDate, getWeekFromDate } from "../lib/utils";
 import { schedule } from "../lib/schedule";
 import { findGroup, findGroupOrTeacherInSsau } from "../lib/misc";
 import { generateTimetableImageHtml } from "../lib/scheduleImage";
+import { getUserIcs } from "../lib/ics";
 
 async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
   const userIdParamSchema = {
@@ -315,7 +316,42 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
           groupId: group?.id || undefined,
         },
       );
-      res.status(200).send(timetable);
+      return res
+        .status(200)
+        .header("content-type", "image/png")
+        .send(timetable.image);
+    },
+  );
+
+  fastify.get(
+    "/api/user/:userId/ics",
+    {
+      schema: { params: userIdParamSchema },
+    },
+    async (
+      req: FastifyRequest<{
+        Params: { userId: number };
+        Querystring: {
+          week: number;
+          group: string;
+          groupId: number;
+          ignoreCached: boolean;
+        };
+      }>,
+      res,
+    ) => {
+      const userId = req.params.userId;
+      const user = await db.user.findUnique({ where: { id: userId } });
+      if (!user)
+        return res.status(404).send({
+          error: "user not found",
+          message: "Cannot find specified user",
+        });
+      const cal = await getUserIcs(user.id);
+      return res
+        .status(200)
+        .headers({ "content-type": "text/calendar; charset=utf-8" })
+        .send(cal);
     },
   );
 
