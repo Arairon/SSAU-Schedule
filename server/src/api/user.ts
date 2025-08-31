@@ -319,7 +319,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       return res
         .status(200)
         .header("content-type", "image/png")
-        .send(timetable.image);
+        .send(timetable.image.data);
     },
   );
 
@@ -387,7 +387,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       return res
         .status(200)
         .header("content-type", "image/png")
-        .send(timetable.image);
+        .send(timetable.image.data);
     },
   );
   fastify.get(

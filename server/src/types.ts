@@ -16,6 +16,7 @@ export interface Session extends SceneSession {
   loggedIn: boolean;
   scheduleViewer: {
     message: number;
+    chatId: number;
     week: number;
     groupId?: number;
   };

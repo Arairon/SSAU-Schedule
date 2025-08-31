@@ -1,6 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
-import { Markup, Scenes, session, Telegraf, type SessionStore } from "telegraf";
+import {
+  Input,
+  Markup,
+  Scenes,
+  session,
+  Telegraf,
+  type SessionStore,
+} from "telegraf";
 import { message } from "telegraf/filters";
 import { env } from "./env";
 
@@ -22,6 +29,7 @@ function getDefaultSession(): Session {
     loggedIn: false,
     scheduleViewer: {
       message: 0,
+      chatId: 0,
       week: 0,
       groupId: undefined,
     },
@@ -73,7 +81,7 @@ export function deleteTempMessages(ctx: Context, event: string) {
   ctx.session.tempMessages = ctx.session.tempMessages.filter(
     (msg) => !uniqueTargets.includes(msg.id),
   );
-  console.log(target, event);
+
   if (uniqueTargets.length > 0) ctx.deleteMessages(uniqueTargets);
 }
 
@@ -91,55 +99,112 @@ async function sendTimetable(
     return;
   }
   if (week < 0 || week > 52) return;
-  console.log(week, opts);
+
   const startTime = process.hrtime.bigint();
   const user = await db.user.findUnique({ where: { id: ctx.from.id } });
   const group =
     opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
-  if (ctx.session.scheduleViewer.message) {
-    ctx.deleteMessage(ctx.session.scheduleViewer.message);
-  }
 
-  const temp: { msg: Message.TextMessage | null } = { msg: null };
-  const tempMsgTimeout = setTimeout(async () => {
-    temp.msg = await ctx.reply("Создание изображения...");
-  }, 100);
+  const chatId = ctx.session.scheduleViewer.chatId || null;
+  const existingMessage = ctx.session.scheduleViewer.message || null;
+  const temp: {
+    msg: Message.TextMessage | null;
+    timeout: NodeJS.Timeout | null;
+  } = { msg: null, timeout: null };
+  if (existingMessage && chatId) {
+    temp.timeout = setTimeout(async () => {
+      await ctx.telegram.editMessageCaption(
+        chatId,
+        existingMessage,
+        undefined,
+        "Создание изображения...",
+      );
+    }, 100);
+  } else {
+    temp.timeout = setTimeout(async () => {
+      temp.msg = await ctx.reply("Создание изображения...");
+    }, 100);
+  }
 
   const timetable = await schedule.getTimetableWithImage(user!, week, {
     groupId: group,
     forceUpdate: opts?.forceUpdate ?? undefined,
   });
 
-  clearTimeout(tempMsgTimeout);
+  if (temp.timeout) clearTimeout(temp.timeout);
   if (temp.msg) {
     ctx.deleteMessage(temp.msg.message_id);
   }
-  const msg = await ctx.replyWithPhoto(
-    { source: timetable.image },
-    Markup.inlineKeyboard([
-      [
-        Markup.button.callback("⬅️", "schedule_button_prev"),
-        Markup.button.callback("🔄", "schedule_button_refresh"),
-        Markup.button.callback("➡️", "schedule_button_next"),
-      ],
-      ctx.from.id === env.SCHED_BOT_ADMIN_TGID
-        ? [
-            Markup.button.callback(
-              "[admin] Обновить насильно",
-              "schedule_button_forceupdate",
-            ),
-          ]
-        : [],
-    ]),
-  );
-  ctx.session.scheduleViewer.message = msg.message_id;
+
+  const buttonsMarkup = Markup.inlineKeyboard([
+    [
+      Markup.button.callback("⬅️", "schedule_button_prev"),
+      Markup.button.callback("🔄", "schedule_button_refresh"),
+      Markup.button.callback("➡️", "schedule_button_next"),
+    ],
+    ctx.from.id === env.SCHED_BOT_ADMIN_TGID
+      ? [
+          Markup.button.callback(
+            "[admin] Обновить насильно",
+            "schedule_button_forceupdate",
+          ),
+        ]
+      : [],
+  ]);
+
+  if (existingMessage && chatId) {
+    if (timetable.image.tgId) {
+      log.debug(
+        `Image already uploaded. Changing image inplace to ${timetable.image.tgId}`,
+        { user: ctx.from.id },
+      );
+      await ctx.telegram.editMessageMedia(
+        chatId,
+        existingMessage,
+        undefined,
+        {
+          type: "photo",
+          media: timetable.image.tgId,
+          caption: `Расписание на ${timetable.timetable.week} неделю`,
+        },
+        buttonsMarkup,
+      );
+    } else {
+      log.debug(`Image has no tgId, deleting old message and uploading new`, {
+        user: ctx.from.id,
+      });
+      ctx.deleteMessage(existingMessage);
+    }
+  } else {
+    log.debug(`Lost existing message or chatId, uploading new message`, {
+      user: ctx.from.id,
+    });
+  }
+  if (!existingMessage || !chatId || !timetable.image.tgId) {
+    const msg = await ctx.replyWithPhoto(
+      { source: timetable.image.data },
+      Object.assign({}, buttonsMarkup, {
+        caption: `Расписание на ${timetable.timetable.week} неделю`,
+      }),
+    );
+    log.debug(
+      `Uploaded new image ${msg.photo[0].file_id} from ${timetable.timetable.id}`,
+    );
+    await db.cachedWeekTimetable.update({
+      where: { id: timetable.id },
+      data: { imageTgId: msg.photo[0].file_id },
+    });
+    ctx.session.scheduleViewer.message = msg.message_id; // else keep existing
+    ctx.session.scheduleViewer.chatId = msg.chat.id;
+  }
+
   ctx.session.scheduleViewer.week = timetable.timetable.week;
   ctx.session.scheduleViewer.groupId = timetable.timetable.groupId;
 
   const endTime = process.hrtime.bigint();
   log.debug(
     `[BOT] Image viewer [F:${timetable.timetable.foreignGroup} I:${timetable.timetable.withIet}] ${timetable.timetable.groupId}/${timetable.timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
-    { user: timetable.timetable.user },
+    { user: ctx.from.id },
   );
 }
 

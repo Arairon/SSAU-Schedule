@@ -86,6 +86,7 @@ export type WeekTimetableDay = {
 };
 
 export type WeekTimetable = {
+  id: number;
   user: number;
   week: number;
   groupId: number;
@@ -110,21 +111,25 @@ async function getTimetableWithImage(
   if (opts?.forceUpdate) opts.ignoreCached = true;
 
   if (!opts?.ignoreCached) {
-    const cachedImage = await getWeekTimetableFromCache(
+    const cachedTable = await getWeekTimetableFromCache(
       user,
       weekNumber,
       opts?.groupId ?? user.groupId ?? undefined,
       { requireImage: true },
     );
-    if (cachedImage) {
+    if (cachedTable) {
       log.debug("Timetable Image good enough. Returning cached", {
         user: user.id,
       });
-      return cachedImage; //buffer.from
+      return cachedTable; //buffer.from
     }
   }
 
-  const timetable = await getWeekTimetable(user, week, opts);
+  const timetable = await getWeekTimetable(
+    user,
+    week,
+    Object.assign({}, opts, { dontCache: true }),
+  );
   const image = await generateTimetableImage(timetable);
 
   if (!opts?.dontCache) {
@@ -135,23 +140,34 @@ async function getTimetableWithImage(
         validUntil: { gt: new Date() },
       },
     });
-    if (existing)
+    if (existing) {
+      timetable.id = existing.id;
       await db.cachedWeekTimetable.update({
         where: { id: existing.id },
-        data: { validUntil: new Date() },
+        data: {
+          userId: user.id,
+          weekNumber: weekNumber,
+          validUntil: new Date(Date.now() + 86400_000), // 1 day
+          data: timetable,
+          image: image.toString("base64"),
+          groupId: opts?.groupId ?? user.groupId,
+        },
       });
-    await db.cachedWeekTimetable.create({
-      data: {
-        userId: user.id,
-        weekNumber: weekNumber,
-        validUntil: new Date(Date.now() + 86400_000), // 1 day
-        data: timetable,
-        image: image.toString("base64"),
-        groupId: opts?.groupId ?? user.groupId,
-      },
-    });
+    } else {
+      const created = await db.cachedWeekTimetable.create({
+        data: {
+          userId: user.id,
+          weekNumber: weekNumber,
+          validUntil: new Date(Date.now() + 86400_000), // 1 day
+          data: timetable,
+          image: image.toString("base64"),
+          groupId: opts?.groupId ?? user.groupId,
+        },
+      });
+      timetable.id = created.id;
+    }
   }
-  return { timetable, image };
+  return { id: timetable.id, timetable, image: { data: image, tgId: null } };
 }
 
 async function getWeekTimetableFromCache(
@@ -170,12 +186,18 @@ async function getWeekTimetableFromCache(
     },
     orderBy: { updatedAt: "desc" },
   });
-  if (timetable?.data && timetable.image)
+  if (timetable?.data && timetable.image) {
+    const table = timetable.data as object as WeekTimetable;
+    table.id = timetable.id;
     return {
-      timetable: timetable.data as object as WeekTimetable,
-      image: Buffer.from(timetable.image, "base64"),
+      id: timetable.id,
+      timetable: table,
+      image: {
+        data: Buffer.from(timetable.image, "base64"),
+        tgId: timetable.imageTgId || null,
+      },
     };
-
+  }
   return null;
 }
 
@@ -235,6 +257,7 @@ async function getWeekTimetable(
     ignoreIet: opts?.ignoreIet || opts?.groupId !== user.groupId,
   });
   const timetable: WeekTimetable = {
+    id: 0,
     user: user.id,
     week: weekNumber,
     groupId: opts?.groupId ?? user.groupId ?? 0,
@@ -305,21 +328,32 @@ async function getWeekTimetable(
         weekNumber: weekNumber,
         validUntil: { gt: new Date() },
       },
+      orderBy: { updatedAt: "desc" },
     });
-    if (existing)
+    if (existing) {
+      timetable.id = existing.id;
       await db.cachedWeekTimetable.update({
         where: { id: existing.id },
-        data: { validUntil: new Date() },
+        data: {
+          userId: user.id,
+          weekNumber: weekNumber,
+          validUntil: new Date(Date.now() + 86400_000), // 1 day
+          data: timetable,
+          groupId: opts?.groupId ?? user.groupId,
+        },
       });
-    await db.cachedWeekTimetable.create({
-      data: {
-        userId: user.id,
-        weekNumber: weekNumber,
-        validUntil: new Date(Date.now() + 86400_000), // 1 day
-        data: timetable,
-        groupId: opts?.groupId ?? user.groupId,
-      },
-    });
+    } else {
+      const created = await db.cachedWeekTimetable.create({
+        data: {
+          userId: user.id,
+          weekNumber: weekNumber,
+          validUntil: new Date(Date.now() + 86400_000), // 1 day
+          data: timetable,
+          groupId: opts?.groupId ?? user.groupId,
+        },
+      });
+      timetable.id = created.id;
+    }
   }
   return timetable;
 }
