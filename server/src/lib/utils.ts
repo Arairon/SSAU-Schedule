@@ -28,7 +28,7 @@ export function getWeekFromDate(date: Date, startDate?: Date) {
       ((dt.getTime() - week1.getTime()) / 86400_000 - // 1 day
         3 +
         ((week1.getDay() + 6) % 7)) /
-        7
+        7,
     );
   if (weekNumber > 52) return 52;
   if (weekNumber < 1) return 1;
@@ -47,6 +47,10 @@ export function getLessonDate(weekNumber: number, weekDay: number) {
 export function getPersonShortname(fullname: string) {
   const [surname, name, secondname] = fullname.split(" ");
   return `${surname} ${name[0]}.` + (secondname ? secondname[0] + "." : "");
+}
+
+export function formatBigInt(x: BigInt | number) {
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 export type ReturnObj<T> =

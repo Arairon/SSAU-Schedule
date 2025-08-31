@@ -13,8 +13,12 @@ export type LessonStyleMap = {
 };
 
 export type StyleMap = {
-  header: {
+  general: {
     headerStyle: string;
+    emptyWeek: {
+      style: string;
+      text: string;
+    };
   };
   lessonTypes: LessonTypeStyleMap;
 };

@@ -7,6 +7,7 @@ import { creds } from "../lib/credentials";
 import { getLessonDate, getWeekFromDate } from "../lib/utils";
 import { schedule } from "../lib/schedule";
 import { findGroup, findGroupOrTeacherInSsau } from "../lib/misc";
+import { generateTimetableImageHtml } from "../lib/scheduleImage";
 
 async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
   const userIdParamSchema = {
@@ -316,6 +317,22 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
 
   fastify.get("/api/debug/now", (req, res) => res.send([new Date()]));
   fastify.get(
+    "/api/debug/html/:n1",
+    {
+      schema: {
+        params: { type: "object", properties: { n1: { type: "number" } } },
+      },
+    },
+    async (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
+      const user = await db.user.findUnique({ where: { id: req.params.n1 } });
+      const timetable = await schedule.getWeekTimetable(user!, 3, {
+        //groupId: 531023227,
+      });
+      const html = await generateTimetableImageHtml(timetable);
+      return res.status(200).header("content-type", "text/html").send(html);
+    },
+  );
+  fastify.get(
     "/api/debug/image/:n1",
     {
       schema: {
@@ -329,7 +346,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       });
       return res
         .status(200)
-        .header("content-type", "text/html")
+        .header("content-type", "image/png")
         .send(timetable.image);
     },
   );

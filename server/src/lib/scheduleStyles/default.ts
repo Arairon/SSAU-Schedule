@@ -1,8 +1,12 @@
 import { StyleMap } from "./types";
 
 export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
-  header: {
+  general: {
     headerStyle: "bg-white rounded-lg",
+    emptyWeek: {
+      style: "bg-white rounded-lg text-center text-lg font-bold py-12",
+      text: "Пар нет :D",
+    },
   },
   lessonTypes: {
     Lection: {

@@ -87,6 +87,9 @@ export type WeekTimetableDay = {
 export type WeekTimetable = {
   user: number;
   week: number;
+  groupId: number;
+  withIet: boolean;
+  foreignGroup: boolean;
   days: WeekTimetableDay[];
 };
 
@@ -114,7 +117,7 @@ async function getTimetableImage(
   //     log.debug("Timetable Image good enough. Returning cached", {
   //       user: user.id,
   //     });
-  //     return cachedImage;
+  //     return cachedImage;//buffer.from
   //   }
   // }
   const timetable = await getWeekTimetable(user, week, opts);
@@ -137,9 +140,9 @@ async function getTimetableImage(
       data: {
         userId: user.id,
         weekNumber: weekNumber,
-        validUntil: new Date(Date.now() + 604800_000), // 7 days
+        validUntil: new Date(Date.now() + 86400_000), // 1 day
         data: timetable,
-        image: image,
+        image: image.toString("base64"),
         groupId: opts?.groupId ?? user.groupId,
       },
     });
@@ -204,8 +207,8 @@ async function getWeekTimetable(
     await updateWeekForUser(user, weekNumber, {
       groupId: opts!.groupId!,
     });
-  } else if (Date.now() - Week.updatedAt.getTime() > 604800_000) {
-    // 7 days
+  } else if (Date.now() - Week.updatedAt.getTime() > 86400_000) {
+    // 1 day
     log.debug("Timetable too old. Updating week", { user: user.id });
     await updateWeekForUser(user, weekNumber, {
       groupId: opts?.groupId ?? undefined,
@@ -220,6 +223,9 @@ async function getWeekTimetable(
   const timetable: WeekTimetable = {
     user: user.id,
     week: weekNumber,
+    groupId: opts?.groupId ?? user.groupId ?? 0,
+    withIet: opts?.ignoreIet || opts?.groupId !== user.groupId,
+    foreignGroup: opts?.groupId ? opts.groupId !== user.groupId : false,
     days: [],
   };
   for (let dayNumber = 1; dayNumber <= 6; dayNumber++) {
@@ -295,7 +301,7 @@ async function getWeekTimetable(
       data: {
         userId: user.id,
         weekNumber: weekNumber,
-        validUntil: new Date(Date.now() + 604800_000), // 7 days
+        validUntil: new Date(Date.now() + 86400_000), // 1 day
         data: timetable,
         groupId: opts?.groupId ?? user.groupId,
       },
