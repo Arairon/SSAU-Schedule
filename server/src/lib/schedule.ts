@@ -501,7 +501,7 @@ async function updateWeekForUser(
   const week = await getDbWeek(user, weekNumber, { groupId, year });
 
   log.info(
-    `[SSAU] Updating week ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
+    `[SSAU] Updating week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
     { user: user.id },
   );
 

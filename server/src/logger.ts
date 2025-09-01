@@ -7,7 +7,9 @@ const f = format.combine(
   format.timestamp(),
   format.align(),
   format.printf((info) => {
-    return `${info.timestamp} ${info.level} [${info.user}]: ${info.message}`;
+    if (typeof info.user === "number")
+      return `${info.timestamp} ${info.level} [${info.user.toString().padStart(12, " ")}]: ${info.message}`;
+    return `${info.timestamp} ${info.level} [${info.user ?? "unk"}]: ${info.message}`;
   }),
 );
 
