@@ -2,148 +2,468 @@
 <html>
 
 <head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   <link rel="stylesheet" href="./timetable.css">
-  <meta charset="UTF-8">
+  <meta charset="utf8">
 </head>
 
 <body class="bg-black flex flex-col gap-2 w-full items-stretch p-2">
   <header class="bg-white rounded-lg items-center flex flex-col p-1">
-    <a class="text-lg font-bold">Моё расписание, X неделя</a>
+    <a class="text-lg font-bold">Моё расписание, 3 неделя</a>
   </header>
   <nav class="flex flex-row justify-between gap-2 font-bold text-center">
     <div class="bg-green-400 rounded-lg flex-1 p-1">Лекция</div>
     <div class="bg-red-400 rounded-lg flex-1 p-1">Практика</div>
     <div class="bg-purple-500 rounded-lg flex-1 p-1">Лабораторная</div>
     <div class="bg-orange-400 rounded-lg flex-1 p-1">Прочее</div>
-    <div class="bg-pink-500 rounded-lg flex-1 p-1">Курсовая</div>
-    <!-- <div class="bg-blue-400 rounded-lg flex-1 p-1">Консультация</div>
-      <div class="bg-black rounded-lg flex-1 p-1 text-white outline-2 ountline-white">Экзамен</div> -->
+    <div class="bg-pink-500 rounded-lg hidden flex-1 p-1">Курсовая</div>
+    <div class="bg-blue-400 rounded-lg flex-1 p-1">Консультация</div>
+    <div class="bg-black rounded-lg text-white outline-2 ountline-white flex-1 p-1">Экзамен</div>
+    <div class="bg-gray-700 rounded-lg text-white hidden flex-1 p-1">Тест</div>
+    <div class="bg-green-600 rounded-lg hidden flex-1 p-1">Воен. Каф</div>
+    <div class="bg-white rounded-lg hidden flex-1 p-1">Окно</div>
+    <div class="bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden flex-1 p-1">Неизвестно</div>
   </nav>
   <main class="grid gap-1 text-md leading-5 text-center grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] grid-rows-auto">
-    <!-- Rows is dynamic: max lessonCount+1 -->
-    <!-- Row 1: Weekdays -->
     <div class="bg-cyan-400 rounded-lg font-bold p-2 flex flex-col justify-center">
       Время
     </div>
     <div class="bg-cyan-400 rounded-lg font-bold p-2">
-      Пн 01.09
+      Пн 15.08
     </div>
     <div class="bg-cyan-400 rounded-lg font-bold p-2">
-      Вт 02.09
+      Вт 16.08
     </div>
     <div class="bg-cyan-400 rounded-lg font-bold p-2">
-      Ср 03.09
+      Ср 17.08
     </div>
     <div class="bg-cyan-400 rounded-lg font-bold p-2">
-      Чт 01.09
+      Чт 18.08
     </div>
     <div class="bg-cyan-400 rounded-lg font-bold p-2">
-      Пт 01.09
+      Пт 19.08
     </div>
     <div class="bg-cyan-400 rounded-lg font-bold p-2">
-      Сб 01.09
+      Сб 20.08
     </div>
-    <!-- Row 2+: lessons. First col is time-->
     <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
       08:00
       <hr>09:35
     </div>
-
     <div class="flex flex-col gap-1">
       <div class="bg-white rounded-lg px-1 py-2 flex-1">
-        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="bg-purple-500 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Обьектно-ориентированное программирование</p>
+          <hr class="my-1">
+          <p class="">Лёзина И.В.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">14 - 511</a>
+            <a class="font-bold">Подгруппа: 1</a>
+          </p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-purple-500 p-1 rounded-xl"></div>
         <div class="px-1 text-left">
           <p class="font-bold">Компьютерная графика</p>
           <hr class="my-1">
-          <p>Кудрина М.А.</p>
-          <p class="w-full flex flex-row font-bold">
-            <a class=" flex-1 grow">14 - 423</a>
-            <a>Подгруппа: 1</a>
-          </p>
-          <p class="text-xs grid grid-cols-2 grid-rows-3 grid-flow-col my-1 text-left">
-            <a>6101-090301D</a>
-            <a>6102-090301D</a>
-            <a>6103-090301D</a>
-            <a>6104-090301D</a>
-            <a>6105-090301D</a>
-            <a>6106-090301D</a>
+          <p class="">Кудрина М.А.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">14 - 423</a>
+            <a class="font-bold">Подгруппа: 2</a>
           </p>
         </div>
       </div>
     </div>
-    </div>
-
     <div class="flex flex-col gap-1">
       <div class="bg-white rounded-lg px-1 py-2 flex-1">
         <div class="bg-green-400 p-1 rounded-xl"></div>
         <div class="px-1 text-left">
-          <p class="font-bold">Компьютерная графика</p>
+          <p class="font-bold">Электротехника</p>
           <hr class="my-1">
-          <p>Кудрина М.А.</p>
-          <p class="w-full flex flex-row font-bold">
-          <a class=" flex-1 grow">14 - 423</a>
-          <a>Подгруппа: 1</a>
+          <p class="">Теряева О.В.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">адм - 511</a>
+            <a class="font-bold"></a>
           </p>
         </div>
       </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-orange-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Военная кафедра</p>
+          <hr class="my-1">
+          <p class="">Преподаватели В.К.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">4 - Военная кафедра</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Python для решения научных задач</p>
+          <hr class="my-1">
+          <p class="">Литвинов В.Г.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">Online</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      09:45
+      <hr>11:20
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-purple-500 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Обьектно-ориентированное программирование</p>
+          <hr class="my-1">
+          <p class="">Лёзина И.В.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">14 - 511</a>
+            <a class="font-bold">Подгруппа: 1</a>
+          </p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-purple-500 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Компьютерная графика</p>
+          <hr class="my-1">
+          <p class="">Кудрина М.А.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">14 - 423</a>
+            <a class="font-bold">Подгруппа: 2</a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Математический анализ</p>
+          <hr class="my-1">
+          <p class="">Горелов Г.Н.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">5 - Л7</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
       <div class="bg-white rounded-lg px-1 py-2 flex-1">
         <div class="bg-red-400 p-1 rounded-xl"></div>
         <div class="px-1 text-left">
-          <p class="font-bold">Компьютерная графика</p>
+          <p class="font-bold">Элективные курсы по физической культуре и спорту</p>
           <hr class="my-1">
-          <p>Кудрина М.А.</p>
-          <p class="w-full flex flex-row font-bold">
-            <a class=" flex-1 grow">14 - 423</a>
-            <a>Подгруппа: 1</a>
+          <p class="">Преподаватели К.Ф.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">6 - Спорткомплекс</a>
+            <a class="font-bold"></a>
           </p>
         </div>
       </div>
     </div>
-
-    <div class="bg-white/90 border-black border-2 border-dashed rounded-lg px-1 py-2">
-      <div class="bg-green-400 p-1 rounded-xl hidden"></div>
-    </div>
-
-    <div class="bg-white rounded-lg px-1 py-2">
-      <div class="bg-green-400 p-1 rounded-xl"></div>
-      <div class="px-1 text-left">
-        <p class="font-bold">Компьютерная графика</p>
-        <hr class="my-1">
-        <p>Кудрина М.А.</p>
-        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
       </div>
     </div>
-
-    <div class="bg-white rounded-lg px-1 py-2">
-      <div class="bg-green-400 p-1 rounded-xl"></div>
-      <div class="px-1 text-left">
-        <p class="font-bold">Компьютерная графика</p>
-        <hr class="my-1">
-        <p>Кудрина М.А.</p>
-        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Python для решения научных задач</p>
+          <div class="flex justify-end">
+          </div>
+          <hr class="my-1">
+          <p class="">Литвинов В.Г.</p>
+          <p class="w-full flex flex-row items-center">
+            <a class="flex-1 grow font-bold">Online</a>
+            <a class="font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600">ИОТ</a>
+          </p>
+        </div>
       </div>
     </div>
-
-    <div class="bg-white rounded-lg px-1 py-2">
-      <div class="bg-green-400 p-1 rounded-xl"></div>
-      <div class="px-1 text-left">
-        <p class="font-bold">Компьютерная графика</p>
-        <hr class="my-1">
-        <p>Кудрина М.А.</p>
-        <p class="font-bold">14 - 423<br>Подгруппа: 1</p>
-      </div>
-    </div>
-
     <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
-      08:00<hr>21:00
+      11:30
+      <hr>13:05
     </div>
-
-    <div class="col-span-6 bg-white rounded-lg text-center text-lg font-bold py-4 flex flex-col justify-center">
-      <a>Пар нет</a>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-red-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Теория вероятностей и случайных процессов</p>
+          <hr class="my-1">
+          <p class="">Якуткина Г.Н.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">14 - 430</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
     </div>
-
-    
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Физика</p>
+          <hr class="my-1">
+          <p class="">Максимов В.В.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">14 - 517</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      13:30
+      <hr>15:05
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Компьютерная графика</p>
+          <hr class="my-1">
+          <p class="">Кудрина М.А.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">Online</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      15:15
+      <hr>16:50
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Обьектно-ориентированное программирование</p>
+          <hr class="my-1">
+          <p class="">Лёзина И.В.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">Online</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+      17:00
+      <hr>18:35
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white rounded-lg px-1 py-2 flex-1">
+        <div class="bg-green-400 p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="font-bold">Теория вероятностей и случайных процессов</p>
+          <hr class="my-1">
+          <p class="">Якуткина Г.Н.</p>
+          <p class="w-full flex flex-row">
+            <a class="flex-1 grow font-bold">Online</a>
+            <a class="font-bold"></a>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="bg-white/90 rounded-lg flex-1">
+        <div class=" p-1 rounded-xl"></div>
+        <div class="px-1 text-left">
+          <p class="hidden">Окно</p>
+        </div>
+      </div>
+    </div>
   </main>
+
 </body>
 
 </html>

@@ -10,6 +10,8 @@ export type LessonStyleMap = {
   placeStyle: string;
   subgroupStyle: string;
   groupListStyle: string;
+  ietStyle: string;
+  ietLabel: string;
 };
 
 export type StyleMap = {

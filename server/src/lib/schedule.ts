@@ -238,7 +238,7 @@ async function getWeekTimetable(
     },
   );
 
-  const lessons = await getWeekLessons(user, weekNumber, opts?.groupId, {
+  const lessons = await getWeekLessons(user, weekNumber, week.groupId, {
     ignoreIet: opts?.ignoreIet || weekIsCommon,
   });
 
@@ -335,6 +335,7 @@ const LessonTypeMap = [
 ];
 function getLessonTypeEnum(type: number) {
   if (type < 0 || type >= LessonTypeMap.length) {
+    log.error(`Found an unexpected typeId: ${type}`);
     type = 0;
   }
   return LessonTypeMap[type];

@@ -4,18 +4,19 @@ import { UserGroupType } from "./lkSchemas";
 import { TeacherType } from "./scheduleSchemas";
 import { getPersonShortname } from "./utils";
 import log from "../logger";
+import { LessonType } from "@prisma/client";
 
-export const LessonTypeName: Record<string, string> = {
+export const LessonTypeName: Record<LessonType, string> = {
   Lection: "Лекция",
   Practice: "Практика",
   Lab: "Лабораторная",
   Other: "Другое",
-  Military: "Воен. Каф.",
+  // Military: "Воен. Каф.",
   Window: "Окно",
   Exam: "Экзамен",
   Consult: "Консультация",
-  CourseWork: "Курсовая",
-  Test: "Тест",
+  // CourseWork: "Курсовая",
+  // Test: "Тест",
   Unknown: "Неизвестно",
 };
 

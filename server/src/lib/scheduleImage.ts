@@ -25,7 +25,7 @@ const HTML_HEAD = `\
 <body class="bg-black flex flex-col gap-2 w-full items-stretch p-2">
 <style>${CSS}</style>`;
 
-const HTML_SIZER = `<style>body{width:{width};height:{height};}</style>`;
+const HTML_SIZER = `<style>body{width:{width};height:{height};}</style>\n`;
 
 const HTML_HEADER_WEEK = `\
 <header class="{headerStyle} items-center flex flex-col p-1">
@@ -76,9 +76,10 @@ const LESSON_BODY = `\
 <p class="{nameStyle}">{name}</p>
 <hr class="my-1">
 <p class="{teacherStyle}">{teacherName}</p>
-<p class="w-full flex flex-row">
+<p class="w-full flex flex-row items-center">
   <a class="flex-1 grow {placeStyle}">{place}</a>
   <a class="{subgroupStyle}">{subgroup}</a>
+  <a class="{ietStyle}">{ietLabel}</a>
 </p>`;
 
 const LESSON_END = `</div></div>`;
@@ -124,6 +125,8 @@ function generateSingleLesson(
       teacherStyle: style.teacherStyle,
       placeStyle: style.placeStyle,
       subgroupStyle: style.subgroupStyle,
+      ietStyle: lesson.isIet ? style.ietStyle : "hidden",
+      ietLabel: style.ietLabel,
     }),
   );
   if (opts?.showGrouplist) {

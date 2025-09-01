@@ -20,6 +20,9 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
     Practice: {
       name: "Практика",
@@ -32,6 +35,9 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
     Lab: {
       name: "Лабораторная",
@@ -44,6 +50,9 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
     Other: {
       name: "Прочее",
@@ -56,8 +65,11 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
-    CourseWork: {
+    /*CourseWork: {
       name: "Курсовая",
       headerStyle: "bg-pink-500 rounded-lg hidden",
       barColor: "bg-pink-500",
@@ -68,7 +80,10 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
-    },
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
+    },*/
     Consult: {
       name: "Консультация",
       headerStyle: "bg-blue-400 rounded-lg",
@@ -80,6 +95,9 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
     Exam: {
       name: "Экзамен",
@@ -92,8 +110,11 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
-    Test: {
+    /*Test: {
       name: "Тест",
       headerStyle: "bg-gray-700 rounded-lg text-white hidden",
       barColor: "bg-gray-700",
@@ -104,6 +125,9 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
     Military: {
       name: "Воен. Каф",
@@ -116,7 +140,10 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
-    },
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
+    },*/
     Window: {
       name: "Окно",
       headerStyle: "bg-white rounded-lg hidden",
@@ -128,6 +155,9 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
     Unknown: {
       name: "Неизвестно",
@@ -141,6 +171,9 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       subgroupStyle: "font-bold",
       groupListStyle:
         "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
     },
   },
 };
