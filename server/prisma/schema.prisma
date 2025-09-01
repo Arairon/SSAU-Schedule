@@ -151,6 +151,7 @@ model Week {
 
   @@unique([owner, groupId, year, number])
   @@index([owner, groupId, year, number])
+  @@index([owner, year, number])
 }
 
 model WeekImage {
@@ -165,4 +166,20 @@ model WeekImage {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
+}
+
+model ScheduledMessage {
+  id Int @id @default(autoincrement())
+
+  chatId   String
+  text     String
+  entities Json   @default(value: "[]")
+
+  sendAt    DateTime
+  wasSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+
+  @@index([sendAt, wasSentAt])
 }

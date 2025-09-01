@@ -13,6 +13,7 @@ import {
   getLessonDate,
   getPersonShortname,
   getWeekFromDate,
+  getCurrentYearId,
 } from "./utils";
 import { db } from "../db";
 import { lk } from "./lk";
@@ -25,13 +26,6 @@ import {
   ensureTeacherExists,
 } from "./misc";
 import { generateTimetableImage } from "./scheduleImage";
-
-function getCurrentYearId() {
-  const today = new Date();
-  let year = today.getFullYear();
-  if (today.getMonth() < 7) year -= 1; // if earlier than august - use previous year
-  return year - 2011; // Constant. Blame SSAU
-}
 
 async function getWeekLessons(
   user: User,
@@ -177,7 +171,7 @@ async function getTimetableWithImage(
       weekId: week.id,
       stylemap: stylemap,
       data: image.toString("base64"),
-      validUntil: new Date(now.getTime() + 604800_000), // 1 week
+      validUntil: new Date(Date.now() + 604800_000), // 1 week
     },
   });
 
@@ -224,7 +218,7 @@ async function getWeekTimetable(
   if (opts?.forceUpdate) {
     log.debug("Requested forceUpdate. Updating week", { user: user.id });
     await updateWeekForUser(user, weekNumber, { year, groupId });
-  } else if (now.getTime() - week.updatedAt.getTime() > 86400_000) {
+  } else if (Date.now() - week.updatedAt.getTime() > 86400_000) {
     // 1 day
     log.debug("Week updatedAt too old. Updating week", { user: user.id });
     await updateWeekForUser(user, weekNumber, { year, groupId });
@@ -318,7 +312,7 @@ async function getWeekTimetable(
       where: { id: week.id },
       data: {
         timetable: timetable,
-        cachedUntil: new Date(now.getTime() + 604800_000), // 1 week
+        cachedUntil: new Date(Date.now() + 604800_000), // 1 week
         images: {
           updateMany: { where: {}, data: { validUntil: now } },
         },
@@ -554,7 +548,7 @@ async function updateWeekForUser(
 
   log.debug("Updating lessons", { user: user.id });
 
-  const lessonValidUntilDate = new Date(now.getTime() + 2592000_000); // 30 days from now
+  const lessonValidUntilDate = new Date(Date.now() + 2592000_000); // 30 days from now
   for (const lessonList of weekSched.lessons) {
     // Create shared info for all lessons in list
     const info = {

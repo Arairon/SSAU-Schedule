@@ -20,7 +20,7 @@ import { lk } from "./lib/lk";
 import { formatBigInt, getPersonShortname, getWeekFromDate } from "./lib/utils";
 import { loginScene } from "./scenes/login";
 import { schedule } from "./lib/schedule";
-import { CallbackQuery, Message, Update } from "telegraf/types";
+import { CallbackQuery, Message, MessageEntity, Update } from "telegraf/types";
 import {
   findGroup,
   findGroupOrOptions,
@@ -59,6 +59,7 @@ async function start(ctx: Context, userId: number) {
     `);
 }
 
+// TODO: Delete this?
 export function deleteTempMessages(ctx: Context, event: string) {
   const now = new Date();
   const expired = ctx.session.tempMessages
@@ -92,6 +93,20 @@ export function deleteTempMessages(ctx: Context, event: string) {
 }
 
 const stage = new Scenes.Stage([loginScene]);
+
+type ScheduledMessage = {
+  chatId: string;
+  text: string;
+  entities?: MessageEntity[];
+  sendAt: Date;
+};
+
+type DbScheduledMessage = {
+  chatId: string;
+  text: string;
+  entities?: object[];
+  sendAt: Date;
+};
 
 async function sendTimetable(
   ctx: Context,
@@ -542,17 +557,52 @@ async function init_bot(bot: Telegraf<Context>) {
 
   bot.command("broadcastTest", async (ctx) => {
     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
-    const text = ctx.message.text.slice(14).trim();
-    ctx.reply(text);
+    const text = ctx.message.text.slice(14).trimStart();
+    if (!text) return ctx.reply("Получено пустое сообщение. Отправка отменена");
+    const entities = ctx.message.entities?.slice(1);
+    entities?.map((e) => (e.offset -= ctx.message.text.length - text.length));
+    await db.scheduledMessage.createMany({
+      data: {
+        chatId: `${ctx.chat.id}`,
+        text,
+        entities: entities as object[],
+        sendAt: new Date(),
+      },
+    });
+    const replyHeader = `1 Сообщение следующего содержания\n---\n`;
+    entities?.map((e) => (e.offset += replyHeader.length));
+    ctx.reply(
+      `${replyHeader}${text}\n---\nБыло поставлено в очередь на отправку`,
+      { entities },
+    );
   });
 
   bot.command("broadcast", async (ctx) => {
     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
-    const text = ctx.message.text.slice(10).trim();
+    const text = ctx.message.text.slice(10).trimStart();
+    if (!text) return ctx.reply("Получено пустое сообщение. Отправка отменена");
+    const entities = ctx.message.entities?.slice(1);
+    entities?.map((e) => (e.offset -= ctx.message.text.length - text.length));
     const users = await db.user.findMany();
+    const msgs: ScheduledMessage[] = [];
+    const asap = new Date();
     for (const user of users) {
-      ctx.telegram.sendMessage(`${user.tgId}`, text);
+      msgs.push({
+        chatId: `${user.tgId.toString()}`,
+        text,
+        entities: entities,
+        sendAt: asap,
+      });
     }
+    await db.scheduledMessage.createMany({
+      data: msgs as DbScheduledMessage[],
+    });
+    const replyHeader = `${msgs.length} Сообщений следующего содержания\n---\n`;
+    entities?.map((e) => (e.offset += replyHeader.length));
+    ctx.reply(
+      `${replyHeader}${text}\n---\nБыло поставлено в очередь на отправку`,
+      { entities },
+    );
   });
 
   bot.on(message("text"), async (ctx) => {
@@ -568,15 +618,15 @@ async function init_bot(bot: Telegraf<Context>) {
   // });
 }
 
+export const bot = new Telegraf<Context>(env.SCHED_BOT_TOKEN);
+
 async function init(fastify: FastifyInstance) {
   const TOKEN = env.SCHED_BOT_TOKEN;
 
   await fastify.register(
     fp<{ token: string }>(
-      async (fastify, opts) => {
+      async (fastify) => {
         log.debug("Registering bot..");
-
-        const bot = new Telegraf<Context>(opts.token);
 
         bot.use(
           session({

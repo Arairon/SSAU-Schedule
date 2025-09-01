@@ -12,6 +12,13 @@ function init_first_day() {
 }
 init_first_day();
 
+export function getCurrentYearId() {
+  const today = new Date();
+  let year = today.getFullYear();
+  if (today.getMonth() < 7) year -= 1; // if earlier than august - use previous year
+  return year - 2011; // Constant. Blame SSAU
+}
+
 export function getWeekFromDate(date: Date, startDate?: Date) {
   const dt = new Date(date);
   dt.setHours(0, 0, 0, 0);

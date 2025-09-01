@@ -85,11 +85,11 @@ export async function generateUserIcs(
 
   await db.userIcs.upsert({
     where: { id: user.id },
-    update: { data: cal, validUntil: new Date(now.getTime() + 86400_000) }, // 1 day
+    update: { data: cal, validUntil: new Date(Date.now() + 86400_000) }, // 1 day
     create: {
       id: user.id,
       data: cal,
-      validUntil: new Date(now.getTime() + 86400_000),
+      validUntil: new Date(Date.now() + 86400_000),
     },
   });
 
