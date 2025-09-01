@@ -216,7 +216,7 @@ export async function generateTimetableImageHtml(
   },
 ): Promise<string> {
   const stylemap = STYLEMAPS[opts?.stylemap ?? "default"];
-  const scheduleName = timetable.foreignGroup
+  const scheduleName = timetable.isCommon
     ? ((await db.group.findUnique({ where: { id: timetable.groupId } }))
         ?.name ?? "#Группа не найдена#")
     : "Моё расписание";
@@ -305,7 +305,7 @@ export async function generateTimetableImage(
   })) as Buffer;
   const endTime = process.hrtime.bigint();
   log.debug(
-    `Generated an image for week [F:${timetable.foreignGroup} I:${timetable.withIet}] ${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `Generated an image for week [F:${timetable.isCommon} I:${timetable.withIet}] ${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: timetable.user },
   );
   return image;

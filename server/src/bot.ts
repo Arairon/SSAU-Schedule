@@ -42,7 +42,7 @@ async function reset(ctx: Context, userId: number) {
 }
 
 async function start(ctx: Context, userId: number) {
-  await db.user.create({ data: { id: userId } });
+  await db.user.create({ data: { tgId: userId } });
   Object.assign(ctx.session, getDefaultSession());
   ctx.reply(fmt`
 Добро пожаловать!
@@ -107,7 +107,11 @@ async function sendTimetable(
   if (week < 0 || week > 52) return;
 
   const startTime = process.hrtime.bigint();
-  const user = await db.user.findUnique({ where: { id: ctx.from.id } });
+  const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+  if (!user) {
+    ctx.reply("Вы не найдены в базе данных. Пожалуйста проишите /start");
+    return;
+  }
   const group =
     opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
 
@@ -181,7 +185,7 @@ async function sendTimetable(
           {
             type: "photo",
             media: timetable.image.tgId,
-            caption: `Расписание на ${timetable.timetable.week} неделю`,
+            caption: `Расписание на ${timetable.data.week} неделю`,
           },
           buttonsMarkup,
         );
@@ -205,28 +209,48 @@ async function sendTimetable(
     const msg = await ctx.replyWithPhoto(
       { source: timetable.image.data },
       Object.assign({}, buttonsMarkup, {
-        caption: `Расписание на ${timetable.timetable.week} неделю`,
+        caption: `Расписание на ${timetable.data.week} неделю`,
       }),
     );
     log.debug(
-      `Uploaded new image ${msg.photo[0].file_id} from ${timetable.timetable.id}`,
+      `Uploaded new image ${msg.photo[0].file_id} from ${timetable.image.id}`,
     );
-    await db.cachedWeekTimetable.update({
-      where: { id: timetable.id },
-      data: { imageTgId: msg.photo[0].file_id },
+    await db.weekImage.update({
+      where: { id: timetable.image.id },
+      data: { tgId: msg.photo[0].file_id },
     });
     ctx.session.scheduleViewer.message = msg.message_id; // else keep existing
     ctx.session.scheduleViewer.chatId = msg.chat.id;
   }
 
-  ctx.session.scheduleViewer.week = timetable.timetable.week;
-  ctx.session.scheduleViewer.groupId = timetable.timetable.groupId;
+  ctx.session.scheduleViewer.week = timetable.data.week;
+  ctx.session.scheduleViewer.groupId = timetable.data.groupId;
 
   const endTime = process.hrtime.bigint();
   log.debug(
-    `[BOT] Image viewer [F:${timetable.timetable.foreignGroup} I:${timetable.timetable.withIet}] ${timetable.timetable.groupId}/${timetable.timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `[BOT] Image viewer [F:${timetable.data.isCommon} I:${timetable.data.withIet}] ${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: ctx.from.id },
   );
+}
+
+async function sendErrorMessage(ctx: Context, comment?: string) {
+  try {
+    ctx.reply(
+      `Что-то пошло не так. Свяжитесь с ${env.SCHED_BOT_ADMIN_CONTACT}.\n${comment ?? ""}`,
+    );
+  } catch {
+    log.error("Error occured during sendErrorMessage. Ignoring.", {
+      user: ctx?.from?.id ?? ctx.chat?.id ?? "unknown",
+    });
+  }
+}
+
+async function handleError(ctx: Context, error: any) {
+  sendErrorMessage(ctx);
+  log.error(`Bot threw an error: E: ${JSON.stringify(error)}`, {
+    user: ctx?.from?.id ?? ctx.chat?.id ?? "unknown",
+  });
+  if (env.NODE_ENV === "development") throw error;
 }
 
 //TODO: Ensure commands are guarded against non logged in users or fall them back to 'common'
@@ -242,18 +266,14 @@ async function init_bot(bot: Telegraf<Context>) {
   });
 
   bot.catch((err, ctx) => {
-    ctx.reply(
-      `Что-то пошло не так. Свяжитесь с ${env.SCHED_BOT_ADMIN_CONTACT}.`,
-    );
-    log.error(
-      `Bot threw an error: E: ${JSON.stringify(err)} C: ${JSON.stringify(ctx)}`,
-      { user: ctx.from?.id },
-    );
+    handleError(ctx, err);
   });
 
   bot.start(async (ctx) => {
     const userId = ctx.from.id;
-    const existingUser = await db.user.findUnique({ where: { id: userId } });
+    const existingUser = await db.user.findUnique({
+      where: { tgId: ctx.from.id },
+    });
     if (!existingUser) {
       start(ctx, userId);
     } else {
@@ -295,7 +315,7 @@ async function init_bot(bot: Telegraf<Context>) {
   });
 
   bot.command("login", async (ctx) => {
-    const user = await db.user.findUnique({ where: { id: ctx.from.id } })!;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (user) {
       ctx.session.loggedIn = true;
       if (user.username && user.password) {
@@ -328,7 +348,14 @@ async function init_bot(bot: Telegraf<Context>) {
   });
 
   bot.command("logout", async (ctx) => {
-    const user = await db.user.findUnique({ where: { id: ctx.from.id } })!;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      sendErrorMessage(
+        ctx,
+        "Вас не существует в базе данных. Пожалуйста пропишите /start",
+      );
+      return;
+    }
     await lk.resetAuth(user!, { resetCredentials: true });
     const msg = await ctx.reply(
       fmt`
@@ -350,7 +377,14 @@ async function init_bot(bot: Telegraf<Context>) {
   });
 
   bot.command("schedule", async (ctx) => {
-    sendTimetable(ctx, 0);
+    ctx.session.scheduleViewer = {
+      chatId: ctx.chat.id,
+      message: 0,
+      week: 0,
+    };
+    sendTimetable(ctx, 0).catch((e) => {
+      handleError(ctx, e);
+    });
   });
 
   bot.action("schedule_button_next", async (ctx) => {
@@ -361,7 +395,9 @@ async function init_bot(bot: Telegraf<Context>) {
       );
       return;
     }
-    sendTimetable(ctx, week, { queryCtx: ctx });
+    sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
+      handleError(ctx, e);
+    });
   });
 
   bot.action("schedule_button_prev", async (ctx) => {
@@ -370,12 +406,16 @@ async function init_bot(bot: Telegraf<Context>) {
       ctx.answerCbQuery("Расписания на нулевую неделю не существует");
       return;
     }
-    sendTimetable(ctx, week, { queryCtx: ctx });
+    sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
+      handleError(ctx, e);
+    });
   });
 
   bot.action("schedule_button_refresh", async (ctx) => {
     const week = ctx.session.scheduleViewer.week;
-    sendTimetable(ctx, week, { queryCtx: ctx });
+    sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
+      handleError(ctx, e);
+    });
   });
 
   bot.action("schedule_button_forceupdate", async (ctx) => {

@@ -1,4 +1,11 @@
-import { $Enums, Lesson, LessonType, User } from "@prisma/client";
+import {
+  $Enums,
+  Lesson,
+  LessonType,
+  User,
+  Week,
+  WeekImage,
+} from "@prisma/client";
 import axios from "axios";
 import {
   FIRST_STUDY_DAY,
@@ -32,6 +39,10 @@ async function getWeekLessons(
   groupId?: number,
   opts?: { ignoreIet?: boolean },
 ) {
+  if (!(groupId || user.groupId)) {
+    log.error(`Groupless user requested an update`, { user: user.id });
+    throw new Error(`Groupless user requested an update`);
+  }
   const lessons = await db.lesson.findMany({
     where: {
       weekNumber: week,
@@ -86,183 +97,158 @@ export type WeekTimetableDay = {
 };
 
 export type WeekTimetable = {
-  id: number;
+  weekId: number;
   user: number;
-  week: number;
   groupId: number;
+  year: number;
+  week: number;
   withIet: boolean;
-  foreignGroup: boolean;
+  isCommon: boolean;
   days: WeekTimetableDay[];
 };
 
 async function getTimetableWithImage(
   user: User,
-  week: number,
+  weekN: number,
   opts?: {
+    groupId?: number;
+    year?: number;
     ignoreCached?: boolean;
-    dontCache?: boolean;
+    //dontCache?: boolean;
     forceUpdate?: boolean;
     ignoreIet?: boolean;
-    groupId?: number;
+    stylemap?: string;
   },
 ) {
-  const weekNumber = week || getWeekFromDate(new Date());
-  if (opts && opts?.groupId === user.groupId) opts.groupId = undefined;
+  const now = new Date();
+  const weekNumber = weekN || getWeekFromDate(now);
+  const year = opts?.year || getCurrentYearId();
+  const groupId = opts?.groupId ?? user.groupId;
+  const stylemap = opts?.stylemap ?? "default";
   if (opts?.forceUpdate) opts.ignoreCached = true;
 
-  if (!opts?.ignoreCached) {
-    const cachedTable = await getWeekTimetableFromCache(
-      user,
-      weekNumber,
-      opts?.groupId ?? user.groupId ?? undefined,
-      { requireImage: true },
-    );
-    if (cachedTable) {
+  if (!groupId) {
+    log.error(`Groupless user @getWeekTimetable`, { user: user.id });
+    throw new Error(`Groupless user @getWeekTimetable`);
+  }
+
+  const week = await getDbWeek(user, weekN, {
+    year,
+    groupId,
+    images: { stylemap },
+  });
+  const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
+
+  if (!opts?.ignoreCached && week.timetable && week.cachedUntil > now) {
+    if (week.images.length > 0) {
       log.debug("Timetable Image good enough. Returning cached", {
         user: user.id,
       });
-      return cachedTable; //buffer.from
-    }
-  }
-
-  const timetable = await getWeekTimetable(
-    user,
-    week,
-    Object.assign({}, opts, { dontCache: true }),
-  );
-  const image = await generateTimetableImage(timetable);
-
-  if (!opts?.dontCache) {
-    const existing = await db.cachedWeekTimetable.findFirst({
-      where: {
-        userId: user.id,
-        weekNumber: weekNumber,
-        validUntil: { gt: new Date() },
-      },
-    });
-    if (existing) {
-      timetable.id = existing.id;
-      await db.cachedWeekTimetable.update({
-        where: { id: existing.id },
-        data: {
-          userId: user.id,
-          weekNumber: weekNumber,
-          validUntil: new Date(Date.now() + 86400_000), // 1 day
-          data: timetable,
-          image: image.toString("base64"),
-          groupId: opts?.groupId ?? user.groupId,
-        },
-      });
+      const { data: imageData, ...otherData } = week.images[0];
+      return {
+        data: week.timetable,
+        image: { ...otherData, data: Buffer.from(imageData, "base64") },
+      };
     } else {
-      const created = await db.cachedWeekTimetable.create({
-        data: {
-          userId: user.id,
-          weekNumber: weekNumber,
-          validUntil: new Date(Date.now() + 86400_000), // 1 day
-          data: timetable,
-          image: image.toString("base64"),
-          groupId: opts?.groupId ?? user.groupId,
-        },
+      log.debug("Timetable good enough, but no valid image was found", {
+        user: user.id,
       });
-      timetable.id = created.id;
     }
   }
-  return { id: timetable.id, timetable, image: { data: image, tgId: null } };
-}
 
-async function getWeekTimetableFromCache(
-  user: User,
-  week: number,
-  groupId?: number,
-  opts?: { requireImage?: boolean },
-) {
-  const timetable = await db.cachedWeekTimetable.findFirst({
-    where: {
-      userId: user.id,
-      weekNumber: week,
-      groupId: groupId || undefined,
-      validUntil: { gt: new Date() },
-      image: opts?.requireImage ? { not: null } : undefined,
+  const usingCachedTimetable =
+    !opts?.ignoreCached && week.timetable && week.cachedUntil > now;
+  const timetable = usingCachedTimetable
+    ? week.timetable!
+    : await getWeekTimetable(user, week.number, {
+        groupId: week.groupId,
+        year: week.year,
+        ignoreCached: opts?.ignoreCached,
+        forceUpdate: opts?.forceUpdate,
+        ignoreIet: opts?.ignoreIet,
+      });
+
+  const image = await generateTimetableImage(timetable, { stylemap });
+
+  //if (!opts?.dontCache) {}
+  const createdImage = await db.weekImage.create({
+    data: {
+      weekId: week.id,
+      stylemap: stylemap,
+      data: image.toString("base64"),
+      validUntil: new Date(now.getTime() + 604800_000), // 1 week
     },
-    orderBy: { updatedAt: "desc" },
   });
-  if (timetable?.data && timetable.image) {
-    const table = timetable.data as object as WeekTimetable;
-    table.id = timetable.id;
-    return {
-      id: timetable.id,
-      timetable: table,
-      image: {
-        data: Buffer.from(timetable.image, "base64"),
-        tgId: timetable.imageTgId || null,
-      },
-    };
-  }
-  return null;
+
+  return {
+    data: timetable,
+    image: Object.assign(createdImage, { data: image }),
+  };
 }
 
 async function getWeekTimetable(
   user: User,
-  week: number,
+  weekN: number,
   opts?: {
+    groupId?: number;
+    year?: number;
     ignoreCached?: boolean;
     dontCache?: boolean;
     forceUpdate?: boolean;
     ignoreIet?: boolean;
-    groupId?: number;
   },
 ) {
-  const weekNumber = week || getWeekFromDate(new Date());
-  if (opts && opts?.groupId === user.groupId) opts.groupId = undefined;
+  const now = new Date();
+  const weekNumber = weekN || getWeekFromDate(now);
+  const year = opts?.year || getCurrentYearId();
+  const groupId = opts?.groupId ?? user.groupId;
   if (opts?.forceUpdate) opts.ignoreCached = true;
 
+  if (!groupId) {
+    log.error(`Groupless user @getWeekTimetable`, { user: user.id });
+    throw new Error(`Groupless user @getWeekTimetable`);
+  }
+
+  const week = await getDbWeek(user, weekN, { year, groupId });
+  const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
+
   if (!opts?.ignoreCached) {
-    const cached = await getWeekTimetableFromCache(
-      user,
-      weekNumber,
-      opts?.groupId ?? user.groupId ?? undefined,
-    );
-    if (cached) {
+    if (week.timetable && week.cachedUntil > now) {
       log.debug("Timetable good enough. Returning cached", { user: user.id });
-      return cached.timetable;
+      return week.timetable;
     }
   }
-  const Week =
-    opts?.groupId && opts.groupId !== user.groupId
-      ? await getDbWeekForFGroup(opts.groupId)
-      : await getDbWeek({ user, week: weekNumber });
-  if (!Week) {
-    log.debug("Requested uncached week. Updating", { user: user.id });
-    await updateWeekForUser(user, weekNumber, {
-      groupId: opts!.groupId!,
-    });
-  } else if (Date.now() - Week.updatedAt.getTime() > 86400_000) {
-    // 1 day
-    log.debug("Timetable too old. Updating week", { user: user.id });
-    await updateWeekForUser(user, weekNumber, {
-      groupId: opts?.groupId ?? undefined,
-    });
-  } else if (opts?.forceUpdate) {
+
+  if (opts?.forceUpdate) {
     log.debug("Requested forceUpdate. Updating week", { user: user.id });
-    await updateWeekForUser(user, weekNumber, {
-      groupId: opts?.groupId ?? undefined,
-    });
+    await updateWeekForUser(user, weekNumber, { year, groupId });
+  } else if (now.getTime() - week.updatedAt.getTime() > 86400_000) {
+    // 1 day
+    log.debug("Week updatedAt too old. Updating week", { user: user.id });
+    await updateWeekForUser(user, weekNumber, { year, groupId });
   } else {
     log.debug("Week Timetable looks good.", { user: user.id });
   }
-  log.debug(`${Week?.id ?? "[uncached]"} Generating timetable`, {
-    user: user.id,
-  });
+
+  log.debug(
+    `${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number}) Generating timetable`,
+    {
+      user: user.id,
+    },
+  );
+
   const lessons = await getWeekLessons(user, weekNumber, opts?.groupId, {
-    ignoreIet: opts?.ignoreIet || opts?.groupId !== user.groupId,
+    ignoreIet: opts?.ignoreIet || weekIsCommon,
   });
+
   const timetable: WeekTimetable = {
-    id: 0,
+    weekId: week.id,
     user: user.id,
+    groupId: week.groupId,
+    year: year,
     week: weekNumber,
-    groupId: opts?.groupId ?? user.groupId ?? 0,
-    withIet: opts?.ignoreIet || opts?.groupId !== user.groupId,
-    foreignGroup: opts?.groupId ? opts.groupId !== user.groupId : false,
+    withIet: opts?.ignoreIet || weekIsCommon,
+    isCommon: weekIsCommon,
     days: [],
   };
   for (let dayNumber = 1; dayNumber <= 6; dayNumber++) {
@@ -321,105 +307,20 @@ async function getWeekTimetable(
   for (const day of timetable.days) {
     day.lessons.sort((a, b) => a.dayTimeSlot - b.dayTimeSlot);
   }
+
   if (!opts?.dontCache) {
-    const existing = await db.cachedWeekTimetable.findFirst({
-      where: {
-        userId: user.id,
-        weekNumber: weekNumber,
-        validUntil: { gt: new Date() },
+    const updatedWeek = await db.week.update({
+      where: { id: week.id },
+      data: {
+        timetable: timetable,
+        cachedUntil: new Date(now.getTime() + 604800_000), // 1 week
+        images: {
+          updateMany: { where: {}, data: { validUntil: now } },
+        },
       },
-      orderBy: { updatedAt: "desc" },
     });
-    if (existing) {
-      timetable.id = existing.id;
-      await db.cachedWeekTimetable.update({
-        where: { id: existing.id },
-        data: {
-          userId: user.id,
-          weekNumber: weekNumber,
-          validUntil: new Date(Date.now() + 86400_000), // 1 day
-          data: timetable,
-          groupId: opts?.groupId ?? user.groupId,
-        },
-      });
-    } else {
-      const created = await db.cachedWeekTimetable.create({
-        data: {
-          userId: user.id,
-          weekNumber: weekNumber,
-          validUntil: new Date(Date.now() + 86400_000), // 1 day
-          data: timetable,
-          groupId: opts?.groupId ?? user.groupId,
-        },
-      });
-      timetable.id = created.id;
-    }
   }
   return timetable;
-}
-
-async function getDbWeekForFGroup(groupId: number) {
-  return await db.week.findFirst({
-    where: { groupId },
-    orderBy: { updatedAt: "desc" },
-    take: 1,
-  });
-}
-
-async function getDbWeek( // TODO: Remake week search. Add common weeks for ietless group search
-  inp: (
-    | { weekId: string }
-    | { userId: number }
-    | { user: User }
-    | { groupId: number }
-  ) & {
-    weekId?: string;
-    userId?: number;
-    groupId?: number;
-    user?: User;
-    year?: number;
-    week?: number;
-  },
-  opts?: { update?: boolean },
-) {
-  const now = new Date();
-  const upd = opts?.update ? now : undefined;
-  if ("weekId" in inp) {
-    // Returns week even if no update
-    return await db.week.update({
-      where: { id: inp.weekId },
-      data: { updatedAt: upd },
-    });
-  }
-  const userId = (inp.user ? inp.user.id : inp.userId) ?? undefined;
-  const user =
-    inp.user ??
-    (userId ? await db.user.findUnique({ where: { id: userId } }) : null);
-  const owner = user?.id ?? "common";
-  const year = inp.year || getCurrentYearId();
-  const week = inp.week || getWeekFromDate(now);
-  const groupId = inp.groupId || user?.groupId || 0;
-  if (!groupId) {
-    log.error(`${owner}/${groupId}/${year}/${week} Groupless week`, {
-      user: userId,
-    });
-  }
-  const weekId = `${owner}/${groupId}/${year}/${week}`;
-  return await db.week.upsert({
-    where: { id: weekId },
-    create: {
-      id: weekId,
-      year,
-      userId,
-      number: week,
-      updatedAt: upd,
-      groupId,
-    },
-    update: {
-      updatedAt: upd,
-      groupId,
-    },
-  });
 }
 
 const LessonTypeMap = [
@@ -504,29 +405,97 @@ export const TimeSlotMap = [
   },
 ];
 
+async function getDbWeek(
+  user: User,
+  weekN: number,
+  opts?: {
+    groupId?: number;
+    year?: number;
+    nonPersonal?: boolean;
+    update?: boolean;
+    images?:
+      | {
+          stylemap?: string;
+        }
+      | boolean;
+  },
+): Promise<
+  Omit<Week, "timetable"> & { images: WeekImage[] } & {
+    timetable: WeekTimetable | null;
+  }
+> {
+  const now = new Date();
+  const owner =
+    opts?.nonPersonal || (opts?.groupId && opts.groupId !== user.groupId)
+      ? 0
+      : user.id;
+  const groupId = opts?.groupId ?? user.groupId;
+  const year = opts?.year || getCurrentYearId();
+  const weekNumber = weekN || getWeekFromDate(now);
+
+  if (!groupId) {
+    log.error(`Groupless user getDbWeek`, { user: user.id });
+    throw new Error(`Groupless user getDbWeek`);
+  }
+
+  const upd = opts?.update ? now : undefined;
+  if (opts?.images && opts.images === true) opts.images = {};
+  const includeImgs = opts?.images
+    ? { where: Object.assign({}, opts.images, { validUntil: { gt: now } }) }
+    : false;
+
+  const week = await db.week.upsert({
+    where: {
+      owner_groupId_year_number: {
+        owner: owner,
+        groupId: groupId,
+        year: year,
+        number: weekNumber,
+      },
+    },
+    create: { owner, groupId, year, number: weekNumber, updatedAt: upd },
+    update: upd ? { updatedAt: upd } : {},
+    include: { images: includeImgs },
+  });
+
+  if (week.timetable) {
+    const { timetable, ...data } = week;
+    const o = Object.assign(data, {
+      timetable: timetable as object as WeekTimetable,
+    });
+    return o;
+  }
+
+  return Object.assign(week, { timetable: null });
+}
+
+async function updateDbWeek(week: Week) {
+  const { timetable, ...data } = await db.week.update({
+    where: { id: week.id },
+    data: { updatedAt: new Date() },
+  });
+  return Object.assign({}, data, {
+    timetable: timetable as object | null as WeekTimetable | null,
+  });
+}
+
 async function updateWeekForUser(
   user: User,
   weekN: number,
-  opts?: { groupId?: number },
+  opts?: { groupId?: number; year?: number },
 ) {
   if (!(await lk.ensureAuth(user))) throw new Error("Auth error");
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
-  const year = getCurrentYearId();
-  const week = await getDbWeek(
-    {
-      userId: user.id,
-      year,
-      week: weekNumber,
-      groupId: opts?.groupId ?? user.groupId ?? undefined,
-    },
-    { update: true },
-  );
+  const year = opts?.year || getCurrentYearId();
   const someoneElsesGroup = opts?.groupId && opts.groupId !== user.groupId;
-  const groupId = someoneElsesGroup ? opts.groupId : user.groupId;
-  log.debug(
-    `Updating week ${week.id} (${opts?.groupId ?? user.groupId}) ` +
-      (someoneElsesGroup ? "[foreign]" : ""),
+  const groupId =
+    (someoneElsesGroup ? opts.groupId : user.groupId) ?? undefined;
+
+  const week = await getDbWeek(user, weekNumber, { groupId, year });
+
+  log.info(
+    `[SSAU] Updating week ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
     { user: user.id },
   );
 
@@ -537,9 +506,9 @@ async function updateWeekForUser(
         Cookie: user.authCookie,
       },
       params: {
-        yearId: year,
-        week: weekNumber,
-        groupId: groupId,
+        yearId: week.year,
+        week: week.number,
+        groupId: week.groupId,
         userType: "student",
       },
     },
@@ -551,14 +520,18 @@ async function updateWeekForUser(
   } = WeekResponseSchema.safeParse(res.data);
   if (error) {
     log.error(
-      `Error receiving schedule. ${getCurrentYearId()}/${weekNumber}/${user.groupId}`,
+      `Error receiving schedule. ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
       { user: user.id },
     );
     log.error(JSON.stringify(error));
     return;
   }
+
   if (!weekSched) {
-    log.error("No schedule, despite no errors in parsing", { user: user.id });
+    log.error(
+      `No schedule, despite no errors in parsing ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
+      { user: user.id },
+    );
     return;
   }
 
@@ -572,6 +545,7 @@ async function updateWeekForUser(
   const updatedFlows: number[] = [];
   const updatedLessons: number[] = [];
   const lessonsInThisWeek: number[] = [];
+
   log.debug("Updating lessons", { user: user.id });
 
   const lessonValidUntilDate = new Date(now.getTime() + 2592000_000); // 30 days from now
@@ -641,6 +615,27 @@ async function updateWeekForUser(
         beginTime: new Date(date.getTime() + timeslot.beginDelta),
         endTime: new Date(date.getTime() + timeslot.endDelta),
         validUntil: lessonValidUntilDate, // 30 days from now
+        week:
+          lessonInfo.week !== week.number // Create placeholder for other weeks
+            ? {
+                connectOrCreate: {
+                  where: {
+                    owner_groupId_year_number: {
+                      owner: week.owner,
+                      groupId: week.groupId,
+                      year: week.year,
+                      number: lessonInfo.week,
+                    },
+                  },
+                  create: {
+                    owner: week.owner,
+                    groupId: week.groupId,
+                    year: week.year,
+                    number: lessonInfo.week,
+                  },
+                },
+              }
+            : undefined, // Current week is handled separately with lessonsInThisWeek
       };
       Object.assign(lesson, info);
 
@@ -656,102 +651,120 @@ async function updateWeekForUser(
     }
   }
 
-  log.debug("Updating iet lessons", { user: user.id });
-  for (const lessonList of weekSched.ietLessons) {
-    // Create shared info for all lessons in list
-    const info = {
-      discipline: formatSentence(lessonList.flows[0].discipline.name),
-      conferenceUrl: lessonList.conference?.url,
-      weekday: lessonList.weekday.id,
-      teacherId: lessonList.teachers[0].id,
-      type: getLessonTypeEnum(lessonList.type.id),
-      isIet: true,
-      dayTimeSlot: lessonList.time.id,
-      subgroup: lessonList.flows[0].subgroup,
-      flows: lessonList.flows.map((flow) => {
-        return { id: flow.id };
-      }),
-    };
-    // Ensure all flows exist in db. Also check for ssau fuckery
-    for (const flow of lessonList.flows) {
-      if (!updatedFlows.includes(flow.id)) {
-        await ensureFlowExists(flow);
-        updatedFlows.push(flow.id);
+  if (week.owner !== 0) {
+    log.debug("Updating iet lessons", { user: user.id });
+    const flowsToJoin: number[] = [];
+    for (const lessonList of weekSched.ietLessons) {
+      // Create shared info for all lessons in list
+      const info = {
+        discipline: formatSentence(lessonList.flows[0].discipline.name),
+        conferenceUrl: lessonList.conference?.url,
+        weekday: lessonList.weekday.id,
+        teacherId: lessonList.teachers[0].id,
+        type: getLessonTypeEnum(lessonList.type.id),
+        isIet: true,
+        dayTimeSlot: lessonList.time.id,
+        subgroup: lessonList.flows[0].subgroup,
+        flows: lessonList.flows.map((flow) => {
+          return { id: flow.id };
+        }),
+      };
+      // Ensure all flows exist in db. Also check for ssau fuckery
+      for (const flow of lessonList.flows) {
+        if (!updatedFlows.includes(flow.id)) {
+          await ensureFlowExists(flow);
+          updatedFlows.push(flow.id);
+        }
+
+        // Debug-ish
+        if (flow.subgroup !== info.subgroup) {
+          log.error(
+            `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
+            { user: user.id },
+          );
+          info.subgroup = null;
+        }
       }
 
-      // Debug-ish
-      if (flow.subgroup !== info.subgroup) {
-        log.error(
-          `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
+      if (lessonList.flows.length > 1) {
+        log.warn(
+          `Apparently multiple flows are actually used... ${JSON.stringify(lessonList)}`,
           { user: user.id },
         );
-        info.subgroup = null;
+      }
+
+      // Identify more lesson types, since i have no idea which id some types have
+      if (info.type === LessonType.Unknown) {
+        log.error(
+          `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
+          { user: user.id },
+        );
+      }
+
+      // I've never seen multiple teachers in one lesson, so idk.
+      if (lessonList.teachers.length > 1) {
+        log.error(
+          `SSAU Strikes again! Apparently there can be multiple teachers on a lesson: ${JSON.stringify(lessonList)}`,
+          { user: user.id },
+        );
+      }
+
+      if (!updatedTeachers.includes(info.teacherId)) {
+        await ensureTeacherExists(lessonList.teachers[0]);
+        updatedTeachers.push(info.teacherId);
+      }
+
+      for (const lessonInfo of lessonList.weeks) {
+        const date = getLessonDate(lessonInfo.week, info.weekday);
+        const timeslot = TimeSlotMap[info.dayTimeSlot];
+        const lesson = {
+          id: lessonInfo.id,
+          isOnline: !!lessonInfo.isOnline,
+          building: lessonInfo.building?.name,
+          room: lessonInfo.room?.name,
+          weekNumber: lessonInfo.week,
+          date: date,
+          beginTime: new Date(date.getTime() + timeslot.beginDelta),
+          endTime: new Date(date.getTime() + timeslot.endDelta),
+          validUntil: lessonValidUntilDate, // 30 days. Let Week updates and others handle invalidation
+          week:
+            lessonInfo.week !== week.number // Create placeholder for other weeks
+              ? {
+                  connectOrCreate: {
+                    where: {
+                      owner_groupId_year_number: {
+                        owner: week.owner,
+                        groupId: week.groupId,
+                        year: week.year,
+                        number: lessonInfo.week,
+                      },
+                    },
+                    create: {
+                      owner: week.owner,
+                      groupId: week.groupId,
+                      year: week.year,
+                      number: lessonInfo.week,
+                    },
+                  },
+                }
+              : undefined, // Current week is handled separately with lessonsInThisWeek
+        };
+        Object.assign(lesson, info);
+
+        const { flows, ...obj } = lesson as typeof lesson & typeof info;
+        await db.lesson.upsert({
+          where: { id: lesson.id },
+          create: Object.assign({}, obj, { flows: { connect: flows } }),
+          update: Object.assign({}, obj, { flows: { set: flows } }),
+        });
+
+        updatedLessons.push(lesson.id);
+        if (lesson.weekNumber === week.number)
+          lessonsInThisWeek.push(lesson.id);
       }
     }
-
-    // Identify more lesson types, since i have no idea which id some types have
-    if (info.type === LessonType.Unknown) {
-      log.error(
-        `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
-        { user: user.id },
-      );
-    }
-
-    // I've never seen multiple teachers in one lesson, so idk.
-    if (lessonList.teachers.length > 1) {
-      log.error(
-        `SSAU Strikes again! Apparently there can be multiple teachers on a lesson: ${JSON.stringify(lessonList)}`,
-        { user: user.id },
-      );
-    }
-
-    if (!updatedTeachers.includes(info.teacherId)) {
-      await ensureTeacherExists(lessonList.teachers[0]);
-      updatedTeachers.push(info.teacherId);
-    }
-
-    for (const lessonInfo of lessonList.weeks) {
-      const date = getLessonDate(lessonInfo.week, info.weekday);
-      const timeslot = TimeSlotMap[info.dayTimeSlot];
-      const weekId = `${someoneElsesGroup ? "common" : user.id}/${groupId}/${year}/${week}`;
-      const lesson = {
-        id: lessonInfo.id,
-        isOnline: !!lessonInfo.isOnline,
-        building: lessonInfo.building?.name,
-        room: lessonInfo.room?.name,
-        weekNumber: lessonInfo.week,
-        date: date,
-        beginTime: new Date(date.getTime() + timeslot.beginDelta),
-        endTime: new Date(date.getTime() + timeslot.endDelta),
-        validUntil: lessonValidUntilDate, // 30 days. Let Week updates and others handle invalidation
-        week:
-          lessonInfo.week !== week.number // Create placeholder for other weeks
-            ? {
-                connectOrCreate: {
-                  where: { id: weekId },
-                  create: {
-                    id: weekId,
-                    userId: user.id,
-                    year,
-                    number: lessonInfo.week,
-                    groupId: opts?.groupId ?? user.groupId!,
-                  },
-                },
-              }
-            : undefined, // Current week is handled separately with lessonsInThisWeek
-      };
-      Object.assign(lesson, info);
-
-      const { flows, ...obj } = lesson as typeof lesson & typeof info;
-      await db.lesson.upsert({
-        where: { id: lesson.id },
-        create: Object.assign({}, obj, { flows: { connect: flows } }),
-        update: Object.assign({}, obj, { flows: { set: flows } }),
-      });
-
-      updatedLessons.push(lesson.id);
-      if (lesson.weekNumber === week.number) lessonsInThisWeek.push(lesson.id);
-    }
+  } else {
+    log.info(`Skipping iet lessons for 'common' owned week`, { user: user.id });
   }
 
   await db.week.update({
@@ -762,11 +775,37 @@ async function updateWeekForUser(
           return { id };
         }),
       },
+      updatedAt: now,
     },
   });
 
+  if (updatedFlows.length > 0) {
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        flows: {
+          connect: updatedFlows.map((id) => {
+            return { id };
+          }),
+        },
+      },
+    });
+  }
+
+  const newLessons: number[] = [];
+  const knownLessonsIds = knownLessons.all.map((i) => i.id);
+  for (const updatedLesson of updatedLessons) {
+    if (!knownLessonsIds.includes(updatedLesson)) {
+      // TODO: should also check if updated is iet...
+      if (someoneElsesGroup) {
+        //ignore
+      } else {
+        newLessons.push(updatedLesson);
+      }
+    }
+  }
+  const missingLessons: number[] = [];
   for (const knownLesson of knownLessons.all) {
-    const missingLessons: number[] = [];
     if (!updatedLessons.includes(knownLesson.id)) {
       if (someoneElsesGroup && knownLesson.isIet) {
         //ignore
@@ -774,25 +813,42 @@ async function updateWeekForUser(
         missingLessons.push(knownLesson.id);
       }
     }
-    const removedLessons = await db.lesson.updateManyAndReturn({
-      where: {
-        OR: [
-          { id: { in: missingLessons } },
-          { week: { none: {} } }, // No week
-        ],
-      },
-      data: { validUntil: now },
-    }); // TODO: Report these
-
-    await db.cachedWeekTimetable.updateMany({
-      where: {
-        userId: user.id,
-        lessons: { some: { id: { in: missingLessons } } },
-        validUntil: { gt: now },
-      },
-      data: { validUntil: now },
-    });
   }
+
+  const removedLessons = await db.lesson.updateManyAndReturn({
+    where: {
+      // if is missing or left orphaned
+      OR: [
+        { id: { in: missingLessons } },
+        { week: { none: {} } }, // No week
+      ],
+    },
+    data: { validUntil: now },
+  }); // TODO: Report these
+
+  if (removedLessons.length) {
+    log.debug(
+      `Invalidated missing or orphaned lessons: ${JSON.stringify(removedLessons)}`,
+    );
+  }
+
+  // Invalidate cache for weeks that have had their lessons changed
+  // Broken, since i am checking against current week. Invalidates everything
+  // const invalidatedWeeks = await db.week.updateManyAndReturn({
+  //   where: {
+  //     groupId: week.groupId,
+  //     lessons: { some: { id: { in: [...missingLessons, ...newLessons] } } },
+  //     cachedUntil: { gt: now },
+  //   },
+  //   data: { cachedUntil: now },
+  // });
+
+  //const invalidatedWeekIds = invalidatedWeeks.map((i) => i.id);
+
+  await db.weekImage.updateMany({
+    where: { weekId: week.id },
+    data: { validUntil: now },
+  });
 }
 
 async function updateWeekRangeForUser(

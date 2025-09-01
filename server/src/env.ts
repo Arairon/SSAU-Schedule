@@ -22,7 +22,10 @@ export const env = createEnv({
       .enum(["development", "production"])
       .optional()
       .default("production"),
-    PRISMA_LOGS: z.coerce.boolean().default(false),
+    PRISMA_LOGS: z
+      .string()
+      .transform((val) => ["true", "1"].includes(val.trim().toLowerCase()))
+      .default(false),
   },
 
   /**

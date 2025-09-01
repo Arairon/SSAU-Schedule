@@ -6,9 +6,9 @@ const f = format.combine(
   format.colorize(),
   format.timestamp(),
   format.align(),
-  format.printf(
-    (info) => `${info.timestamp} ${info.level} [${info.user}]: ${info.message}`
-  )
+  format.printf((info) => {
+    return `${info.timestamp} ${info.level} [${info.user}]: ${info.message}`;
+  }),
 );
 
 const rotatingLogFile = new winston.transports.DailyRotateFile({
@@ -22,7 +22,7 @@ const rotatingLogFile = new winston.transports.DailyRotateFile({
 const log = winston.createLogger({
   level: env.LOG_LEVEL.toLowerCase(),
   format: f,
-  defaultMeta: { user: 0 },
+  defaultMeta: { user: "sys" },
   transports: [new winston.transports.Console(), rotatingLogFile],
 });
 

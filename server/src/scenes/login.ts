@@ -15,6 +15,7 @@ type loginSceneData = {
   messageId: number;
   username: string;
   password: string;
+  userId: number;
   name: string;
 };
 
@@ -92,7 +93,8 @@ loginScene.on(message("text"), async (ctx) => {
       Markup.inlineKeyboard([]),
     );
     const { username, password } = sceneData;
-    const user = await db.user.findUnique({ where: { id: userId } });
+    const user = await db.user.findUnique({ where: { tgId: userId } });
+    ctx.session.sceneData.userId = user!.id;
     const loginRes = await lk.login(user!, { username, password });
     if (!loginRes.ok) {
       sceneData.password = "";
@@ -157,7 +159,10 @@ loginScene.action("login_complete_dontsave", (ctx) => {
 loginScene.action("login_complete_save", async (ctx) => {
   const sceneData = ctx.session.sceneData as loginSceneData;
   const { username, password } = sceneData;
-  await lk.saveCredentials(ctx.from.id, { username, password });
+  await lk.saveCredentials(ctx.session.sceneData.userId, {
+    username,
+    password,
+  });
   ctx.telegram.editMessageText(
     ctx.chat?.id,
     ctx.session.sceneData.messageId,

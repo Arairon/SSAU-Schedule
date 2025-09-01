@@ -35,7 +35,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
           .send({ error: "Already exists", message: "User already exists" });
       }
       const user = await db.user
-        .create({ data: { id: body.id } })
+        .create({ data: { tgId: body.id } })
         .catch((error) => {
           return res
             .status(500)

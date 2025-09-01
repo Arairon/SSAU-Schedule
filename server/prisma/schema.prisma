@@ -44,24 +44,6 @@ model Teacher {
   updatedAt DateTime @updatedAt()
 }
 
-model Week {
-  id        String   @id
-  year      Int
-  number    Int
-  updatedAt DateTime @default(value: "1970-01-01T00:00:00.000Z")
-
-  lessons Lesson[]
-  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId  Int?
-  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  groupId Int
-
-  createdAt    DateTime @default(now())
-  db_updatedAt DateTime @updatedAt()
-
-  //@@unique([userId, year, number])
-}
-
 enum LessonType {
   Lection // 1
   Lab // 2
@@ -77,52 +59,51 @@ enum LessonType {
 }
 
 model Lesson {
-  id                  Int                   @id // I trust in ssau's autoincremented ids :D
-  type                LessonType
-  discipline          String
-  validUntil          DateTime
-  isOnline            Boolean
-  building            String?
-  room                String?
-  groups              Group[]
-  flows               Flow[]
-  isIet               Boolean               @default(false)
-  subgroup            Int?
-  teacher             Teacher               @relation(fields: [teacherId], references: [id])
-  teacherId           Int
-  dayTimeSlot         Int
-  date                DateTime
-  beginTime           DateTime
-  endTime             DateTime
-  week                Week[]
-  weekNumber          Int
-  weekday             Int
-  conferenceUrl       String?
-  CachedWeekTimetable CachedWeekTimetable[]
+  id            Int        @id // I trust in ssau's autoincremented ids :D
+  type          LessonType
+  discipline    String
+  validUntil    DateTime
+  isOnline      Boolean
+  building      String?
+  room          String?
+  groups        Group[]
+  flows         Flow[]
+  isIet         Boolean    @default(false)
+  subgroup      Int?
+  teacher       Teacher    @relation(fields: [teacherId], references: [id])
+  teacherId     Int
+  dayTimeSlot   Int
+  date          DateTime
+  beginTime     DateTime
+  endTime       DateTime
+  week          Week[]
+  weekNumber    Int
+  weekday       Int
+  conferenceUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 }
 
 model User {
-  id                  Int                   @id
+  id                  Int      @id @default(autoincrement())
+  tgId                BigInt   @unique
   staffId             Int? // LK id
   fullname            String?
-  group               Group?                @relation(fields: [groupId], references: [id])
+  group               Group?   @relation(fields: [groupId], references: [id])
   groupId             Int?
   flows               Flow[]
   authCookie          String?
-  authCookieExpiresAt DateTime              @default(value: "1970-01-01T00:00:00.000Z")
-  sessionExpiresAt    DateTime              @default(value: "1970-01-01T00:00:00.000Z")
+  authCookieExpiresAt DateTime @default(value: "1970-01-01T00:00:00.000Z")
+  sessionExpiresAt    DateTime @default(value: "1970-01-01T00:00:00.000Z")
   username            String?
   password            String?
-  notifyOnNextLesson  Boolean               @default(true)
-  notifyOnNextDay     Boolean               @default(true)
-  notifyOnNextWeek    Boolean               @default(true)
+  notifyOnNextLesson  Boolean  @default(true)
+  notifyOnNextDay     Boolean  @default(true)
+  notifyOnNextWeek    Boolean  @default(true)
   subgroup            Int?
   ics                 UserIcs?
-  cachedTimetables    CachedWeekTimetable[]
-  weeks               Week[]
+  //weeks               Week[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
@@ -148,18 +129,38 @@ model GroupIcs {
   updatedAt DateTime @updatedAt()
 }
 
-model CachedWeekTimetable {
-  id         Int      @id @default(autoincrement())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     Int
-  groupId    Int?
-  // handle ietless
-  weekNumber Int
+model Week {
+  id      Int   @id @default(autoincrement())
+  //user    User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owner   Int   @default(0) // cannot use null and relation because @@unique() does not respect null
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId Int
+  year    Int
+  number  Int
+
+  lessons   Lesson[]
+  updatedAt DateTime @default(value: "1970-01-01T00:00:00.000Z") // Updated from SSAU
+
+  timetable   Json?
+  images      WeekImage[]
+  cachedUntil DateTime    @default(value: "1970-01-01T00:00:00.000Z")
+
+  createdAt    DateTime @default(now())
+  db_updatedAt DateTime @updatedAt()
+
+  @@unique([owner, groupId, year, number])
+  @@index([owner, groupId, year, number])
+}
+
+model WeekImage {
+  id     Int  @id @default(autoincrement())
+  week   Week @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  weekId Int
+
+  stylemap   String   @default("default")
+  tgId       String?
+  data       String
   validUntil DateTime
-  lessons    Lesson[]
-  data       Json
-  image      String?
-  imageTgId  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
