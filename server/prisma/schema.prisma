@@ -101,6 +101,7 @@ model User {
   notifyOnNextLesson  Boolean  @default(true)
   notifyOnNextDay     Boolean  @default(true)
   notifyOnNextWeek    Boolean  @default(true)
+  preferences         Json     @default(value: "{}")
   subgroup            Int?
   ics                 UserIcs?
   //weeks               Week[]

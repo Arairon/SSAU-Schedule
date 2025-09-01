@@ -3,7 +3,7 @@ import { LessonType } from "@prisma/client";
 export type LessonStyleMap = {
   name: string;
   headerStyle: string;
-  barColor: string;
+  barStyle: string;
   cardStyle: string;
   nameStyle: string;
   teacherStyle: string;
@@ -15,8 +15,14 @@ export type LessonStyleMap = {
 };
 
 export type StyleMap = {
+  name: string;
   general: {
-    headerStyle: string;
+    headers: {
+      main: string;
+      timeLabel: string;
+      weekday: string;
+      timeslot: string;
+    };
     emptyWeek: {
       style: string;
       text: string;

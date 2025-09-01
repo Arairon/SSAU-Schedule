@@ -6,6 +6,10 @@ import { getPersonShortname } from "./utils";
 import log from "../logger";
 import { LessonType } from "@prisma/client";
 
+export const UserPreferencesDefaults = {
+  theme: "default",
+};
+
 export const LessonTypeName: Record<LessonType, string> = {
   Lection: "Лекция",
   Practice: "Практика",

@@ -9,6 +9,8 @@ import log from "../logger";
 import { db } from "../db";
 import { env } from "../env";
 import { readFileSync } from "node:fs";
+import { SCHEDULE_STYLEMAP_NEON } from "./scheduleStyles/neon";
+import { SCHEDULE_STYLEMAP_DARK } from "./scheduleStyles/dark";
 
 const CSS = readFileSync(
   // TODO: Update with static for prod
@@ -45,17 +47,17 @@ const HTML_HEADER_LESSONTYPE = `<div class="{style} flex-1 p-1">{name}</div>`;
 const HTML_NAV_CLOSE = `
 </nav>
 <main class="grid gap-1 text-md leading-5 text-center grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] grid-rows-auto">
-<div class="bg-cyan-400 rounded-lg font-bold p-2 flex flex-col justify-center">
+<div class="{timeLabelStyle} rounded-lg font-bold p-2 flex flex-col justify-center">
 Время
 </div>
 `;
 const HTML_HEADER_WEEKDAY = `\
-<div class="bg-cyan-400 rounded-lg font-bold p-2">
+<div class="{style} rounded-lg font-bold p-2">
 {weekday} {date}
 </div>`;
 
 const HTML_HEADER_TIMESLOT = `\
-<div class="bg-cyan-200 rounded-lg font-bold p-2 flex flex-col justify-center">
+<div class="{style} rounded-lg font-bold p-2 flex flex-col justify-center">
 {start}<hr>{end}
 </div>
 `;
@@ -69,7 +71,7 @@ const LESSON_GROUP_START = `<div class="flex flex-col gap-1">`;
 
 const LESSON_START = `\
 <div class="{cardStyle} flex-1">
-<div class="{barColor} p-1 rounded-xl"></div>
+<div class="{barStyle} p-1 rounded-xl"></div>
 <div class="px-1 text-left">`;
 
 const LESSON_BODY = `\
@@ -96,8 +98,10 @@ const EMPTY_WEEK_NOTICE = `
 </div>
 `;
 
-const STYLEMAPS: Record<string, StyleMap> = {
+export const STYLEMAPS: Record<string, StyleMap> = {
   default: SCHEDULE_STYLEMAP_DEFAULT,
+  dark: SCHEDULE_STYLEMAP_DARK,
+  neon: SCHEDULE_STYLEMAP_NEON,
 };
 
 function generateSingleLesson(
@@ -111,7 +115,7 @@ function generateSingleLesson(
   const parts: string[] = [];
   parts.push(
     format(LESSON_START, {
-      barColor: style.barColor,
+      barStyle: style.barStyle,
       cardStyle: style.cardStyle,
     }),
   );
@@ -162,7 +166,7 @@ function generateWindowLesson(opts?: { stylemap?: string }) {
   const parts: string[] = [];
   parts.push(
     format(LESSON_START, {
-      barColor: style.barColor,
+      barStyle: style.barStyle,
       cardStyle: style.cardStyle,
     }),
   );
@@ -176,7 +180,11 @@ function generateLesson(
   opts?: { stylemap?: string; showGrouplist?: boolean },
 ) {
   if (lesson === null) {
-    return LESSON_GROUP_START + generateWindowLesson() + LESSON_GROUP_END;
+    return (
+      LESSON_GROUP_START +
+      generateWindowLesson({ stylemap: opts?.stylemap }) +
+      LESSON_GROUP_END
+    );
   }
   const showGrouplist = opts?.showGrouplist && lesson.alts.length === 0;
   return (
@@ -229,7 +237,7 @@ export async function generateTimetableImageHtml(
     format(HTML_HEADER_WEEK, {
       name: scheduleName,
       weekNumber: `${timetable.week}`,
-      headerStyle: stylemap.general.headerStyle,
+      headerStyle: stylemap.general.headers.main,
     }),
     HTML_NAV_OPEN,
     ...Object.values(stylemap.lessonTypes).map((style) =>
@@ -238,7 +246,9 @@ export async function generateTimetableImageHtml(
         name: style.name,
       }),
     ),
-    HTML_NAV_CLOSE,
+    format(HTML_NAV_CLOSE, {
+      timeLabelStyle: stylemap.general.headers.timeLabel,
+    }),
   ];
   const cols: (string | null)[][] = [];
   let colHeight = 0;
@@ -248,6 +258,7 @@ export async function generateTimetableImageHtml(
       format(HTML_HEADER_WEEKDAY, {
         weekday: WEEKDAYS[day.weekday].short,
         date: `${date.getDate().toString().padStart(2, "0")}.${date.getMonth().toString().padStart(2, "0")}`,
+        style: stylemap.general.headers.weekday,
       }),
     );
     const column: string[] = Array(8);
@@ -257,7 +268,7 @@ export async function generateTimetableImageHtml(
     }
     for (const lesson of day.lessons)
       column[lesson.dayTimeSlot - 1] = generateLesson(lesson, {
-        stylemap: opts?.stylemap,
+        stylemap: stylemap.name,
       });
     const latestLessonSlot = day.lessons.at(-1)?.dayTimeSlot ?? 0;
     colHeight = colHeight > latestLessonSlot ? colHeight : latestLessonSlot;
@@ -269,6 +280,7 @@ export async function generateTimetableImageHtml(
       format(HTML_HEADER_TIMESLOT, {
         start: TimeSlotMap[1].beginTime,
         end: TimeSlotMap.at(-1)!.endTime,
+        style: stylemap.general.headers.timeslot,
       }),
     );
     page.push(format(EMPTY_WEEK_NOTICE, stylemap.general.emptyWeek));
@@ -280,6 +292,7 @@ export async function generateTimetableImageHtml(
             format(HTML_HEADER_TIMESLOT, {
               start: TimeSlotMap[y + 1].beginTime,
               end: TimeSlotMap[y + 1].endTime,
+              style: stylemap.general.headers.timeslot,
             }),
           );
           continue;
@@ -308,7 +321,7 @@ export async function generateTimetableImage(
   })) as Buffer;
   const endTime = process.hrtime.bigint();
   log.debug(
-    `Generated an image for week [F:${timetable.isCommon} I:${timetable.withIet}] ${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `Generated an image for week [F:${timetable.isCommon} I:${timetable.withIet}] ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: timetable.user },
   );
   return image;

@@ -372,7 +372,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       const timetable = await schedule.getWeekTimetable(user!, 3, {
         //groupId: 531023227,
       });
-      const html = await generateTimetableImageHtml(timetable);
+      const html = await generateTimetableImageHtml(timetable, {
+        stylemap: "neon",
+      });
       return res.status(200).header("content-type", "text/html").send(html);
     },
   );
@@ -385,8 +387,10 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
     },
     async (req: FastifyRequest<{ Params: { n1: number } }>, res) => {
       const user = await db.user.findUnique({ where: { id: req.params.n1 } });
-      const timetable = await schedule.getTimetableWithImage(user!, 0, {
+      const timetable = await schedule.getTimetableWithImage(user!, 3, {
         //groupId: 531023227,
+        stylemap: "neon",
+        ignoreCached: true,
       });
       return res
         .status(200)

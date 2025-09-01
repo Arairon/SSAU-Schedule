@@ -21,7 +21,12 @@ import { formatBigInt, getPersonShortname, getWeekFromDate } from "./lib/utils";
 import { loginScene } from "./scenes/login";
 import { schedule } from "./lib/schedule";
 import { CallbackQuery, Message, Update } from "telegraf/types";
-import { findGroup, findGroupOrOptions } from "./lib/misc";
+import {
+  findGroup,
+  findGroupOrOptions,
+  UserPreferencesDefaults,
+} from "./lib/misc";
+import { STYLEMAPS } from "./lib/scheduleImage";
 
 function getDefaultSession(): Session {
   return {
@@ -115,6 +120,12 @@ async function sendTimetable(
   const group =
     opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
 
+  const preferences = Object.assign(
+    {},
+    UserPreferencesDefaults,
+    user.preferences,
+  );
+
   const chatId = ctx.session.scheduleViewer.chatId || null;
   const existingMessage = ctx.session.scheduleViewer.message || null;
   const temp: {
@@ -141,6 +152,7 @@ async function sendTimetable(
     timetable = await schedule.getTimetableWithImage(user!, week, {
       groupId: group,
       forceUpdate: opts?.forceUpdate ?? undefined,
+      stylemap: preferences.theme,
     });
   } catch {
     ctx.reply(fmt`
@@ -228,7 +240,7 @@ async function sendTimetable(
 
   const endTime = process.hrtime.bigint();
   log.debug(
-    `[BOT] Image viewer [F:${timetable.data.isCommon} I:${timetable.data.withIet}] ${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `[BOT] Image viewer [F:${timetable.data.isCommon} I:${timetable.data.withIet}] ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: ctx.from.id },
   );
 }
@@ -350,10 +362,7 @@ async function init_bot(bot: Telegraf<Context>) {
   bot.command("logout", async (ctx) => {
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
-      sendErrorMessage(
-        ctx,
-        "Вас не существует в базе данных. Пожалуйста пропишите /start",
-      );
+      ctx.reply("Вас не существует в базе данных. Пожалуйста пропишите /start");
       return;
     }
     await lk.resetAuth(user!, { resetCredentials: true });
@@ -423,7 +432,49 @@ async function init_bot(bot: Telegraf<Context>) {
     sendTimetable(ctx, week, { forceUpdate: true, queryCtx: ctx });
   });
 
-  bot.hears(/\d{4}(?:-\d+)?D?/, async (ctx) => {
+  bot.command("config", async (ctx) => {
+    const [cmd, ...args] = ctx.message.text.trim().split(" ");
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user)
+      return ctx.reply(
+        "Вас не существует в базе данных. Пожалуйста пропишите /start",
+      );
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    if (args.length === 0) {
+      return ctx.reply(
+        `Текущие параметры:\n${JSON.stringify(preferences, null, 2)}`,
+      );
+    }
+    const field = args.shift()!.toLowerCase();
+    if (field === "theme") {
+      const themes = Object.keys(STYLEMAPS);
+      const target = args[0];
+      if (!target) {
+        return ctx.reply(`Доступные темы: ${themes.join(", ")}`);
+      } else if (!themes.includes(target)) {
+        return ctx.reply(
+          `Такой темы нет.\nДоступные темы: ${themes.join(", ")}`,
+        );
+      }
+      preferences.theme = target;
+      await db.user.update({ where: { id: user.id }, data: { preferences } });
+      return ctx.reply(`Тема успешно изменена на '${target}'`);
+    }
+  });
+
+  // 0 - 99 as a week number
+  bot.hears(/^\d\d?$/, async (ctx) => {
+    const text = ctx.message.text.trim();
+    const week = parseInt(text);
+    sendTimetable(ctx, week);
+  });
+
+  // 6101(-090301)?D? as a group number
+  bot.hears(/^\d{4}(?:-\d+)?D?$/, async (ctx) => {
     const group = await findGroupOrOptions({
       groupName: ctx.message.text.trim(),
     });
@@ -451,6 +502,21 @@ async function init_bot(bot: Telegraf<Context>) {
       ctx.reply(
         fmt`Ты. Ужасный. Человек.\n${italic('Я серьёзно, тут так и написано: "Ужасный человек"')}`,
       );
+  });
+
+  bot.command("broadcastTest", async (ctx) => {
+    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
+    const text = ctx.message.text.slice(14).trim();
+    ctx.reply(text);
+  });
+
+  bot.command("broadcast", async (ctx) => {
+    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
+    const text = ctx.message.text.slice(10).trim();
+    const users = await db.user.findMany();
+    for (const user of users) {
+      ctx.telegram.sendMessage(`${user.tgId}`, text);
+    }
   });
 
   bot.on(message("text"), async (ctx) => {

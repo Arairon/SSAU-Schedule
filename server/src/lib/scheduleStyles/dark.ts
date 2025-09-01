@@ -1,25 +1,28 @@
 import { StyleMap } from "./types";
 
-export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
-  name: "default",
+export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
+  name: "dark",
   general: {
     headers: {
-      main: "bg-white rounded-lg",
-      timeLabel: "bg-cyan-400",
-      weekday: "bg-cyan-400",
-      timeslot: "bg-cyan-200",
+      main: "bg-slate-800 text-white border-2 border-slate-500 rounded-lg",
+      timeLabel: "bg-cyan-700 text-white",
+      weekday: "bg-cyan-700 text-white",
+      timeslot: "bg-cyan-700 text-white",
     },
     emptyWeek: {
-      style: "bg-white rounded-lg text-center text-lg font-bold py-12",
+      style:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg text-center text-lg font-bold py-12",
       text: "Пар нет :D",
     },
   },
   lessonTypes: {
     Lection: {
       name: "Лекция",
-      headerStyle: "bg-green-400 rounded-lg",
+      headerStyle:
+        "border-2 border-green-400 bg-green-950 text-white rounded-lg",
       barStyle: "bg-green-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -32,9 +35,10 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Practice: {
       name: "Практика",
-      headerStyle: "bg-red-400 rounded-lg",
+      headerStyle: "border-2 border-red-400 bg-red-950 text-white rounded-lg",
       barStyle: "bg-red-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -47,9 +51,11 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Lab: {
       name: "Лабораторная",
-      headerStyle: "bg-purple-500 rounded-lg",
+      headerStyle:
+        "border-2 border-purple-400 bg-purple-950 text-white rounded-lg",
       barStyle: "bg-purple-500",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -62,9 +68,11 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Other: {
       name: "Прочее",
-      headerStyle: "bg-orange-400 rounded-lg",
+      headerStyle:
+        "border-2 border-orange-400 bg-orange-950 text-white rounded-lg",
       barStyle: "bg-orange-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -75,26 +83,12 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
     },
-    /*CourseWork: {
-      name: "Курсовая",
-      headerStyle: "bg-pink-500 rounded-lg hidden",
-      barStyle: "bg-pink-500",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
-    },*/
     Consult: {
       name: "Консультация",
-      headerStyle: "bg-blue-400 rounded-lg",
+      headerStyle: "border-2 border-blue-400 bg-blue-950 text-white rounded-lg",
       barStyle: "bg-blue-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -107,9 +101,10 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Exam: {
       name: "Экзамен",
-      headerStyle: "bg-black rounded-lg text-white outline-2 ountline-white",
+      headerStyle: "border-2 border-white bg-black text-white rounded-lg",
       barStyle: "bg-black",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -120,41 +115,12 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
     },
-    /*Test: {
-      name: "Тест",
-      headerStyle: "bg-gray-700 rounded-lg text-white hidden",
-      barStyle: "bg-gray-700",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
-    },
-    Military: {
-      name: "Воен. Каф",
-      headerStyle: "bg-green-600 rounded-lg hidden",
-      barStyle: "bg-green-600",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
-    },*/
     Window: {
       name: "Окно",
       headerStyle: "bg-white rounded-lg hidden",
       barStyle: "",
-      cardStyle: "bg-white/90 rounded-lg", //border-black border-2 border-dashed
+      cardStyle:
+        "border-2 border-slate-600 bg-slate-900 text-white rounded-lg px-1 py-2",
       nameStyle: "hidden",
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -170,7 +136,8 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
       headerStyle:
         "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden",
       barStyle: "bg-black",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",

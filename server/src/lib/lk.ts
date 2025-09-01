@@ -17,15 +17,23 @@ function resetAuth(
   opts?: { dontUpdateDb?: boolean; resetCredentials?: boolean },
 ) {
   log.debug("Reset auth for user", { user: user.id });
+  const upd = {
+    username: undefined as undefined | null,
+    password: undefined as undefined | null,
+    authCookie: undefined as undefined | null,
+    authCookieExpiresAt: undefined as undefined | Date,
+    sessionExpiresAt: undefined as undefined | Date,
+  };
   if (opts?.resetCredentials) {
-    user.username = null;
-    user.password = null;
+    upd.username = null;
+    upd.password = null;
   }
-  user.authCookie = null;
-  user.authCookieExpiresAt = new Date(0);
-  user.sessionExpiresAt = user.authCookieExpiresAt;
+  upd.authCookie = null;
+  upd.authCookieExpiresAt = new Date(0);
+  upd.sessionExpiresAt = user.authCookieExpiresAt;
+  Object.assign(user, upd);
   if (!opts?.dontUpdateDb)
-    return db.user.update({ where: { id: user.id }, data: user });
+    return db.user.update({ where: { id: user.id }, data: upd });
 }
 
 async function saveCredentials(
@@ -36,25 +44,20 @@ async function saveCredentials(
   await db.user.update({ where: { id: userId }, data: credentials });
 }
 
-function applyCookie(user: User, rawcookie: string) {
+function getCookie(rawcookie: string) {
   const cookie = rawcookie.split(";")[0] + ";";
   const decodedCookie = decodeURIComponent(
     decodeURIComponent(cookie.slice(5, cookie.length - 1)),
   );
   const rawtoken = JSON.parse(decodedCookie)?.token;
   const token = jwt.decode(rawtoken) as jwt.JwtPayload;
-  if (!token.exp)
-    return {
-      ok: false,
-      error: "invalid token",
-    };
+  if (!token.exp) return null;
   const update = {
     authCookie: cookie,
     authCookieExpiresAt: new Date((token.exp - 30) * 1000), // add 30sec to avoid losing auth
     sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
   };
-  Object.assign(user, update);
-  return { ok: true };
+  return update;
 }
 
 async function login(
@@ -81,18 +84,27 @@ async function login(
   }
   const rawCookie = loginRes.data!;
   // Save cookie and related info in user
-  if (!applyCookie(user, rawCookie).ok)
+  const cookieUpd = getCookie(rawCookie);
+  if (!cookieUpd)
     return {
       ok: false,
       error: "invalid cookie",
       message: "lk.ssau.ru returned an invalid cookie",
     };
 
+  const credsUpd = {
+    username: undefined as undefined | string,
+    password: undefined as undefined | string,
+  };
   if (saveCredentials) {
-    user.username = username;
-    user.password = creds.encrypt(password);
+    credsUpd.username = username;
+    credsUpd.password = creds.encrypt(password);
   }
-  await db.user.update({ where: { id: user.id }, data: user });
+  Object.assign(user, cookieUpd, credsUpd);
+  await db.user.update({
+    where: { id: user.id },
+    data: Object.assign({}, cookieUpd, credsUpd),
+  });
   return { ok: true, data: user };
 }
 
@@ -186,7 +198,8 @@ async function updateCookie(user: User) {
       message: "Unable to refresh session",
     };
   }
-  if (!applyCookie(user, cookie).ok) {
+  const cookieUpd = getCookie(cookie);
+  if (!cookieUpd) {
     log.warn("Failed to update cookie: Invalid cookie", { user: user.id });
     return {
       ok: false,
@@ -194,7 +207,8 @@ async function updateCookie(user: User) {
       message: "lk.ssau.ru returned an invalid cookie",
     };
   }
-  await db.user.update({ where: { id: user.id }, data: user });
+  Object.assign(user, cookieUpd);
+  await db.user.update({ where: { id: user.id }, data: cookieUpd });
   log.debug(`Updated cookie`, { user: user.id });
   return { ok: true };
 }
@@ -249,9 +263,14 @@ async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
       message: "Failed to get access to lk.ssau.ru",
     };
   }
+  const upd = {
+    staffId: undefined as undefined | number,
+    fullname: undefined as undefined | string,
+    groupId: undefined as undefined | number,
+  };
   const details = UserDetailsSchema.parse(userDetails.data);
-  user.staffId = details.staffId;
-  user.fullname = details.fullName;
+  upd.staffId = details.staffId;
+  upd.fullname = details.fullName;
   const userGroups = await axios.get(
     "https://lk.ssau.ru/api/proxy/personal/groups",
     {
@@ -263,9 +282,10 @@ async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
   const groups = UserGroupsSchema.parse(userGroups.data);
   const group = groups[0]; // I HOPE the first one will always be the main one... Though there might be more
   await ensureGroupExists(group);
-  // Allow for custom groups
-  if (opts?.overrideGroup || !user.groupId) user.groupId = group.id;
-  await db.user.update({ where: { id: user.id }, data: user });
+  // Keep already set group
+  if (opts?.overrideGroup || !user.groupId) upd.groupId = group.id;
+  Object.assign(user, upd);
+  await db.user.update({ where: { id: user.id }, data: upd });
   return { ok: true, data: user };
 }
 
