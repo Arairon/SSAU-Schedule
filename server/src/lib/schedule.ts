@@ -52,7 +52,8 @@ async function getWeekLessons(
     },
     include: { groups: true, teacher: true },
   });
-  if (!opts?.ignoreIet || groupId !== user.groupId)
+
+  if (opts?.ignoreIet || (groupId && groupId !== user.groupId))
     return { lessons, ietLessons: [], all: lessons };
 
   const ietLessons = await db.lesson.findMany({
@@ -227,7 +228,7 @@ async function getWeekTimetable(
     log.debug("Week updatedAt too old. Updating week", { user: user.id });
     await updateWeekForUser(user, weekNumber, { year, groupId });
   } else {
-    log.debug("Week Timetable looks good.", { user: user.id });
+    log.debug("Week Timetable looks good. Not updating", { user: user.id });
   }
 
   log.debug(
