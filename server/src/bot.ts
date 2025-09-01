@@ -267,7 +267,16 @@ async function handleError(ctx: Context, error: any) {
 
 //TODO: Ensure commands are guarded against non logged in users or fall them back to 'common'
 async function init_bot(bot: Telegraf<Context>) {
-  bot.launch(() => log.info("Bot started!"));
+  bot.launch(() => {
+    log.info("Bot started!");
+    if (env.SCHED_BOT_ADMIN_TGID && env.NODE_ENV === "production") {
+      try {
+        bot.telegram.sendMessage(env.SCHED_BOT_ADMIN_TGID, "Bot started!");
+      } catch {
+        log.error("Failed to notify admin about bot start");
+      }
+    }
+  });
 
   bot.use(stage.middleware());
 
@@ -446,7 +455,7 @@ async function init_bot(bot: Telegraf<Context>) {
     );
     if (args.length === 0) {
       return ctx.reply(
-        `Текущие параметры:\n${JSON.stringify(preferences, null, 2)}`,
+        `Текущие параметры:\n${JSON.stringify(Object.assign({}, preferences, { subgroup: user.subgroup }), null, 2)}`,
       );
     }
     const field = args.shift()!.toLowerCase();
@@ -463,6 +472,32 @@ async function init_bot(bot: Telegraf<Context>) {
       preferences.theme = target;
       await db.user.update({ where: { id: user.id }, data: { preferences } });
       return ctx.reply(`Тема успешно изменена на '${target}'`);
+    } else if (field === "subgroup") {
+      const arg = args[0]?.trim();
+      const target = isNaN(arg as any) ? null : Number(arg);
+      if (!arg || target === null || target < 0 || target > 2) {
+        return ctx.reply(
+          `Вы можете установить себе подгруппу 1 или 2.\nПодгруппа 0 - обе\nВаша подгруппа: ${user.subgroup ?? 0}`,
+        );
+      }
+      const now = new Date();
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          subgroup: target,
+          ics: {
+            upsert: {
+              create: { validUntil: now },
+              update: { validUntil: now },
+            },
+          },
+        },
+      });
+      await db.week.updateMany({
+        where: { owner: user.id },
+        data: { cachedUntil: now },
+      });
+      ctx.reply(`Подгруппа успешно изменена на ${target}`);
     }
   });
 
@@ -470,6 +505,7 @@ async function init_bot(bot: Telegraf<Context>) {
   bot.hears(/^\d\d?$/, async (ctx) => {
     const text = ctx.message.text.trim();
     const week = parseInt(text);
+    ctx.deleteMessage(ctx.message.message_id);
     sendTimetable(ctx, week);
   });
 

@@ -52,6 +52,8 @@ export async function generateUserIcs(
   const events: ics.EventAttributes[] = [];
 
   for (const lesson of [...normalLessons, ...ietLessons]) {
+    if (user.subgroup && lesson.subgroup && user.subgroup !== lesson.subgroup)
+      continue;
     const event: ics.EventAttributes = {
       calName: "Расписание",
       title:
@@ -71,8 +73,6 @@ export async function generateUserIcs(
     };
     events.push(event);
   }
-
-  console.log(events);
 
   const { error, value: cal } = ics.createEvents(events);
 
@@ -98,12 +98,12 @@ export async function generateUserIcs(
 
 export async function getUserIcs(userId: number) {
   const now = new Date();
-  // const existingCal = await db.userIcs.findUnique({
-  //   where: { id: userId, validUntil: { gt: now } },
-  // });
-  // if (existingCal) {
-  //   log.debug("Using cached ics", { user: userId });
-  //   return existingCal.data;
-  // }
+  const existingCal = await db.userIcs.findUnique({
+    where: { id: userId },
+  });
+  if (existingCal && existingCal.validUntil > now) {
+    log.debug("Using cached ics", { user: userId });
+    return existingCal.data;
+  }
   return generateUserIcs(userId);
 }

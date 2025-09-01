@@ -178,6 +178,8 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       return res.status(200).send(
         Object.assign({}, user, {
           password: "[redacted]",
+          tgId: user.tgId.toString(),
+          authCookie: "[redacted]",
         }),
       );
     },
@@ -341,13 +343,17 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       res,
     ) => {
       const userId = req.params.userId;
-      const user = await db.user.findUnique({ where: { id: userId } });
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        include: { ics: true },
+      });
       if (!user)
         return res.status(404).send({
           error: "user not found",
           message: "Cannot find specified user",
         });
-      const cal = await getUserIcs(user.id);
+      const cachedCal = user.ics && user.ics.validUntil > new Date();
+      const cal = cachedCal ? user!.ics!.data : await getUserIcs(user.id);
       return res
         .status(200)
         .headers({ "content-type": "text/calendar; charset=utf-8" })

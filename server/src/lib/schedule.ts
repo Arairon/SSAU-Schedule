@@ -203,6 +203,7 @@ async function getWeekTimetable(
   const weekNumber = weekN || getWeekFromDate(now);
   const year = opts?.year || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
+  const subgroup = groupId === user.groupId ? user.subgroup : null;
   if (opts?.forceUpdate) opts.ignoreCached = true;
 
   if (!groupId) {
@@ -228,7 +229,9 @@ async function getWeekTimetable(
     log.debug("Week updatedAt too old. Updating week", { user: user.id });
     await updateWeekForUser(user, weekNumber, { year, groupId });
   } else {
-    log.debug("Week Timetable looks good. Not updating", { user: user.id });
+    log.debug("Week Timetable updatedAt look good. Not updating from ssau", {
+      user: user.id,
+    });
   }
 
   log.debug(
@@ -268,6 +271,7 @@ async function getWeekTimetable(
   }
   for (const lesson of lessons.all) {
     const day = timetable.days[lesson.weekday - 1];
+    if (subgroup && lesson.subgroup && subgroup !== lesson.subgroup) continue;
     day.beginTime =
       lesson.beginTime < day.beginTime ? lesson.beginTime : day.beginTime;
     day.endTime = lesson.endTime > day.endTime ? lesson.endTime : day.endTime;
