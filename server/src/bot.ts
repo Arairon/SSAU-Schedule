@@ -415,7 +415,10 @@ async function init_bot(bot: Telegraf<Context>) {
       message: 0,
       week: 0,
     };
-    sendTimetable(ctx, 0).catch((e) => {
+    const arg = ctx.message.text.split(" ").at(1);
+    let week = 0;
+    if (arg && !Number.isNaN(Number(arg))) week = Number(arg);
+    sendTimetable(ctx, week).catch((e) => {
       handleError(ctx, e);
     });
   });
@@ -486,6 +489,8 @@ async function init_bot(bot: Telegraf<Context>) {
       }
       preferences.theme = target;
       await db.user.update({ where: { id: user.id }, data: { preferences } });
+      if (ctx.session.scheduleViewer.message)
+        sendTimetable(ctx, ctx.session.scheduleViewer.week);
       return ctx.reply(`Тема успешно изменена на '${target}'`);
     } else if (field === "subgroup") {
       const arg = args[0]?.trim();
@@ -513,6 +518,49 @@ async function init_bot(bot: Telegraf<Context>) {
         data: { cachedUntil: now },
       });
       ctx.reply(`Подгруппа успешно изменена на ${target}`);
+    }
+  });
+
+  bot.command("invalidate", async (ctx) => {
+    const args = ctx.message.text.split(" ");
+    args.shift();
+    const arg = args[0]?.trim().toLowerCase();
+    const user = await db.user.findUnique({
+      where: { tgId: ctx.from.id },
+      include: { ics: true },
+    });
+    if (!user)
+      return ctx.reply(
+        `Вас не существует в базе данных, пожалуйста пропишите /start`,
+      );
+    if (arg === "cache") {
+      const now = new Date();
+      const target =
+        ctx.from.id === env.SCHED_BOT_ADMIN_TGID && args.includes("all")
+          ? undefined
+          : user.id;
+      await db.week.updateMany({
+        where: { owner: target },
+        data: { cachedUntil: now },
+      });
+      await db.user.update({
+        where: { id: target },
+        data: {
+          ics: {
+            upsert: {
+              create: { validUntil: now },
+              update: { validUntil: now },
+            },
+          },
+        },
+      });
+      log.debug(
+        `Invalidated cached timetables, images and ics for #${target ?? "all"}`,
+        { user: ctx.from.id },
+      );
+      return ctx.reply(
+        `Сброшены сгенерированные расписания, изображения и календари для #${target ?? "all"}`,
+      );
     }
   });
 

@@ -33,7 +33,7 @@ const HTML_SIZER = `<style>body{width:{width};height:{height};}</style>\n`;
 
 const HTML_HEADER_WEEK = `\
 <header class="{headerStyle} items-center flex flex-col p-1">
-<a class="text-lg font-bold">{name}, {weekNumber} неделя</a>
+<a class="">{name}, {weekNumber} неделя</a>
 </header>`;
 
 const HTML_NAV_OPEN = `<nav class="flex flex-row justify-between gap-2 font-bold text-center">`;
@@ -48,7 +48,7 @@ const HTML_HEADER_LESSONTYPE = `<div class="{style} flex-1 p-1">{name}</div>`;
 // <div class="bg-black rounded-lg flex-1 p-1 text-white outline-2 ountline-white">Экзамен</div> -->
 const HTML_NAV_CLOSE = `
 </nav>
-<main class="grid gap-1 text-md leading-5 text-center grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] grid-rows-auto">
+<main class="grid {mainStyle} grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] grid-rows-auto">
 <div class="{timeLabelStyle} rounded-lg font-bold p-2 flex flex-col justify-center">
 Время
 </div>
@@ -250,6 +250,7 @@ export async function generateTimetableImageHtml(
     ),
     format(HTML_NAV_CLOSE, {
       timeLabelStyle: stylemap.general.headers.timeLabel,
+      mainStyle: stylemap.general.mainStyle,
     }),
   ];
   const cols: (string | null)[][] = [];

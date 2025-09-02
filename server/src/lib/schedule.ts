@@ -493,6 +493,7 @@ async function updateWeekForUser(
     (someoneElsesGroup ? opts.groupId : user.groupId) ?? undefined;
 
   const week = await getDbWeek(user, weekNumber, { groupId, year });
+  const weekIsCommon = week.owner === 0;
 
   log.info(
     `[SSAU] Updating week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
@@ -778,6 +779,43 @@ async function updateWeekForUser(
       updatedAt: now,
     },
   });
+
+  if (!weekIsCommon) {
+    log.debug(
+      `Also updating common week for ${week.groupId}/${week.year}/${week.number}`,
+      { user: user.id },
+    );
+    await db.week.upsert({
+      where: {
+        owner_groupId_year_number: {
+          owner: 0,
+          groupId: week.groupId,
+          year: week.year,
+          number: week.number,
+        },
+      },
+      create: {
+        owner: 0,
+        groupId: week.groupId,
+        year: week.year,
+        number: week.number,
+        lessons: {
+          connect: lessonsInThisWeek.map((id) => {
+            return { id };
+          }),
+        },
+        updatedAt: now,
+      },
+      update: {
+        lessons: {
+          set: lessonsInThisWeek.map((id) => {
+            return { id };
+          }),
+        },
+        updatedAt: now,
+      },
+    });
+  }
 
   if (updatedFlows.length > 0) {
     await db.user.update({

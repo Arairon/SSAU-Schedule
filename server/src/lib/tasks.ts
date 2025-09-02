@@ -27,8 +27,11 @@ const sendScheduledNotifications = new AsyncTask(
         await bot.telegram.sendMessage(msg.chatId, msg.text, {
           entities: msg.entities as object[] as MessageEntity[],
         });
-      } catch {
-        log.error(`Failed to send message #${msg.id} to ${msg.chatId}`);
+      } catch (e) {
+        log.error(
+          `Failed to send message #${msg.id} to ${msg.chatId}. Err: ${e}`,
+          { user: "cron/notifications" },
+        );
       }
     }
     const sentIds = messages.map((i) => i.id);

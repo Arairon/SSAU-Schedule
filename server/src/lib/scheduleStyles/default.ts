@@ -3,8 +3,9 @@ import { StyleMap } from "./types";
 export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
   name: "default",
   general: {
+    mainStyle: "gap-1 text-lg leading-5 text-center",
     headers: {
-      main: "bg-white rounded-lg",
+      main: "bg-white rounded-lg text-lg font-bold",
       timeLabel: "bg-cyan-400",
       weekday: "bg-cyan-400",
       timeslot: "bg-cyan-200",
@@ -17,7 +18,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
   lessonTypes: {
     Lection: {
       name: "Лекция",
-      headerStyle: "bg-green-400 rounded-lg",
+      headerStyle: "bg-green-400 rounded-lg text-lg",
       barStyle: "bg-green-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -32,7 +33,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Practice: {
       name: "Практика",
-      headerStyle: "bg-red-400 rounded-lg",
+      headerStyle: "bg-red-400 rounded-lg text-lg",
       barStyle: "bg-red-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -47,7 +48,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Lab: {
       name: "Лабораторная",
-      headerStyle: "bg-purple-500 rounded-lg",
+      headerStyle: "bg-purple-500 rounded-lg text-lg",
       barStyle: "bg-purple-500",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -62,7 +63,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Other: {
       name: "Прочее",
-      headerStyle: "bg-orange-400 rounded-lg",
+      headerStyle: "bg-orange-400 rounded-lg text-lg",
       barStyle: "bg-orange-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -77,7 +78,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     /*CourseWork: {
       name: "Курсовая",
-      headerStyle: "bg-pink-500 rounded-lg hidden",
+      headerStyle: "bg-pink-500 rounded-lg hidden text-lg",
       barStyle: "bg-pink-500",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -92,7 +93,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },*/
     Consult: {
       name: "Консультация",
-      headerStyle: "bg-blue-400 rounded-lg",
+      headerStyle: "bg-blue-400 rounded-lg text-lg",
       barStyle: "bg-blue-400",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -107,7 +108,8 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Exam: {
       name: "Экзамен",
-      headerStyle: "bg-black rounded-lg text-white outline-2 ountline-white",
+      headerStyle:
+        "bg-black rounded-lg text-white outline-2 outline-white text-lg",
       barStyle: "bg-black",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -122,7 +124,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     /*Test: {
       name: "Тест",
-      headerStyle: "bg-gray-700 rounded-lg text-white hidden",
+      headerStyle: "bg-gray-700 rounded-lg text-white hidden text-lg",
       barStyle: "bg-gray-700",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -137,7 +139,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },
     Military: {
       name: "Воен. Каф",
-      headerStyle: "bg-green-600 rounded-lg hidden",
+      headerStyle: "bg-green-600 rounded-lg hidden text-lg",
       barStyle: "bg-green-600",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -152,7 +154,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     },*/
     Window: {
       name: "Окно",
-      headerStyle: "bg-white rounded-lg hidden",
+      headerStyle: "bg-white rounded-lg hidden text-lg",
       barStyle: "",
       cardStyle: "bg-white/90 rounded-lg", //border-black border-2 border-dashed
       nameStyle: "hidden",
@@ -168,7 +170,7 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
     Unknown: {
       name: "Неизвестно",
       headerStyle:
-        "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden",
+        "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden text-lg",
       barStyle: "bg-black",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize

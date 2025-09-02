@@ -3,11 +3,12 @@ import { StyleMap } from "./types";
 export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
   name: "dark",
   general: {
+    mainStyle: "gap-1 text-lg leading-5 text-center",
     headers: {
-      main: "bg-slate-800 text-white border-2 border-slate-500 rounded-lg",
-      timeLabel: "bg-cyan-700 text-white",
-      weekday: "bg-cyan-700 text-white",
-      timeslot: "bg-cyan-700 text-white",
+      main: "bg-slate-800 text-white border-2 border-slate-500 rounded-lg text-lg font-bold",
+      timeLabel: "bg-cyan-800 text-white",
+      weekday: "bg-cyan-800 text-white",
+      timeslot: "bg-cyan-900 text-white",
     },
     emptyWeek: {
       style:
@@ -19,7 +20,7 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     Lection: {
       name: "Лекция",
       headerStyle:
-        "border-2 border-green-400 bg-green-950 text-white rounded-lg",
+        "border-2 border-green-400 bg-green-950 text-white rounded-lg text-lg",
       barStyle: "bg-green-400",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
@@ -36,7 +37,7 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     Practice: {
       name: "Практика",
       headerStyle: "border-2 border-red-400 bg-red-950 text-white rounded-lg",
-      barStyle: "bg-red-400",
+      barStyle: "bg-red-400 text-lg",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -52,7 +53,7 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     Lab: {
       name: "Лабораторная",
       headerStyle:
-        "border-2 border-purple-400 bg-purple-950 text-white rounded-lg",
+        "border-2 border-purple-400 bg-purple-950 text-white rounded-lg text-lg",
       barStyle: "bg-purple-500",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
@@ -69,7 +70,7 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     Other: {
       name: "Прочее",
       headerStyle:
-        "border-2 border-orange-400 bg-orange-950 text-white rounded-lg",
+        "border-2 border-orange-400 bg-orange-950 text-white rounded-lg text-lg",
       barStyle: "bg-orange-400",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
@@ -85,8 +86,9 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     },
     Consult: {
       name: "Консультация",
-      headerStyle: "border-2 border-blue-400 bg-blue-950 text-white rounded-lg",
-      barStyle: "bg-blue-400",
+      headerStyle:
+        "border-2 border-blue-400 bg-blue-950 text-white rounded-lg text-lg",
+      barStyle: "bg-blue-400 text-lg",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -101,8 +103,9 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     },
     Exam: {
       name: "Экзамен",
-      headerStyle: "border-2 border-white bg-black text-white rounded-lg",
-      barStyle: "bg-black",
+      headerStyle:
+        "border-2 border-white bg-black text-white rounded-lg text-lg",
+      barStyle: "bg-black text-lg",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -118,7 +121,7 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     Window: {
       name: "Окно",
       headerStyle: "bg-white rounded-lg hidden",
-      barStyle: "",
+      barStyle: " text-lg",
       cardStyle:
         "border-2 border-slate-600 bg-slate-900 text-white rounded-lg px-1 py-2",
       nameStyle: "hidden",
@@ -134,7 +137,7 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     Unknown: {
       name: "Неизвестно",
       headerStyle:
-        "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden",
+        "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden text-lg",
       barStyle: "bg-black",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",

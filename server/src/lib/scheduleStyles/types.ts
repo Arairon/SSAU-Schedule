@@ -17,6 +17,7 @@ export type LessonStyleMap = {
 export type StyleMap = {
   name: string;
   general: {
+    mainStyle: string;
     headers: {
       main: string;
       timeLabel: string;
