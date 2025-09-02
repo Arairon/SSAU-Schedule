@@ -1,13 +1,13 @@
 import { Markup, Scenes } from "telegraf";
 import { message } from "telegraf/filters";
 
-import { Context } from "../types";
+import { Context } from "../bot/types";
 import log from "../logger";
 import { db } from "../db";
 import { fmt } from "telegraf/format";
 import { lk } from "../lib/lk";
 import { getPersonShortname } from "../lib/utils";
-import { deleteTempMessages } from "../bot";
+import { deleteTempMessages } from "../bot/bot";
 
 export const loginScene = new Scenes.BaseScene<Context>("LK_LOGIN");
 

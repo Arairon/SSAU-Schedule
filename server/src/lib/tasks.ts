@@ -1,6 +1,6 @@
 import { SimpleIntervalJob, AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "../db";
-import { bot } from "../bot";
+import { bot } from "../bot/bot";
 import log from "../logger";
 import { getCurrentYearId, getWeekFromDate } from "./utils";
 import { schedule } from "./schedule";

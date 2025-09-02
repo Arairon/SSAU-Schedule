@@ -14,6 +14,11 @@ export interface Session extends SceneSession {
   tempMessages: { id: number; deleteAfter?: Date; deleteOn?: string[] }[];
   sceneData: any;
   loggedIn: boolean;
+  options: {
+    message: number;
+    menu: string;
+    updText: string | null;
+  };
   scheduleViewer: {
     message: number;
     chatId: number;

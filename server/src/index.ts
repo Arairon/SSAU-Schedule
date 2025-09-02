@@ -4,7 +4,7 @@ import { env } from "./env";
 import log from "./logger";
 import userRoutes from "./api/user";
 // import init_redis from "./redis";
-import init_bot from "./bot";
+import init_bot from "./bot/bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
 
 const server = fastify({

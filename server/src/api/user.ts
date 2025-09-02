@@ -6,7 +6,7 @@ import { lk } from "../lib/lk";
 import { creds } from "../lib/credentials";
 import { getLessonDate, getWeekFromDate } from "../lib/utils";
 import { schedule } from "../lib/schedule";
-import { findGroup, findGroupOrTeacherInSsau } from "../lib/misc";
+import { findGroup } from "../lib/misc";
 import { generateTimetableImageHtml } from "../lib/scheduleImage";
 import { getUserIcs } from "../lib/ics";
 

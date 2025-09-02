@@ -8,6 +8,8 @@ import { LessonType } from "@prisma/client";
 
 export const UserPreferencesDefaults = {
   theme: "default",
+  showIet: true,
+  showMilitary: false,
 };
 
 export const LessonTypeName: Record<LessonType, string> = {
@@ -83,7 +85,7 @@ type GroupTeacherSearchResponse = {
   url: string;
   text: string;
 };
-export async function findGroupOrTeacherInSsau(
+export async function findGroupsInSsau(
   text: string,
 ): Promise<GroupTeacherSearchResponse[]> {
   log.debug(`Trying to find '${text}' in ssau.ru/rasp`);
@@ -112,7 +114,11 @@ export async function findGroupOrTeacherInSsau(
         withCredentials: true,
       },
     );
-    return resp.data;
+    const options = resp.data as GroupTeacherSearchResponse[];
+    options.map((group) =>
+      ensureGroupExists({ id: group.id, name: group.text }),
+    );
+    return options;
   } catch {
     log.warn(`Search for '${text}' in ssau.ru/rasp failed.`);
     return [];
@@ -158,7 +164,7 @@ export async function findGroupOrOptions(
       });
       if (existingGroup) return existingGroup;
     }
-    const possibleGroups = await findGroupOrTeacherInSsau(name);
+    const possibleGroups = await findGroupsInSsau(name);
     return possibleGroups;
   }
   return null;
