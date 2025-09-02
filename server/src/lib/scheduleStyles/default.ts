@@ -123,6 +123,21 @@ export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
     },
+    Military: {
+      name: "Военка",
+      headerStyle: "bg-orange-400 rounded-lg text-lg hidden",
+      barStyle: "bg-orange-400",
+      cardStyle: "bg-white rounded-lg px-1 py-2",
+      nameStyle: "font-bold", //capitalize
+      teacherStyle: "",
+      placeStyle: "font-bold",
+      subgroupStyle: "font-bold",
+      groupListStyle:
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
+    },
     /*Test: {
       name: "Тест",
       headerStyle: "bg-gray-700 rounded-lg text-white hidden text-lg",

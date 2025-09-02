@@ -71,10 +71,10 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMap = {
     Other: {
       name: "Прочее",
       headerStyle:
-        "border-2 border-orange-400 bg-orange-950 text-white rounded-lg text-lg",
+        "border-2 border-yellow-400 bg-yellow-950 text-white rounded-lg text-lg",
       barStyle: "hidden",
       cardStyle:
-        "border-2 border-orange-400 bg-orange-950 text-white rounded-lg px-1 py-2",
+        "border-2 border-yellow-400 bg-yellow-950 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",
@@ -109,6 +109,23 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMap = {
       barStyle: "bg-black text-lg",
       cardStyle:
         "border-2 border-white bg-black text-white rounded-lg px-1 py-2",
+      nameStyle: "font-bold", //capitalize
+      teacherStyle: "",
+      placeStyle: "font-bold",
+      subgroupStyle: "font-bold",
+      groupListStyle:
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
+    },
+    Military: {
+      name: "Военка",
+      headerStyle:
+        "border-2 border-yellow-400 bg-yellow-950 text-white rounded-lg text-lg hidden",
+      barStyle: "hidden",
+      cardStyle:
+        "border-2 border-yellow-400 bg-yellow-950 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
       teacherStyle: "",
       placeStyle: "font-bold",

@@ -24,6 +24,8 @@ import {
   ensureFlowExists,
   ensureGroupExists,
   ensureTeacherExists,
+  UserPreferences,
+  UserPreferencesDefaults,
 } from "./misc";
 import { generateTimetableImage } from "./scheduleImage";
 
@@ -31,24 +33,40 @@ async function getWeekLessons(
   user: User,
   week: number,
   groupId?: number,
-  opts?: { ignoreIet?: boolean },
+  opts?: { ignoreIet?: boolean; ignorePreferences?: boolean },
 ) {
+  const preferences: UserPreferences = Object.assign(
+    {},
+    UserPreferencesDefaults,
+    user.preferences,
+  );
   if (!(groupId || user.groupId)) {
     log.error(`Groupless user requested an update`, { user: user.id });
     throw new Error(`Groupless user requested an update`);
   }
+
+  const ignoreIet =
+    opts?.ignoreIet ||
+    (!opts?.ignorePreferences && !preferences.showIet) ||
+    (groupId && groupId !== user.groupId);
+
+  const militaryFilter =
+    !opts?.ignorePreferences && !preferences.showMilitary
+      ? { not: LessonType.Military }
+      : undefined;
+
   const lessons = await db.lesson.findMany({
     where: {
       weekNumber: week,
       validUntil: { gt: new Date() },
       groups: { some: { id: groupId ?? user.groupId! } },
       isIet: false,
+      type: militaryFilter,
     },
     include: { groups: true, teacher: true },
   });
 
-  if (opts?.ignoreIet || (groupId && groupId !== user.groupId))
-    return { lessons, ietLessons: [], all: lessons };
+  if (ignoreIet) return { lessons, ietLessons: [], all: lessons };
 
   const ietLessons = await db.lesson.findMany({
     where: {
@@ -237,6 +255,7 @@ async function getWeekTimetable(
 
   const lessons = await getWeekLessons(user, weekNumber, week.groupId, {
     ignoreIet: opts?.ignoreIet || weekIsCommon,
+    ignorePreferences: weekIsCommon,
   });
 
   const timetable: WeekTimetable = {
@@ -336,7 +355,7 @@ function getLessonTypeEnum(type: number) {
     log.error(`Found an unexpected typeId: ${type}`);
     type = 0;
   }
-  return LessonTypeMap[type];
+  return LessonTypeMap[type] as LessonType;
 }
 
 export const TimeSlotMap = [
@@ -565,6 +584,9 @@ async function updateWeekForUser(
         return { id: group.id };
       }),
     };
+    if (lessonList.discipline.id === 496) {
+      info.type = LessonType.Military;
+    }
     // Ensure all groups exist in db. Also check for ssau fuckery
     for (const group of lessonList.groups) {
       if (!updatedGroups.includes(group.id)) {

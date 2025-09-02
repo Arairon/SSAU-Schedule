@@ -6,7 +6,13 @@ import { getPersonShortname } from "./utils";
 import log from "../logger";
 import { LessonType } from "@prisma/client";
 
-export const UserPreferencesDefaults = {
+export type UserPreferences = {
+  theme: string;
+  showIet: boolean;
+  showMilitary: boolean;
+};
+
+export const UserPreferencesDefaults: UserPreferences = {
   theme: "default",
   showIet: true,
   showMilitary: false,
@@ -17,7 +23,7 @@ export const LessonTypeName: Record<LessonType, string> = {
   Practice: "Практика",
   Lab: "Лабораторная",
   Other: "Другое",
-  // Military: "Воен. Каф.",
+  Military: "Воен. Каф.",
   Window: "Окно",
   Exam: "Экзамен",
   Consult: "Консультация",

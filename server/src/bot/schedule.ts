@@ -7,7 +7,7 @@ import { env } from "../env";
 import { schedule } from "../lib/schedule";
 import { fmt } from "telegraf/format";
 import { CallbackQuery, Message, Update } from "telegraf/types";
-import { UserPreferencesDefaults } from "../lib/misc";
+import { findGroupOrOptions, UserPreferencesDefaults } from "../lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 
@@ -216,4 +216,34 @@ export async function initSchedule(bot: Telegraf<Context>) {
   });
 
   bot.action("open_options", (ctx) => openSettings(ctx));
+
+  // 0 - 99 as a week number
+  bot.hears(/^\d\d?$/, async (ctx) => {
+    const text = ctx.message.text.trim();
+    const week = parseInt(text);
+    ctx.deleteMessage(ctx.message.message_id);
+    sendTimetable(ctx, week);
+  });
+
+  // 6101(-090301)?D? as a group number
+  bot.hears(/^\d{4}(?:-\d+)?D?$/, async (ctx) => {
+    const group = await findGroupOrOptions({
+      groupName: ctx.message.text.trim(),
+    });
+    if (!group || (Array.isArray(group) && group.length === 0)) {
+      ctx.reply("Группа или похожие на неё группы не найдены");
+      return;
+    }
+    if (Array.isArray(group)) {
+      if (group.length === 1) {
+        sendTimetable(ctx, 0, { groupId: group[0].id });
+      } else {
+        ctx.reply(
+          `Найдены следующие группы:\n${group.map((gr) => gr.text).join(", ")}`,
+        );
+      }
+      return;
+    }
+    sendTimetable(ctx, 0, { groupId: group.id });
+  });
 }

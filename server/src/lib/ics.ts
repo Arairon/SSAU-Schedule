@@ -9,7 +9,7 @@ const LessonTypeIcon: Record<LessonType, string> = {
   Practice: "📕",
   Lab: "📘",
   Other: "📙",
-  // Military: "🫡",
+  Military: "🫡",
   Window: "🏝",
   Exam: "💀",
   Consult: "🗨",

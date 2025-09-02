@@ -119,6 +119,23 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
     },
+    Military: {
+      name: "Военка",
+      headerStyle:
+        "border-2 border-orange-400 bg-orange-950 text-white rounded-lg text-lg hidden",
+      barStyle: "bg-orange-400",
+      cardStyle:
+        "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
+      nameStyle: "font-bold", //capitalize
+      teacherStyle: "",
+      placeStyle: "font-bold",
+      subgroupStyle: "font-bold",
+      groupListStyle:
+        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      ietStyle:
+        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+      ietLabel: "ИОТ",
+    },
     Window: {
       name: "Окно",
       headerStyle: "bg-white rounded-lg hidden",

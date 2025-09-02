@@ -235,6 +235,8 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { owner: user.id },
       data: { cachedUntil: now },
     });
+    if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
+      sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
@@ -268,6 +270,8 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { owner: user.id },
       data: { cachedUntil: now },
     });
+    if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
+      sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Отображение ИОТов ${preferences.showIet ? "включено" : "отключено"}`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
@@ -301,7 +305,9 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { owner: user.id },
       data: { cachedUntil: now },
     });
-    ctx.session.options.updText = `Отображение военки ${preferences.showIet ? "включено" : "отключено"}`;
+    if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
+      sendTimetable(ctx, ctx.session.scheduleViewer.week);
+    ctx.session.options.updText = `Отображение военки ${preferences.showMilitary ? "включено" : "отключено"}`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
   });

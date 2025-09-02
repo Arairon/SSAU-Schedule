@@ -51,7 +51,7 @@ enum LessonType {
   Other // 4
   Exam // 5
   Consult // 6
-  // Military
+  Military // 4 Custom: discpipline.id == 496
   Window
   // CourseWork
   // Test

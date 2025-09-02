@@ -319,36 +319,6 @@ async function init_bot(bot: Telegraf<Context>) {
     }
   });
 
-  // 0 - 99 as a week number
-  bot.hears(/^\d\d?$/, async (ctx) => {
-    const text = ctx.message.text.trim();
-    const week = parseInt(text);
-    ctx.deleteMessage(ctx.message.message_id);
-    sendTimetable(ctx, week);
-  });
-
-  // 6101(-090301)?D? as a group number
-  bot.hears(/^\d{4}(?:-\d+)?D?$/, async (ctx) => {
-    const group = await findGroupOrOptions({
-      groupName: ctx.message.text.trim(),
-    });
-    if (!group || (Array.isArray(group) && group.length === 0)) {
-      ctx.reply("Группа или похожие на неё группы на найдены");
-      return;
-    }
-    if (Array.isArray(group)) {
-      if (group.length === 1) {
-        sendTimetable(ctx, 0, { groupId: group[0].id });
-      } else {
-        ctx.reply(
-          `Найдены следующие группы:\n${group.map((gr) => gr.text).join(", ")}`,
-        );
-      }
-      return;
-    }
-    sendTimetable(ctx, 0, { groupId: group.id });
-  });
-
   // debug command used to test error handling
   bot.command("suicide", (ctx) => {
     if (ctx.from.id === env.SCHED_BOT_ADMIN_TGID) throw new Error("Well, fuck");
