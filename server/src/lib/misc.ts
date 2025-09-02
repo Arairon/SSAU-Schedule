@@ -1,9 +1,9 @@
 import axios from "axios";
-import { LessonType, type User } from "@prisma/client";
+import { type Lesson, LessonType, type User } from "@prisma/client";
 import { type MessageEntity } from "telegraf/types";
 import { db } from "../db";
 import { type TeacherType } from "./scheduleSchemas";
-import { getPersonShortname } from "./utils";
+import { formatSentence, getPersonShortname } from "./utils";
 import log from "../logger";
 import { TimeSlotMap, type TimetableLesson } from "./schedule";
 
@@ -243,4 +243,23 @@ ${subgroupStr}`
       .trim(),
     ...lesson.alts.map(generateTextLesson),
   ].join("\n+\n");
+}
+
+export function formatDbLesson(lesson: Lesson) {
+  const date = formatSentence(
+    lesson.date.toLocaleDateString("ru-RU", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+    }),
+  );
+  const startTime = lesson.beginTime.toLocaleTimeString("ru-RU", {
+    hour: "numeric",
+    minute: "numeric",
+  });
+  const endTime = lesson.endTime.toLocaleTimeString("ru-RU", {
+    hour: "numeric",
+    minute: "numeric",
+  });
+  return `${date} ${startTime} - ${endTime} ${lesson.discipline}`;
 }

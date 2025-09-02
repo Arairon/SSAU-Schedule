@@ -163,7 +163,7 @@ export async function sendTimetable(
   ctx.session.scheduleViewer.groupId = timetable.data.groupId;
 
   const endTime = process.hrtime.bigint();
-  log.debug(
+  log.info(
     `[BOT] Image viewer [F:${timetable.data.isCommon} I:${timetable.data.withIet}] ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: ctx.from.id },
   );

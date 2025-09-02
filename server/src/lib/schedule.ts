@@ -1,10 +1,5 @@
-import {
-  LessonType,
-  type $Enums,
-  type User,
-  type Week,
-  type WeekImage,
-} from "@prisma/client";
+import type { Lesson, $Enums, User, Week, WeekImage } from "@prisma/client";
+import { LessonType } from "@prisma/client";
 import axios from "axios";
 import {
   formatSentence,
@@ -548,7 +543,7 @@ async function updateWeekForUser(
   const updatedTeachers: number[] = [];
   const updatedGroups: number[] = [];
   const updatedFlows: number[] = [];
-  const updatedLessons: number[] = [];
+  const updatedLessons: Lesson[] = [];
   const lessonsInThisWeek: number[] = [];
 
   log.debug("Updating lessons", { user: user.id });
@@ -613,7 +608,7 @@ async function updateWeekForUser(
     for (const lessonInfo of lessonList.weeks) {
       const date = getLessonDate(lessonInfo.week, info.weekday);
       const timeslot = TimeSlotMap[info.dayTimeSlot];
-      const lesson = {
+      const weekInfo = {
         id: lessonInfo.id,
         isOnline: !!lessonInfo.isOnline,
         building: lessonInfo.building?.name,
@@ -645,16 +640,16 @@ async function updateWeekForUser(
               }
             : undefined, // Current week is handled separately with lessonsInThisWeek
       };
-      Object.assign(lesson, info);
+      const lesson = Object.assign({}, weekInfo, info);
 
-      const { groups, ...obj } = lesson as typeof lesson & typeof info;
-      await db.lesson.upsert({
+      const { groups, ...obj } = lesson;
+      const updatedLesson = await db.lesson.upsert({
         where: { id: lesson.id },
         create: Object.assign({}, obj, { groups: { connect: groups } }),
         update: Object.assign({}, obj, { groups: { set: groups } }),
       });
 
-      updatedLessons.push(lesson.id);
+      updatedLessons.push(updatedLesson);
       if (lesson.weekNumber === week.number) lessonsInThisWeek.push(lesson.id);
     }
   }
@@ -725,7 +720,7 @@ async function updateWeekForUser(
       for (const lessonInfo of lessonList.weeks) {
         const date = getLessonDate(lessonInfo.week, info.weekday);
         const timeslot = TimeSlotMap[info.dayTimeSlot];
-        const lesson = {
+        const individualInfo = {
           id: lessonInfo.id,
           isOnline: !!lessonInfo.isOnline,
           building: lessonInfo.building?.name,
@@ -757,16 +752,16 @@ async function updateWeekForUser(
                 }
               : undefined, // Current week is handled separately with lessonsInThisWeek
         };
-        Object.assign(lesson, info);
+        const lesson = Object.assign({}, individualInfo, info);
 
-        const { flows, ...obj } = lesson as typeof lesson & typeof info;
-        await db.lesson.upsert({
+        const { flows, ...obj } = lesson;
+        const updatedLesson = await db.lesson.upsert({
           where: { id: lesson.id },
           create: Object.assign({}, obj, { flows: { connect: flows } }),
           update: Object.assign({}, obj, { flows: { set: flows } }),
         });
 
-        updatedLessons.push(lesson.id);
+        updatedLessons.push(updatedLesson);
         if (lesson.weekNumber === week.number)
           lessonsInThisWeek.push(lesson.id);
       }
@@ -837,10 +832,10 @@ async function updateWeekForUser(
     });
   }
 
-  const newLessons: number[] = [];
+  const newLessons: Lesson[] = [];
   const knownLessonsIds = knownLessons.all.map((i) => i.id);
   for (const updatedLesson of updatedLessons) {
-    if (!knownLessonsIds.includes(updatedLesson)) {
+    if (!knownLessonsIds.includes(updatedLesson.id)) {
       // TODO: should also check if updated is iet...
       if (someoneElsesGroup) {
         //ignore
@@ -850,8 +845,9 @@ async function updateWeekForUser(
     }
   }
   const missingLessons: number[] = [];
+  const updatedLessonIds = updatedLessons.map((i) => i.id);
   for (const knownLesson of knownLessons.all) {
-    if (!updatedLessons.includes(knownLesson.id)) {
+    if (!updatedLessonIds.includes(knownLesson.id)) {
       if (someoneElsesGroup && knownLesson.isIet) {
         //ignore
       } else {
@@ -895,8 +891,9 @@ async function updateWeekForUser(
     data: { validUntil: now },
   });
 
+  // TODO Might need to add change detection to individual lessons later
   log.debug(
-    `Updated week. Added: [${newLessons.join()}] Removed: [${removedLessons.map((i) => i.id).join()}]`,
+    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${removedLessons.map((i) => i.id).join()}]`,
     { user: user.id },
   );
 

@@ -7,6 +7,7 @@ import { getCurrentYearId, getWeekFromDate } from "./utils";
 import { schedule } from "./schedule";
 import {
   DayString,
+  formatDbLesson,
   generateTextLesson,
   scheduleMessage,
   UserPreferencesDefaults,
@@ -68,7 +69,7 @@ const dailyWeekUpdate = new AsyncTask(
     const now = new Date();
     const weekAgo = new Date(Date.now() - 604800_000);
     const today = new Date(Date.now() + 42200_000); // add half a day to ensure 'today' and not 'tonight'
-    today.setHours(8, 0); // 12 AM in Europe/Samara
+    today.setHours(3, 0); // 7 AM in Europe/Samara
     const year = getCurrentYearId();
     const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0); // if sunday - update next week
     const weeks = await db.week.findMany({
@@ -125,6 +126,39 @@ const dailyWeekUpdate = new AsyncTask(
         user,
         week.number + 1,
       );
+      if (!currentWeekChanges || !nextWeekChanges) {
+        log.error(
+          `Failed to update week for user ${user.id} (${week.number}, ${week.number + 1})`,
+          { user: "cron/dailyWeekUpdate" },
+        );
+        continue;
+      } else {
+        const newLessons = currentWeekChanges.new.concat(nextWeekChanges.new);
+        const removedLessons = currentWeekChanges.removed.concat(
+          nextWeekChanges.removed,
+        );
+        if (newLessons.length > 0 && removedLessons.length > 0) {
+          log.debug(
+            `User ${user.id} (${week.number}) has (+${newLessons.length}, -${removedLessons.length}) schedule changes`,
+            {
+              user: "cron/dailyWeekUpdate",
+            },
+          );
+          await scheduleMessage(
+            user,
+            today,
+            `\
+Обнаружены изменения в расписании!
+
+Добавлены занятия:
+${newLessons.map(formatDbLesson).join("\n")}
+
+Удалены занятия:
+${removedLessons.map(formatDbLesson).join("\n")}
+`,
+          );
+        }
+      }
       // TODO: Schedule changes notifications
 
       const timetable = await schedule.getWeekTimetable(user, week.number);
