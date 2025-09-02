@@ -1,13 +1,12 @@
 import { Markup, Scenes } from "telegraf";
 import { message } from "telegraf/filters";
 
-import { Context } from "../bot/types";
-import log from "../logger";
-import { db } from "../db";
+import { Context } from "../types";
+import log from "../../logger";
+import { db } from "../../db";
 import { fmt } from "telegraf/format";
-import { lk } from "../lib/lk";
-import { getPersonShortname } from "../lib/utils";
-import { deleteTempMessages } from "../bot/bot";
+import { lk } from "../../lib/lk";
+import { getPersonShortname } from "../../lib/utils";
 
 export const loginScene = new Scenes.BaseScene<Context>("LK_LOGIN");
 
@@ -39,10 +38,6 @@ loginScene.enter(async (ctx: Context) => {
     ]),
   );
   ctx.session.sceneData.messageId = msg.message_id;
-  ctx.session.tempMessages.push({
-    id: msg.message_id,
-    deleteAfter: new Date(Date.now() + 300_000),
-  });
 });
 
 loginScene.on(message("text"), async (ctx) => {
@@ -56,11 +51,6 @@ loginScene.on(message("text"), async (ctx) => {
     // Username input
     sceneData.username = text;
     ctx.deleteMessage(ctx.message.message_id);
-    ctx.session.tempMessages.push({
-      id: ctx.message.message_id,
-      deleteOn: ["scene_leave"],
-    });
-    await deleteTempMessages(ctx, "scene_next");
     const msg = await ctx.telegram.editMessageText(
       ctx.chat.id,
       ctx.session.sceneData.messageId,
@@ -79,7 +69,6 @@ loginScene.on(message("text"), async (ctx) => {
     // Password input
     sceneData.password = text;
     await ctx.deleteMessage(ctx.message.message_id);
-    await deleteTempMessages(ctx, "scene_next");
     await ctx.telegram.editMessageText(
       ctx.chat.id,
       ctx.session.sceneData.messageId,
@@ -189,8 +178,4 @@ loginScene.action("login_reenter", (ctx) => {
   if (ctx.session.sceneData.messageId)
     ctx.deleteMessage(ctx.session.sceneData.messageId);
   ctx.scene.reenter();
-});
-
-loginScene.leave((ctx: Context) => {
-  deleteTempMessages(ctx, "scene_leave");
 });

@@ -11,7 +11,6 @@ export type Message = {
 export interface SceneSession extends Scenes.SceneSessionData {}
 
 export interface Session extends SceneSession {
-  tempMessages: { id: number; deleteAfter?: Date; deleteOn?: string[] }[];
   sceneData: any;
   loggedIn: boolean;
   options: {

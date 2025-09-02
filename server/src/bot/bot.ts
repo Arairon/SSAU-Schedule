@@ -22,7 +22,7 @@ import {
   getPersonShortname,
   getWeekFromDate,
 } from "../lib/utils";
-import { loginScene } from "../scenes/login";
+import { loginScene } from "./scenes/login";
 import { schedule } from "../lib/schedule";
 import { CallbackQuery, Message, MessageEntity, Update } from "telegraf/types";
 import {
@@ -36,7 +36,6 @@ import { initOptions } from "./options";
 
 function getDefaultSession(): Session {
   return {
-    tempMessages: [],
     sceneData: {},
     loggedIn: false,
     options: {
@@ -68,39 +67,6 @@ async function start(ctx: Context, userId: number) {
 Каковы гарантии что я не украду ваш аккаунт лк? Никаких :)
 Ну а если серьёзно, то зачем оно мне надо...
     `);
-}
-
-// TODO: Delete this?
-export function deleteTempMessages(ctx: Context, event: string) {
-  const now = new Date();
-  const expired = ctx.session.tempMessages
-    .filter((msg) => msg.deleteAfter && now > msg.deleteAfter)
-    .map((msg) => msg.id);
-  const wildcardEvent = event.endsWith("*") && event.slice(0, event.length - 1);
-  const deletedByEvent = ctx.session.tempMessages
-    .filter(
-      (msg) =>
-        msg.deleteOn &&
-        (msg.deleteOn.includes("*") ||
-          msg.deleteOn.includes(event) ||
-          (wildcardEvent && msg.deleteOn.find((ev) => ev.startsWith(event))) ||
-          msg.deleteOn.find(
-            (ev) =>
-              ev.endsWith("*") && event.startsWith(ev.slice(0, ev.length - 1)),
-          )),
-    )
-    .map((msg) => msg.id);
-
-  const target = [...expired, ...deletedByEvent];
-  const uniqueTargets: number[] = [];
-  for (const msg of target) {
-    if (!uniqueTargets.includes(msg)) uniqueTargets.push(msg);
-  }
-  ctx.session.tempMessages = ctx.session.tempMessages.filter(
-    (msg) => !uniqueTargets.includes(msg.id),
-  );
-
-  if (uniqueTargets.length > 0) ctx.deleteMessages(uniqueTargets);
 }
 
 const stage = new Scenes.Stage([loginScene]);
@@ -172,11 +138,6 @@ async function init_bot(bot: Telegraf<Context>) {
     if (!existingUser) {
       start(ctx, userId);
     } else {
-      ctx.session.tempMessages.push({
-        id: ctx.message.message_id,
-        deleteAfter: new Date(Date.now() + 300_000),
-        deleteOn: ["start_reset_cancel"],
-      });
       const msg = await ctx.reply(
         fmt`
 Вы уверены что хотите сбросить все настройки?
@@ -187,24 +148,20 @@ async function init_bot(bot: Telegraf<Context>) {
           Markup.button.callback("Да, сбросить", "start_reset_confirm"),
         ]),
       );
-
-      ctx.session.tempMessages.push({
-        id: msg.message_id,
-        deleteAfter: new Date(Date.now() + 300_000),
-        deleteOn: ["start_reset_*"],
-      });
     }
   });
 
   bot.action("start_reset_cancel", async (ctx) => {
     log.debug("start_reset_cancel", { user: ctx.from.id });
-    deleteTempMessages(ctx, "start_reset_cancel");
+    if (ctx.callbackQuery.message?.message_id)
+      ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
     await ctx.answerCbQuery();
   });
 
   bot.action("start_reset_confirm", async (ctx) => {
     log.debug("start_reset_confirm", { user: ctx.from.id });
-    deleteTempMessages(ctx, "start_reset_confirm");
+    if (ctx.callbackQuery.message?.message_id)
+      ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
     await ctx.answerCbQuery();
     reset(ctx, ctx.from.id).then(() => start(ctx, ctx.from.id));
   });
@@ -218,10 +175,6 @@ async function init_bot(bot: Telegraf<Context>) {
 Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.
 Если вы хотите выйти - используйте /logout
       `);
-        ctx.session.tempMessages.push({
-          id: msg.message_id,
-          deleteAfter: new Date(Date.now() + 60_000),
-        });
         return;
       }
       if (user.authCookie && user.sessionExpiresAt > new Date()) {
@@ -229,15 +182,9 @@ async function init_bot(bot: Telegraf<Context>) {
 Ваша сессия как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}' всё ещё активна.
 Если вы хотите её прервать, используйте /logout
       `);
-        ctx.session.tempMessages.push({
-          id: msg.message_id,
-          deleteAfter: new Date(Date.now() + 60_000),
-        });
         return;
       }
     }
-    deleteTempMessages(ctx, "scene_enter");
-    deleteTempMessages(ctx, "login");
     ctx.deleteMessage(ctx.message.message_id);
     return ctx.scene.enter("LK_LOGIN");
   });
@@ -248,23 +195,19 @@ async function init_bot(bot: Telegraf<Context>) {
       ctx.reply("Вас не существует в базе данных. Пожалуйста пропишите /start");
       return;
     }
+    const hadCredentials = user.username && user.password;
     await lk.resetAuth(user!, { resetCredentials: true });
     const msg = await ctx.reply(
       fmt`
-Сессия завершена, а данные для входа удалены (если были).
+Сессия завершена. ${hadCredentials ? "Данные для входа удалены." : ""}
 Внимание: Если вы собираетесь в будующем входить в ${bold("другой")} аккаунт ссау, то вам следует сбросить данные о себе через /start
 Если же вы собираетесь продолжать использовать текущий аккаут - сбрасывать ничего не нужно.
       `,
     );
-    ctx.session.tempMessages.push({
-      id: msg.message_id,
-      deleteAfter: new Date(Date.now() + 60_000),
-    });
   });
 
   bot.command("cancel", async (ctx) => {
     log.debug(JSON.stringify(ctx.scene.current));
-    deleteTempMessages(ctx, "scene_*");
     ctx.scene.leave();
   });
 

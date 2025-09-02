@@ -5,7 +5,7 @@ import { db } from "../db";
 import { formatBigInt } from "../lib/utils";
 import { env } from "../env";
 import { schedule } from "../lib/schedule";
-import { fmt } from "telegraf/format";
+import { fmt, pre } from "telegraf/format";
 import { CallbackQuery, Message, Update } from "telegraf/types";
 import { UserPreferencesDefaults } from "../lib/misc";
 import { handleError } from "./bot";
@@ -28,7 +28,7 @@ import { sendTimetable } from "./schedule";
 // }
 
 const menuText: Record<string, string> = {
-  "": "Нажмите на кнопку, чтобы изменить параметр",
+  "": "",
   themes: "Выберите новую тему",
   subgroup: "Выберите подгруппу",
 };
@@ -75,6 +75,16 @@ async function updateOptionsMsg(ctx: Context) {
           Markup.button.callback(
             `Подгруппа: ${user.subgroup || "Обе"}`,
             "options_subgroup",
+          ),
+        ],
+        [
+          Markup.button.callback(
+            `ИОТы: ${preferences.showIet ? "✅" : "❌"}`,
+            "options_toggle_iet",
+          ),
+          Markup.button.callback(
+            `Военка: ${preferences.showMilitary ? "✅" : "❌"}`,
+            "options_toggle_military",
           ),
         ],
         [Markup.button.callback("Закрыть", "options_close")],
@@ -226,6 +236,72 @@ export async function initOptions(bot: Telegraf<Context>) {
       data: { cachedUntil: now },
     });
     ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`;
+    ctx.session.options.menu = "";
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.action("options_toggle_iet", async (ctx) => {
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    preferences.showIet = !preferences.showIet;
+    const now = new Date();
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        preferences,
+        ics: {
+          upsert: {
+            create: { validUntil: now },
+            update: { validUntil: now },
+          },
+        },
+      },
+    });
+    await db.week.updateMany({
+      where: { owner: user.id },
+      data: { cachedUntil: now },
+    });
+    ctx.session.options.updText = `Отображение ИОТов ${preferences.showIet ? "включено" : "отключено"}`;
+    ctx.session.options.menu = "";
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.action("options_toggle_military", async (ctx) => {
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    preferences.showMilitary = !preferences.showMilitary;
+    const now = new Date();
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        preferences,
+        ics: {
+          upsert: {
+            create: { validUntil: now },
+            update: { validUntil: now },
+          },
+        },
+      },
+    });
+    await db.week.updateMany({
+      where: { owner: user.id },
+      data: { cachedUntil: now },
+    });
+    ctx.session.options.updText = `Отображение военки ${preferences.showIet ? "включено" : "отключено"}`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
   });
