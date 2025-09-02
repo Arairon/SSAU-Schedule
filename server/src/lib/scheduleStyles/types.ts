@@ -1,4 +1,4 @@
-import { LessonType } from "@prisma/client";
+import { type LessonType } from "@prisma/client";
 
 export type LessonStyleMap = {
   name: string;

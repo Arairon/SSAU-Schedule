@@ -1,10 +1,10 @@
-import { SimpleIntervalJob, AsyncTask, CronJob } from "toad-scheduler";
+import { type MessageEntity } from "telegraf/types";
+import { AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "../db";
 import { bot } from "../bot/bot";
 import log from "../logger";
 import { getCurrentYearId, getWeekFromDate } from "./utils";
 import { schedule } from "./schedule";
-import { MessageEntity } from "telegraf/types";
 import {
   DayString,
   generateTextLesson,
@@ -46,7 +46,7 @@ const sendScheduledNotifications = new AsyncTask(
         }
       } catch (e) {
         log.error(
-          `Failed to send message #${msg.id} to ${msg.chatId}. Err: ${e}`,
+          `Failed to send message #${msg.id} to ${msg.chatId}. Err: ${e as Error}`,
           { user: "cron/notifications" },
         );
       }
@@ -156,7 +156,7 @@ ${generateTextLesson(day.lessons[0])}
       day.lessons.slice(0, -1).map((lesson, index) => {
         if (preferences.notifyAboutNextLesson) {
           const nextLesson = day.lessons[index + 1];
-          scheduleMessage(
+          void scheduleMessage(
             user,
             lesson.endTime,
             `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
@@ -170,7 +170,7 @@ ${generateTextLesson(day.lessons[0])}
         .at(-1);
       if (preferences.notifyAboutNextDay && day.weekday < 6) {
         if (nextStudyDay) {
-          scheduleMessage(
+          await scheduleMessage(
             user,
             day.endTime,
             `\
@@ -188,7 +188,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
           user,
           week.number + 1,
         );
-        scheduleMessage(
+        void scheduleMessage(
           user,
           day.endTime,
           "Сегодня больше ничего нет\nНа фото расписание на следующую неделю",

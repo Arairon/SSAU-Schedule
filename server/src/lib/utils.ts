@@ -1,5 +1,3 @@
-import { env } from "../env";
-
 export const FIRST_STUDY_DAY = new Date("1970-01-01T00:00:00.000"); // No Z for TZ compliance
 
 function init_first_day() {
@@ -19,13 +17,13 @@ export function getCurrentYearId() {
   return year - 2011; // Constant. Blame SSAU
 }
 
-export function getWeekFromDate(date: Date, startDate?: Date) {
+export function getWeekFromDate(date: Date) {
   const dt = new Date(date);
   dt.setHours(0, 0, 0, 0);
   // Thursday in current week decides the year.
   dt.setDate(dt.getDate() + 3 - ((dt.getDay() + 6) % 7));
   //
-  var week1 = FIRST_STUDY_DAY;
+  const week1 = FIRST_STUDY_DAY;
   // if July or earlier use previous year
   if (dt.getMonth() < 7) week1.setFullYear(week1.getFullYear() - 1);
   // Adjust to Thursday in week 1 and count number of weeks from date to week1.
@@ -56,7 +54,7 @@ export function getPersonShortname(fullname: string) {
   return `${surname} ${name[0]}.` + (secondname ? secondname[0] + "." : "");
 }
 
-export function formatBigInt(x: BigInt | number) {
+export function formatBigInt(x: bigint | number) {
   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 

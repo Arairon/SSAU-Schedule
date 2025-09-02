@@ -1,15 +1,11 @@
-import { Group, User } from "@prisma/client";
-import axios, { AxiosError } from "axios";
+import axios, { type AxiosError } from "axios";
+import jwt from "jsonwebtoken";
+import { type User } from "@prisma/client";
 import { creds } from "./credentials";
 import { db } from "../db";
-import {
-  UserDetailsSchema,
-  UserGroupsSchema,
-  UserGroupType,
-} from "./lkSchemas";
+import { UserDetailsSchema, UserGroupsSchema } from "./lkSchemas";
 import log from "../logger";
-import { ReturnObj } from "./utils";
-import jwt from "jsonwebtoken";
+import { type ReturnObj } from "./utils";
 import { ensureGroupExists } from "./misc";
 
 function resetAuth(
@@ -44,12 +40,17 @@ async function saveCredentials(
   await db.user.update({ where: { id: userId }, data: credentials });
 }
 
+type LkAuthCookie = {
+  token: string;
+  refreshToken: string;
+};
+
 function getCookie(rawcookie: string) {
   const cookie = rawcookie.split(";")[0] + ";";
   const decodedCookie = decodeURIComponent(
     decodeURIComponent(cookie.slice(5, cookie.length - 1)),
   );
-  const rawtoken = JSON.parse(decodedCookie)?.token;
+  const rawtoken = (JSON.parse(decodedCookie) as LkAuthCookie).token;
   const token = jwt.decode(rawtoken) as jwt.JwtPayload;
   if (!token.exp) return null;
   const update = {
@@ -131,7 +132,13 @@ async function getTokenUsingCredentials(
   }
   if (resp.status === 303) {
     // Successful login
-    const cookie = (resp.headers["set-cookie"] as string[]).find((cookie) =>
+    if (!resp.headers["set-cookie"]?.length)
+      return {
+        ok: false,
+        error: "no cookie",
+        message: "Unable to get auth token from cookies",
+      };
+    const cookie = resp.headers["set-cookie"].find((cookie) =>
       cookie.includes("auth="),
     );
     if (!cookie)
@@ -187,7 +194,13 @@ async function updateCookie(user: User) {
       message: "Unable to refresh session",
     };
   }
-  const cookie = (resp.headers["set-cookie"] as string[]).find((cookie) =>
+  if (!resp.headers["set-cookie"]?.length)
+    return {
+      ok: false,
+      error: "no cookie",
+      message: "Unable to refresh session",
+    };
+  const cookie = resp.headers["set-cookie"].find((cookie) =>
     cookie.includes("auth="),
   );
   if (!cookie) {
@@ -256,7 +269,7 @@ async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
     );
   } catch (e) {
     const err = e as AxiosError;
-    axiosReqForbiddenHandler(err, user);
+    void axiosReqForbiddenHandler(err, user);
     return {
       ok: false,
       error: `Axios: ${err.response?.status}`,

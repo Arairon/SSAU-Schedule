@@ -1,4 +1,3 @@
-import { LessonType, User } from "@prisma/client";
 import * as ics from "ics";
 import { db } from "../db";
 import log from "../logger";
@@ -79,7 +78,7 @@ export async function generateUserIcs(
     },
   });
 
-  db.user.update({ where: { id: user.id }, data: { lastActive: now } });
+  await db.user.update({ where: { id: user.id }, data: { lastActive: now } });
 
   return cal;
 }

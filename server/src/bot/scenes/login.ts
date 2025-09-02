@@ -1,10 +1,10 @@
 import { Markup, Scenes } from "telegraf";
 import { message } from "telegraf/filters";
+import { fmt } from "telegraf/format";
 
-import { Context } from "../types";
+import type { Context } from "../types";
 import log from "../../logger";
 import { db } from "../../db";
-import { fmt } from "telegraf/format";
 import { lk } from "../../lib/lk";
 import { getPersonShortname } from "../../lib/utils";
 
@@ -37,7 +37,7 @@ loginScene.enter(async (ctx: Context) => {
       Markup.button.callback("❌ Отмена", "login_cancel"),
     ]),
   );
-  ctx.session.sceneData.messageId = msg.message_id;
+  (ctx.session.sceneData as loginSceneData).messageId = msg.message_id;
 });
 
 loginScene.on(message("text"), async (ctx) => {
@@ -50,10 +50,10 @@ loginScene.on(message("text"), async (ctx) => {
   if (!sceneData.username) {
     // Username input
     sceneData.username = text;
-    ctx.deleteMessage(ctx.message.message_id);
-    const msg = await ctx.telegram.editMessageText(
+    void ctx.deleteMessage(ctx.message.message_id);
+    await ctx.telegram.editMessageText(
       ctx.chat.id,
-      ctx.session.sceneData.messageId,
+      (ctx.session.sceneData as loginSceneData).messageId,
       undefined,
       fmt`
 Вход в личный кабинет
@@ -71,7 +71,7 @@ loginScene.on(message("text"), async (ctx) => {
     await ctx.deleteMessage(ctx.message.message_id);
     await ctx.telegram.editMessageText(
       ctx.chat.id,
-      ctx.session.sceneData.messageId,
+      (ctx.session.sceneData as loginSceneData).messageId,
       undefined,
       fmt`
 Вход в личный кабинет
@@ -83,13 +83,13 @@ loginScene.on(message("text"), async (ctx) => {
     );
     const { username, password } = sceneData;
     const user = await db.user.findUnique({ where: { tgId: userId } });
-    ctx.session.sceneData.userId = user!.id;
+    (ctx.session.sceneData as loginSceneData).userId = user!.id;
     const loginRes = await lk.login(user!, { username, password });
     if (!loginRes.ok) {
       sceneData.password = "";
-      const msg = await ctx.telegram.editMessageText(
+      await ctx.telegram.editMessageText(
         ctx.chat.id,
-        ctx.session.sceneData.messageId,
+        (ctx.session.sceneData as loginSceneData).messageId,
         undefined,
         fmt`
 Вход в личный кабинет
@@ -107,9 +107,9 @@ loginScene.on(message("text"), async (ctx) => {
     } else {
       const upd = await lk.updateUserInfo(user!);
       sceneData.name = upd.ok ? (upd.data?.fullname ?? "") : "";
-      const msg = await ctx.telegram.editMessageText(
+      await ctx.telegram.editMessageText(
         ctx.chat.id,
-        ctx.session.sceneData.messageId,
+        (ctx.session.sceneData as loginSceneData).messageId,
         undefined,
         fmt`
 Вход в личный кабинет
@@ -128,11 +128,11 @@ loginScene.on(message("text"), async (ctx) => {
   }
 });
 
-loginScene.action("login_complete_dontsave", (ctx) => {
+loginScene.action("login_complete_dontsave", async (ctx) => {
   const sceneData = ctx.session.sceneData as loginSceneData;
-  ctx.telegram.editMessageText(
+  await ctx.telegram.editMessageText(
     ctx.chat?.id,
-    ctx.session.sceneData.messageId,
+    (ctx.session.sceneData as loginSceneData).messageId,
     undefined,
     fmt`
 Вход в личный кабинет
@@ -142,19 +142,19 @@ loginScene.action("login_complete_dontsave", (ctx) => {
     Markup.inlineKeyboard([]),
   );
   ctx.session.loggedIn = true;
-  ctx.scene.leave();
+  return ctx.scene.leave();
 });
 
 loginScene.action("login_complete_save", async (ctx) => {
   const sceneData = ctx.session.sceneData as loginSceneData;
   const { username, password } = sceneData;
-  await lk.saveCredentials(ctx.session.sceneData.userId, {
+  await lk.saveCredentials((ctx.session.sceneData as loginSceneData).userId, {
     username,
     password,
   });
-  ctx.telegram.editMessageText(
+  await ctx.telegram.editMessageText(
     ctx.chat?.id,
-    ctx.session.sceneData.messageId,
+    (ctx.session.sceneData as loginSceneData).messageId,
     undefined,
     fmt`
 Вход в личный кабинет
@@ -165,17 +165,17 @@ loginScene.action("login_complete_save", async (ctx) => {
     Markup.inlineKeyboard([]),
   );
   ctx.session.loggedIn = true;
-  ctx.scene.leave();
+  return ctx.scene.leave();
 });
 
 loginScene.action("login_cancel", (ctx) => {
-  if (ctx.session.sceneData.messageId)
-    ctx.deleteMessage(ctx.session.sceneData.messageId);
-  ctx.scene.leave();
+  if ((ctx.session.sceneData as loginSceneData).messageId)
+    void ctx.deleteMessage((ctx.session.sceneData as loginSceneData).messageId);
+  return ctx.scene.leave();
 });
 
 loginScene.action("login_reenter", (ctx) => {
-  if (ctx.session.sceneData.messageId)
-    ctx.deleteMessage(ctx.session.sceneData.messageId);
-  ctx.scene.reenter();
+  if ((ctx.session.sceneData as loginSceneData).messageId)
+    void ctx.deleteMessage((ctx.session.sceneData as loginSceneData).messageId);
+  return ctx.scene.reenter();
 });

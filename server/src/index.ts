@@ -1,4 +1,4 @@
-import fastify, { FastifyReply, FastifyRequest } from "fastify";
+import fastify from "fastify";
 import fastifySchedule from "@fastify/schedule";
 import { env } from "./env";
 import log from "./logger";
@@ -39,13 +39,13 @@ async function start() {
   });
 
   process.once("SIGINT", () => {
-    server.close();
+    void server.close();
     server.bot.stop("SIGINT");
   });
 
   process.once("SIGTERM", () => {
-    server.close();
+    void server.close();
     server.bot.stop("SIGTERM");
   });
 }
-start();
+void start();

@@ -1,12 +1,16 @@
-import { Markup, Telegraf, type Context as TelegrafContext } from "telegraf";
-import { Context } from "./types";
+import {
+  Markup,
+  type Telegraf,
+  type Context as TelegrafContext,
+} from "telegraf";
+import { fmt } from "telegraf/format";
+import { type CallbackQuery, type Message, type Update } from "telegraf/types";
+import { type Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
 import { formatBigInt } from "../lib/utils";
 import { env } from "../env";
 import { schedule } from "../lib/schedule";
-import { fmt } from "telegraf/format";
-import { CallbackQuery, Message, Update } from "telegraf/types";
 import { findGroupOrOptions, UserPreferencesDefaults } from "../lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
@@ -33,8 +37,9 @@ export async function sendTimetable(
   const startTime = process.hrtime.bigint();
   const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
   if (!user) {
-    ctx.reply("Вы не найдены в базе данных. Пожалуйста пропишите /start");
-    return;
+    return ctx.reply(
+      "Вы не найдены в базе данных. Пожалуйста пропишите /start",
+    );
   }
   const group =
     opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
@@ -52,8 +57,8 @@ export async function sendTimetable(
     timeout: NodeJS.Timeout | null;
   } = { msg: null, timeout: null };
   if (existingMessage && chatId) {
-    temp.timeout = setTimeout(async () => {
-      await ctx.telegram.editMessageCaption(
+    temp.timeout = setTimeout(() => {
+      void ctx.telegram.editMessageCaption(
         chatId,
         existingMessage,
         undefined,
@@ -61,28 +66,27 @@ export async function sendTimetable(
       );
     }, 100);
   } else {
-    temp.timeout = setTimeout(async () => {
-      temp.msg = await ctx.reply("Создание изображения...");
+    temp.timeout = setTimeout(() => {
+      void ctx.reply("Создание изображения...").then((m) => (temp.msg = m));
     }, 100);
   }
 
   let timetable;
   try {
-    timetable = await schedule.getTimetableWithImage(user!, week, {
+    timetable = await schedule.getTimetableWithImage(user, week, {
       groupId: group,
       forceUpdate: opts?.forceUpdate ?? undefined,
       stylemap: preferences.theme,
     });
   } catch {
-    ctx.reply(fmt`
+    return ctx.reply(fmt`
 Произошла ошибка при обновлении.
 Попробуйте повторно войти в аккаунт через /login
         `);
-    return;
   } finally {
     if (temp.timeout) clearTimeout(temp.timeout);
     if (temp.msg) {
-      ctx.deleteMessage(temp.msg.message_id);
+      await ctx.deleteMessage(temp.msg.message_id);
     }
   }
 
@@ -121,16 +125,16 @@ export async function sendTimetable(
           },
           buttonsMarkup,
         );
-      } catch (e) {
+      } catch {
         if (opts?.queryCtx) {
-          opts.queryCtx.answerCbQuery("Ничего не изменилось");
+          await opts.queryCtx.answerCbQuery("Ничего не изменилось");
         }
       }
     } else {
       log.debug(`Image has no tgId, deleting old message and uploading new`, {
         user: ctx.from.id,
       });
-      ctx.deleteMessage(existingMessage);
+      await ctx.deleteMessage(existingMessage);
     }
   } else {
     log.debug(`Lost existing message or chatId, uploading new message`, {
@@ -164,7 +168,7 @@ export async function sendTimetable(
     { user: ctx.from.id },
   );
   if (!opts?.dontUpdateLastActive)
-    db.user.update({
+    await db.user.update({
       where: { id: user.id },
       data: { lastActive: new Date() },
     });
@@ -181,44 +185,42 @@ export async function initSchedule(bot: Telegraf<Context>) {
     let week = 0;
     if (arg && !Number.isNaN(Number(arg))) week = Number(arg);
     sendTimetable(ctx, week).catch((e) => {
-      handleError(ctx, e);
+      return handleError(ctx, e as Error);
     });
   });
 
   bot.action("schedule_button_next", async (ctx) => {
     const week = ctx.session.scheduleViewer.week + 1;
     if (week === 53) {
-      ctx.answerCbQuery(
+      return ctx.answerCbQuery(
         "Расписания на 53 неделю не существует. Это первая неделя следующего года",
       );
-      return;
     }
     sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
-      handleError(ctx, e);
+      return handleError(ctx, e as Error);
     });
   });
 
   bot.action("schedule_button_prev", async (ctx) => {
     const week = ctx.session.scheduleViewer.week - 1;
     if (week === 0) {
-      ctx.answerCbQuery("Расписания на нулевую неделю не существует");
-      return;
+      return ctx.answerCbQuery("Расписания на нулевую неделю не существует");
     }
     sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
-      handleError(ctx, e);
+      return handleError(ctx, e as Error);
     });
   });
 
   bot.action("schedule_button_refresh", async (ctx) => {
     const week = ctx.session.scheduleViewer.week;
     sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
-      handleError(ctx, e);
+      return handleError(ctx, e as Error);
     });
   });
 
   bot.action("schedule_button_forceupdate", async (ctx) => {
     const week = ctx.session.scheduleViewer.week;
-    sendTimetable(ctx, week, { forceUpdate: true, queryCtx: ctx });
+    return sendTimetable(ctx, week, { forceUpdate: true, queryCtx: ctx });
   });
 
   bot.action("open_options", (ctx) => openSettings(ctx));
@@ -227,8 +229,8 @@ export async function initSchedule(bot: Telegraf<Context>) {
   bot.hears(/^\d\d?$/, async (ctx) => {
     const text = ctx.message.text.trim();
     const week = parseInt(text);
-    ctx.deleteMessage(ctx.message.message_id);
-    sendTimetable(ctx, week);
+    void ctx.deleteMessage(ctx.message.message_id);
+    return sendTimetable(ctx, week);
   });
 
   // 6101(-090301)?D? as a group number
@@ -237,19 +239,17 @@ export async function initSchedule(bot: Telegraf<Context>) {
       groupName: ctx.message.text.trim(),
     });
     if (!group || (Array.isArray(group) && group.length === 0)) {
-      ctx.reply("Группа или похожие на неё группы не найдены");
-      return;
+      return ctx.reply("Группа или похожие на неё группы не найдены");
     }
     if (Array.isArray(group)) {
       if (group.length === 1) {
-        sendTimetable(ctx, 0, { groupId: group[0].id });
+        return sendTimetable(ctx, 0, { groupId: group[0].id });
       } else {
-        ctx.reply(
+        return ctx.reply(
           `Найдены следующие группы:\n${group.map((gr) => gr.text).join(", ")}`,
         );
       }
-      return;
     }
-    sendTimetable(ctx, 0, { groupId: group.id });
+    return sendTimetable(ctx, 0, { groupId: group.id });
   });
 }

@@ -1,12 +1,11 @@
 import axios from "axios";
+import { LessonType, type User } from "@prisma/client";
+import { type MessageEntity } from "telegraf/types";
 import { db } from "../db";
-import { UserGroupType } from "./lkSchemas";
-import { TeacherType } from "./scheduleSchemas";
+import { type TeacherType } from "./scheduleSchemas";
 import { getPersonShortname } from "./utils";
 import log from "../logger";
-import { LessonType, User } from "@prisma/client";
-import { TimeSlotMap, TimetableLesson } from "./schedule";
-import { MessageEntity } from "telegraf/types";
+import { TimeSlotMap, type TimetableLesson } from "./schedule";
 
 export type UserPreferences = {
   theme: string;
@@ -138,10 +137,9 @@ export async function findGroupsInSsau(
     page.headers["set-cookie"]?.forEach((cookie) => {
       cookies.push(cookie.split(";")[0]);
     });
-    const token = (page.data as string)
-      .slice(0, 200)
-      .match(/name="csrf-token".{0,3}content="(\w+)".{0,3}\/>/m)
-      ?.at(1);
+    const csrfRegex = /name="csrf-token".{0,3}content="(\w+)".{0,3}\/>/m;
+    const execResult = csrfRegex.exec((page.data as string).slice(0, 200));
+    const token = execResult ? execResult[1] : undefined;
     const resp = await axios.post(
       "https://ssau.ru/rasp/search",
       `text=${encodeURI(text)}`,
@@ -155,8 +153,8 @@ export async function findGroupsInSsau(
       },
     );
     const options = resp.data as GroupTeacherSearchResponse[];
-    options.map((group) =>
-      ensureGroupExists({ id: group.id, name: group.text }),
+    options.map(
+      (group) => void ensureGroupExists({ id: group.id, name: group.text }),
     );
     return options;
   } catch {

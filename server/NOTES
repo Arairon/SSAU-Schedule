@@ -1,1 +1,10 @@
-Add auth to /api/user
+TODO Add auth to /api/user but keep /ics
+TODO What the fuck is wrong with foreigngroup weeks... seem to be saved as normal weeks for some reason
+TODO Docs for methods and more
+TODO separate images and CachedWeekTimetable. Move in favor of Week
+TODO Stylemaps in tg
+TODO User configs
+TODO Updates scheduling
+TODO Notification scheduling
+TODO Group support?
+TODO eslint

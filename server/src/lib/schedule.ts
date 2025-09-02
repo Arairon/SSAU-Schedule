@@ -1,30 +1,26 @@
 import {
-  $Enums,
-  Lesson,
   LessonType,
-  User,
-  Week,
-  WeekImage,
+  type $Enums,
+  type User,
+  type Week,
+  type WeekImage,
 } from "@prisma/client";
 import axios from "axios";
 import {
-  FIRST_STUDY_DAY,
   formatSentence,
   getLessonDate,
-  getPersonShortname,
   getWeekFromDate,
   getCurrentYearId,
 } from "./utils";
 import { db } from "../db";
 import { lk } from "./lk";
 import log from "../logger";
-import { TeacherType, WeekResponseSchema } from "./scheduleSchemas";
-import { env } from "../env";
+import { WeekResponseSchema } from "./scheduleSchemas";
 import {
   ensureFlowExists,
   ensureGroupExists,
   ensureTeacherExists,
-  UserPreferences,
+  type UserPreferences,
   UserPreferencesDefaults,
 } from "./misc";
 import { generateTimetableImage } from "./scheduleImage";
@@ -46,7 +42,7 @@ async function getWeekLessons(
   }
 
   const ignoreIet =
-    opts?.ignoreIet ||
+    (opts?.ignoreIet ?? false) ||
     (!opts?.ignorePreferences && !preferences.showIet) ||
     (groupId && groupId !== user.groupId);
 
@@ -134,8 +130,7 @@ async function getTimetableWithImage(
   },
 ) {
   const now = new Date();
-  const weekNumber = weekN || getWeekFromDate(now);
-  const year = opts?.year || getCurrentYearId();
+  const year = (opts?.year ?? 0) || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
   const stylemap = opts?.stylemap ?? "default";
   if (opts?.forceUpdate) opts.ignoreCached = true;
@@ -150,7 +145,7 @@ async function getTimetableWithImage(
     groupId,
     images: { stylemap },
   });
-  const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
+  //const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
 
   if (!opts?.ignoreCached && week.timetable && week.cachedUntil > now) {
     if (week.images.length > 0) {
@@ -213,7 +208,7 @@ async function getWeekTimetable(
 ) {
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
-  const year = opts?.year || getCurrentYearId();
+  const year = (opts?.year ?? 0) || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
   const subgroup = groupId === user.groupId ? user.subgroup : null;
   if (opts?.forceUpdate) opts.ignoreCached = true;
@@ -254,7 +249,7 @@ async function getWeekTimetable(
   );
 
   const lessons = await getWeekLessons(user, weekNumber, week.groupId, {
-    ignoreIet: opts?.ignoreIet || weekIsCommon,
+    ignoreIet: (opts?.ignoreIet ?? false) || weekIsCommon,
     ignorePreferences: weekIsCommon,
   });
 
@@ -264,7 +259,7 @@ async function getWeekTimetable(
     groupId: week.groupId,
     year: year,
     week: weekNumber,
-    withIet: opts?.ignoreIet || weekIsCommon,
+    withIet: (opts?.ignoreIet ?? false) || weekIsCommon,
     isCommon: weekIsCommon,
     days: [],
   };
@@ -327,7 +322,8 @@ async function getWeekTimetable(
   }
 
   if (!opts?.dontCache) {
-    const updatedWeek = await db.week.update({
+    //const updatedWeek =
+    await db.week.update({
       where: { id: week.id },
       data: {
         timetable: timetable,
@@ -449,7 +445,7 @@ async function getDbWeek(
       ? 0
       : user.id;
   const groupId = opts?.groupId ?? user.groupId;
-  const year = opts?.year || getCurrentYearId();
+  const year = (opts?.year ?? 0) || getCurrentYearId();
   const weekNumber = weekN || getWeekFromDate(now);
 
   if (!groupId) {
@@ -488,16 +484,6 @@ async function getDbWeek(
   return Object.assign(week, { timetable: null });
 }
 
-async function updateDbWeek(week: Week) {
-  const { timetable, ...data } = await db.week.update({
-    where: { id: week.id },
-    data: { updatedAt: new Date() },
-  });
-  return Object.assign({}, data, {
-    timetable: timetable as object | null as WeekTimetable | null,
-  });
-}
-
 async function updateWeekForUser(
   user: User,
   weekN: number,
@@ -506,7 +492,7 @@ async function updateWeekForUser(
   if (!(await lk.ensureAuth(user))) throw new Error("Auth error");
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
-  const year = opts?.year || getCurrentYearId();
+  const year = (opts?.year ?? 0) || getCurrentYearId();
   const someoneElsesGroup = opts?.groupId && opts.groupId !== user.groupId;
   const groupId =
     (someoneElsesGroup ? opts.groupId : user.groupId) ?? undefined;
@@ -534,7 +520,7 @@ async function updateWeekForUser(
     },
   );
   const {
-    success,
+    //success,
     error,
     data: weekSched,
   } = WeekResponseSchema.safeParse(res.data);
@@ -556,7 +542,6 @@ async function updateWeekForUser(
   }
 
   // Process week
-  const changes = [] as any[]; // TODO: Return changes
   const knownLessons = someoneElsesGroup
     ? await getWeekLessons(user, weekNumber, opts.groupId, { ignoreIet: true })
     : await getWeekLessons(user, weekNumber);
@@ -676,7 +661,7 @@ async function updateWeekForUser(
 
   if (week.owner !== 0) {
     log.debug("Updating iet lessons", { user: user.id });
-    const flowsToJoin: number[] = [];
+    //const flowsToJoin: number[] = [];
     for (const lessonList of weekSched.ietLessons) {
       // Create shared info for all lessons in list
       const info = {
@@ -884,7 +869,7 @@ async function updateWeekForUser(
       ],
     },
     data: { validUntil: now },
-  }); // TODO: Report these
+  });
 
   if (removedLessons.length) {
     log.debug(
@@ -909,6 +894,16 @@ async function updateWeekForUser(
     where: { weekId: week.id },
     data: { validUntil: now },
   });
+
+  log.debug(
+    `Updated week. Added: [${newLessons.join()}] Removed: [${removedLessons.map((i) => i.id).join()}]`,
+    { user: user.id },
+  );
+
+  return {
+    new: newLessons,
+    removed: removedLessons,
+  };
 }
 
 async function updateWeekRangeForUser(

@@ -1,16 +1,17 @@
-import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import log from "../logger";
 import { db } from "../db";
 import z from "ajv-ts";
 import { lk } from "../lib/lk";
 import { creds } from "../lib/credentials";
-import { getLessonDate, getWeekFromDate } from "../lib/utils";
+import { getLessonDate } from "../lib/utils";
 import { schedule } from "../lib/schedule";
 import { findGroup } from "../lib/misc";
 import { generateTimetableImageHtml } from "../lib/scheduleImage";
 import { getUserIcs } from "../lib/ics";
 
-async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
+//options: FastifyPluginOptions
+async function routes(fastify: FastifyInstance) {
   const userIdParamSchema = {
     $id: "userId",
     type: "object",
@@ -39,7 +40,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
         .catch((error) => {
           return res
             .status(500)
-            .send({ error, message: "Unable to create user" });
+            .send({ error: error as Error, message: "Unable to create user" });
         });
       log.info(`User created`, { user: user.id });
       return res.status(200).send();
@@ -54,7 +55,9 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       const info = await db.user
         .findUnique({ where: { id: userId } })
         .catch((error) => {
-          res.status(500).send({ error, message: "Unable to find user" });
+          res
+            .status(500)
+            .send({ error: error as Error, message: "Unable to find user" });
           return res;
         });
       res.status(200).send(info);
@@ -218,7 +221,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       const upd = await schedule.updateWeekRangeForUser({
         weeks,
         userId,
-        groupId: group?.id || undefined,
+        groupId: (group?.id ?? 0) || undefined,
       });
       res.status(200).send(upd);
     },
@@ -265,7 +268,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
       });
       const timetable = await schedule.getWeekTimetable(user, req.query.week, {
         ignoreCached: req.query.ignoreCached,
-        groupId: group?.id || undefined,
+        groupId: (group?.id ?? 0) || undefined,
       });
       res.status(200).send(timetable);
     },
@@ -315,7 +318,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
         req.query.week,
         {
           ignoreCached: req.query.ignoreCached,
-          groupId: group?.id || undefined,
+          groupId: (group?.id ?? 0) || undefined,
         },
       );
       return res
@@ -353,7 +356,7 @@ async function routes(fastify: FastifyInstance, options: FastifyPluginOptions) {
           message: "Cannot find specified user",
         });
       const cachedCal = user.ics && user.ics.validUntil > new Date();
-      const cal = cachedCal ? user!.ics!.data : await getUserIcs(user.id);
+      const cal = cachedCal ? user.ics!.data : await getUserIcs(user.id);
       return res
         .status(200)
         .headers({ "content-type": "text/calendar; charset=utf-8" })

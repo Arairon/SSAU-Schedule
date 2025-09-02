@@ -1,37 +1,19 @@
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
-import {
-  Input,
-  Markup,
-  Scenes,
-  session,
-  Telegraf,
-  type Context as TelegrafContext,
-  type SessionStore,
-} from "telegraf";
+import { Markup, Scenes, session, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
-import { env } from "../env";
+import { type MessageEntity } from "telegraf/types";
+import { bold, fmt, italic } from "telegraf/format";
 
-import { Context, Session } from "./types";
+import { env } from "../env";
+import { type Context, type Session } from "./types";
 import log from "../logger";
 import { db } from "../db";
-import { bold, fmt, italic } from "telegraf/format";
 import { lk } from "../lib/lk";
-import {
-  formatBigInt,
-  getPersonShortname,
-  getWeekFromDate,
-} from "../lib/utils";
+import { getPersonShortname } from "../lib/utils";
 import { loginScene } from "./scenes/login";
-import { schedule } from "../lib/schedule";
-import { CallbackQuery, Message, MessageEntity, Update } from "telegraf/types";
-import {
-  findGroup,
-  findGroupOrOptions,
-  UserPreferencesDefaults,
-} from "../lib/misc";
-import { STYLEMAPS } from "../lib/scheduleImage";
-import { initSchedule, sendTimetable } from "./schedule";
+
+import { initSchedule } from "./schedule";
 import { initOptions } from "./options";
 
 function getDefaultSession(): Session {
@@ -59,7 +41,7 @@ async function reset(ctx: Context, userId: number) {
 async function start(ctx: Context, userId: number) {
   await db.user.create({ data: { tgId: userId } });
   Object.assign(ctx.session, getDefaultSession());
-  ctx.reply(fmt`
+  return ctx.reply(fmt`
 Добро пожаловать!
 Этот бот создан в первую очередь для работы для работы с личным кабинетом самарского университета.
 Возможность делать анонимные запросы возможно будет добавлена позже.
@@ -87,7 +69,7 @@ type DbScheduledMessage = {
 
 async function sendErrorMessage(ctx: Context, comment?: string) {
   try {
-    ctx.reply(
+    return ctx.reply(
       `Что-то пошло не так. Свяжитесь с ${env.SCHED_BOT_ADMIN_CONTACT}.\n${comment ?? ""}`,
     );
   } catch {
@@ -97,8 +79,8 @@ async function sendErrorMessage(ctx: Context, comment?: string) {
   }
 }
 
-export async function handleError(ctx: Context, error: any) {
-  sendErrorMessage(ctx);
+export async function handleError(ctx: Context, error: Error) {
+  void sendErrorMessage(ctx);
   log.error(`Bot threw an error: E: ${JSON.stringify(error)}`, {
     user: ctx?.from?.id ?? ctx.chat?.id ?? "unknown",
   });
@@ -107,11 +89,11 @@ export async function handleError(ctx: Context, error: any) {
 
 //TODO: Ensure commands are guarded against non logged in users or fall them back to 'common'
 async function init_bot(bot: Telegraf<Context>) {
-  bot.launch(() => {
+  void bot.launch(() => {
     log.info("Bot started!");
     if (env.SCHED_BOT_ADMIN_TGID && env.NODE_ENV === "production") {
       try {
-        bot.telegram.sendMessage(env.SCHED_BOT_ADMIN_TGID, "Bot started!");
+        void bot.telegram.sendMessage(env.SCHED_BOT_ADMIN_TGID, "Bot started!");
       } catch {
         log.error("Failed to notify admin about bot start");
       }
@@ -123,11 +105,11 @@ async function init_bot(bot: Telegraf<Context>) {
   bot.use((ctx: Context, next) => {
     if (ctx.message && "text" in ctx.message)
       log.debug(`${ctx.message.text}`, { user: ctx?.from?.id ?? -1 });
-    next();
+    return next();
   });
 
   bot.catch((err, ctx) => {
-    handleError(ctx, err);
+    return handleError(ctx, err as Error);
   });
 
   bot.start(async (ctx) => {
@@ -136,9 +118,9 @@ async function init_bot(bot: Telegraf<Context>) {
       where: { tgId: ctx.from.id },
     });
     if (!existingUser) {
-      start(ctx, userId);
+      return start(ctx, userId);
     } else {
-      const msg = await ctx.reply(
+      return ctx.reply(
         fmt`
 Вы уверены что хотите сбросить все настройки?
 Будет сброшено всё: Календари, настроки, данные для входа, группы и т.п.
@@ -154,16 +136,16 @@ async function init_bot(bot: Telegraf<Context>) {
   bot.action("start_reset_cancel", async (ctx) => {
     log.debug("start_reset_cancel", { user: ctx.from.id });
     if (ctx.callbackQuery.message?.message_id)
-      ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
+      void ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
     await ctx.answerCbQuery();
   });
 
   bot.action("start_reset_confirm", async (ctx) => {
     log.debug("start_reset_confirm", { user: ctx.from.id });
     if (ctx.callbackQuery.message?.message_id)
-      ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
+      void ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
     await ctx.answerCbQuery();
-    reset(ctx, ctx.from.id).then(() => start(ctx, ctx.from.id));
+    return reset(ctx, ctx.from.id).then(() => start(ctx, ctx.from.id));
   });
 
   bot.command("login", async (ctx) => {
@@ -171,33 +153,34 @@ async function init_bot(bot: Telegraf<Context>) {
     if (user) {
       ctx.session.loggedIn = true;
       if (user.username && user.password) {
-        const msg = await ctx.reply(fmt`
+        await ctx.reply(fmt`
 Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.
 Если вы хотите выйти - используйте /logout
       `);
         return;
       }
       if (user.authCookie && user.sessionExpiresAt > new Date()) {
-        const msg = await ctx.reply(fmt`
+        await ctx.reply(fmt`
 Ваша сессия как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}' всё ещё активна.
 Если вы хотите её прервать, используйте /logout
       `);
         return;
       }
     }
-    ctx.deleteMessage(ctx.message.message_id);
+    void ctx.deleteMessage(ctx.message.message_id);
     return ctx.scene.enter("LK_LOGIN");
   });
 
   bot.command("logout", async (ctx) => {
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
-      ctx.reply("Вас не существует в базе данных. Пожалуйста пропишите /start");
-      return;
+      return ctx.reply(
+        "Вас не существует в базе данных. Пожалуйста пропишите /start",
+      );
     }
     const hadCredentials = user.username && user.password;
-    await lk.resetAuth(user!, { resetCredentials: true });
-    const msg = await ctx.reply(
+    await lk.resetAuth(user, { resetCredentials: true });
+    return ctx.reply(
       fmt`
 Сессия завершена. ${hadCredentials ? "Данные для входа удалены." : ""}
 Внимание: Если вы собираетесь в будующем входить в ${bold("другой")} аккаунт ссау, то вам следует сбросить данные о себе через /start
@@ -208,7 +191,7 @@ async function init_bot(bot: Telegraf<Context>) {
 
   bot.command("cancel", async (ctx) => {
     log.debug(JSON.stringify(ctx.scene.current));
-    ctx.scene.leave();
+    return ctx.scene.leave();
   });
 
   await initSchedule(bot);
@@ -262,7 +245,7 @@ async function init_bot(bot: Telegraf<Context>) {
   bot.command("suicide", (ctx) => {
     if (ctx.from.id === env.SCHED_BOT_ADMIN_TGID) throw new Error("Well, fuck");
     else
-      ctx.reply(
+      return ctx.reply(
         fmt`Ты. Ужасный. Человек.\n${italic('Я серьёзно, тут так и написано: "Ужасный человек"')}`,
       );
   });
@@ -283,7 +266,7 @@ async function init_bot(bot: Telegraf<Context>) {
     });
     const replyHeader = `1 Сообщение следующего содержания\n---\n`;
     entities?.map((e) => (e.offset += replyHeader.length));
-    ctx.reply(
+    return ctx.reply(
       `${replyHeader}${text}\n---\nБыло поставлено в очередь на отправку`,
       { entities },
     );
@@ -311,7 +294,7 @@ async function init_bot(bot: Telegraf<Context>) {
     });
     const replyHeader = `${msgs.length} Сообщений следующего содержания\n---\n`;
     entities?.map((e) => (e.offset += replyHeader.length));
-    ctx.reply(
+    return ctx.reply(
       `${replyHeader}${text}\n---\nБыло поставлено в очередь на отправку`,
       { entities },
     );

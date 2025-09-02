@@ -1,4 +1,4 @@
-import { StyleMap } from "./types";
+import { type StyleMap } from "./types";
 
 export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
   name: "dark",

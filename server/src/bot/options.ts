@@ -1,15 +1,9 @@
-import { Markup, Telegraf, type Context as TelegrafContext } from "telegraf";
-import { Context } from "./types";
+import { Markup, type Telegraf } from "telegraf";
+import { fmt } from "telegraf/format";
+import { type Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
-import { formatBigInt } from "../lib/utils";
-import { env } from "../env";
-import { schedule } from "../lib/schedule";
-import { fmt, pre } from "telegraf/format";
-import { CallbackQuery, Message, Update } from "telegraf/types";
 import { UserPreferencesDefaults } from "../lib/misc";
-import { handleError } from "./bot";
-import { User } from "@prisma/client";
 import { STYLEMAPS } from "../lib/scheduleImage";
 import { sendTimetable } from "./schedule";
 
@@ -57,10 +51,12 @@ async function updateOptionsMsg(ctx: Context) {
     UserPreferencesDefaults,
     user.preferences,
   );
-  const newText = fmt`Настройки\n==============================\n${ctx.session.options.updText || menuText[menu] || ""}`;
+  const newText = fmt`Настройки\n==============================\n${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
   ctx.session.options.updText = null;
   if (menu === "") {
-    ctx.telegram.editMessageText(
+    const theme =
+      STYLEMAPS[preferences.theme ?? "default"] ?? STYLEMAPS.default;
+    return ctx.telegram.editMessageText(
       chat,
       msgId,
       undefined,
@@ -68,13 +64,13 @@ async function updateOptionsMsg(ctx: Context) {
       Markup.inlineKeyboard([
         [
           Markup.button.callback(
-            `Тема: ${STYLEMAPS[preferences.theme ?? "default"].description}`,
+            `Тема: ${theme.description}`,
             "options_themes",
           ),
         ],
         [
           Markup.button.callback(
-            `Подгруппа: ${user.subgroup || "Обе"}`,
+            `Подгруппа: ${(user.subgroup ?? 0) || "Обе"}`,
             "options_subgroup",
           ),
         ],
@@ -93,7 +89,7 @@ async function updateOptionsMsg(ctx: Context) {
       ]),
     );
   } else if (menu === "themes") {
-    ctx.telegram.editMessageText(
+    return ctx.telegram.editMessageText(
       chat,
       msgId,
       undefined,
@@ -109,7 +105,7 @@ async function updateOptionsMsg(ctx: Context) {
       ]),
     );
   } else if (menu === "subgroup") {
-    ctx.telegram.editMessageText(
+    return ctx.telegram.editMessageText(
       chat,
       msgId,
       undefined,
@@ -127,7 +123,7 @@ async function updateOptionsMsg(ctx: Context) {
     const notifyBeforeLessonsMinutes = Math.round(
       preferences.notifyBeforeLessons / 60,
     );
-    ctx.telegram.editMessageText(
+    return ctx.telegram.editMessageText(
       chat,
       msgId,
       undefined,
@@ -165,13 +161,13 @@ async function updateOptionsMsg(ctx: Context) {
 
 export async function openSettings(ctx: Context) {
   if (ctx.session.options.message)
-    ctx.deleteMessage(ctx.session.options.message);
+    void ctx.deleteMessage(ctx.session.options.message);
   ctx.session.options = {
     message: 0,
     menu: "",
     updText: null,
   };
-  updateOptionsMsg(ctx);
+  return updateOptionsMsg(ctx);
 }
 
 //TODO: Allow configs in /config with 'timestring'
@@ -179,15 +175,15 @@ export async function openSettings(ctx: Context) {
 // Init options features
 export async function initOptions(bot: Telegraf<Context>) {
   bot.command("options", async (ctx) => {
-    ctx.deleteMessage(ctx.message.message_id);
-    openSettings(ctx);
+    await ctx.deleteMessage(ctx.message.message_id);
+    return openSettings(ctx);
   });
 
   bot.action("options_themes", async (ctx) => {
     ctx.session.options.menu = "themes";
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    updateOptionsMsg(ctx);
+    return updateOptionsMsg(ctx);
   });
 
   bot.action(/options_theme_set_(\w+)/, async (ctx) => {
@@ -224,15 +220,15 @@ export async function initOptions(bot: Telegraf<Context>) {
     ctx.session.options.updText = `Тема успешно изменена на "${STYLEMAPS[theme].description}"`;
     ctx.session.options.menu = "";
     if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      sendTimetable(ctx, ctx.session.scheduleViewer.week);
-    updateOptionsMsg(ctx);
+      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
+    return updateOptionsMsg(ctx);
   });
 
   bot.action("options_subgroup", async (ctx) => {
     ctx.session.options.menu = "subgroup";
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    updateOptionsMsg(ctx);
+    return updateOptionsMsg(ctx);
   });
 
   bot.action(/options_subgroup_\d/, async (ctx) => {
@@ -260,7 +256,7 @@ export async function initOptions(bot: Telegraf<Context>) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
     if (target === user.subgroup || (!target && !user.subgroup)) {
-      ctx.session.options.updText = `Оставляем подгруппу: "${user.subgroup || "Обе"}"`;
+      ctx.session.options.updText = `Оставляем подгруппу: "${(user.subgroup ?? 0) || "Обе"}"`;
       ctx.session.options.menu = "";
       return updateOptionsMsg(ctx);
     }
@@ -283,7 +279,7 @@ export async function initOptions(bot: Telegraf<Context>) {
       data: { cachedUntil: now },
     });
     if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      sendTimetable(ctx, ctx.session.scheduleViewer.week);
+      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
@@ -321,7 +317,7 @@ export async function initOptions(bot: Telegraf<Context>) {
       data: { cachedUntil: now },
     });
     if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      sendTimetable(ctx, ctx.session.scheduleViewer.week);
+      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Отображение ИОТов ${preferences.showIet ? "включено" : "отключено"}`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
@@ -359,7 +355,7 @@ export async function initOptions(bot: Telegraf<Context>) {
       data: { cachedUntil: now },
     });
     if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      sendTimetable(ctx, ctx.session.scheduleViewer.week);
+      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Отображение военки ${preferences.showMilitary ? "включено" : "отключено"}`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
@@ -378,7 +374,7 @@ export async function initOptions(bot: Telegraf<Context>) {
     try {
       await ctx.deleteMessage(target);
     } catch {
-      ctx.reply(`Произошла ошибка.`);
+      await ctx.reply(`Произошла ошибка.`);
     }
     ctx.session.options.message = 0;
   });
@@ -387,13 +383,13 @@ export async function initOptions(bot: Telegraf<Context>) {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     ctx.session.options.menu = "notifications";
-    updateOptionsMsg(ctx);
+    return updateOptionsMsg(ctx);
   });
 
   bot.action("options_notifications_daystart_edit", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    ctx.reply("[WIP] Эта функция пока недоступна");
+    return ctx.reply("[WIP] Эта функция пока недоступна");
   });
 
   bot.action("options_notifications_nextlesson_toggle", async (ctx) => {
@@ -463,7 +459,8 @@ export async function initOptions(bot: Telegraf<Context>) {
   });
 
   bot.command("config", async (ctx) => {
-    const [cmd, ...args] = ctx.message.text.trim().split(" ");
+    const args = ctx.message.text.trim().split(" ");
+    args.shift(); // remove command
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user)
       return ctx.reply(
@@ -496,11 +493,11 @@ export async function initOptions(bot: Telegraf<Context>) {
         data: { preferences, lastActive: new Date() },
       });
       if (ctx.session.scheduleViewer.message)
-        sendTimetable(ctx, ctx.session.scheduleViewer.week);
+        void sendTimetable(ctx, ctx.session.scheduleViewer.week);
       return ctx.reply(`Тема успешно изменена на '${target}'`);
     } else if (field === "subgroup") {
       const arg = args[0]?.trim();
-      const target = isNaN(arg as any) ? null : Number(arg);
+      const target = isNaN(Number(arg)) ? null : Number(arg);
       if (!arg || target === null || target < 0 || target > 2) {
         return ctx.reply(
           `Вы можете установить себе подгруппу 1 или 2.\nПодгруппа 0 - обе\nВаша подгруппа: ${user.subgroup ?? 0}`,
@@ -524,7 +521,7 @@ export async function initOptions(bot: Telegraf<Context>) {
         where: { owner: user.id },
         data: { cachedUntil: now },
       });
-      ctx.reply(`Подгруппа успешно изменена на ${target}`);
+      return ctx.reply(`Подгруппа успешно изменена на ${target}`);
     }
   });
 }

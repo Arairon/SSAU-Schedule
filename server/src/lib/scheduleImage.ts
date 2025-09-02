@@ -1,14 +1,17 @@
+import { readFileSync } from "node:fs";
 import nodeHtmlToImage from "node-html-to-image";
 
-import { LessonType } from "@prisma/client";
-import { TimeSlotMap, TimetableLesson, WeekTimetable } from "./schedule";
+import {
+  TimeSlotMap,
+  type TimetableLesson,
+  type WeekTimetable,
+} from "./schedule";
 import { formatBigInt, getLessonDate, getPersonShortname } from "./utils";
-import { StyleMap } from "./scheduleStyles/types";
-import { SCHEDULE_STYLEMAP_DEFAULT } from "./scheduleStyles/default";
+import { type StyleMap } from "./scheduleStyles/types";
 import log from "../logger";
 import { db } from "../db";
 import { env } from "../env";
-import { readFileSync } from "node:fs";
+import { SCHEDULE_STYLEMAP_DEFAULT } from "./scheduleStyles/default";
 import { SCHEDULE_STYLEMAP_NEON } from "./scheduleStyles/neon";
 import { SCHEDULE_STYLEMAP_DARK } from "./scheduleStyles/dark";
 
@@ -29,7 +32,7 @@ const HTML_HEAD = `\
 <meta charset="UTF-8">
 </head>
 <body class="bg-black flex flex-col gap-2 w-full items-stretch p-2">
-<style>${CSS}</style>`;
+<style>${CSS}</style>`; // eslint-disable-line
 
 const HTML_SIZER = `<style>body{width:{width};height:{height};}</style>\n`;
 
@@ -266,7 +269,7 @@ export async function generateTimetableImageHtml(
         style: stylemap.general.headers.weekday,
       }),
     );
-    const column: string[] = Array(8);
+    const column: string[] = Array(8) as string[];
     if (day.lessons.length === 0) {
       cols.push(column);
       continue;
