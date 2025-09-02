@@ -31,6 +31,7 @@ const menuText: Record<string, string> = {
   "": "",
   themes: "Выберите новую тему",
   subgroup: "Выберите подгруппу",
+  notifications: "Уведомления (Применяются только со следующего дня)",
 };
 
 async function updateOptionsMsg(ctx: Context) {
@@ -87,6 +88,7 @@ async function updateOptionsMsg(ctx: Context) {
             "options_toggle_military",
           ),
         ],
+        [Markup.button.callback(`Уведомления`, "options_notifications")],
         [Markup.button.callback("Закрыть", "options_close")],
       ]),
     );
@@ -121,6 +123,43 @@ async function updateOptionsMsg(ctx: Context) {
         [Markup.button.callback("Назад", "options_menu")],
       ]),
     );
+  } else if (menu === "notifications") {
+    const notifyBeforeLessonsMinutes = Math.round(
+      preferences.notifyBeforeLessons / 60,
+    );
+    ctx.telegram.editMessageText(
+      chat,
+      msgId,
+      undefined,
+      newText,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            `Перед началом занятий: ${notifyBeforeLessonsMinutes ? `за ${notifyBeforeLessonsMinutes} мин` : "Выкл"}`,
+            "options_notifications_daystart_edit",
+          ),
+        ],
+        [
+          Markup.button.callback(
+            `О следующей паре: ${preferences.notifyAboutNextLesson ? "✅" : "❌"}`,
+            "options_notifications_nextlesson_toggle",
+          ),
+        ],
+        [
+          Markup.button.callback(
+            `О следующем дне: ${preferences.notifyAboutNextDay ? "✅" : "❌"}`,
+            "options_notifications_nextday_toggle",
+          ),
+        ],
+        [
+          Markup.button.callback(
+            `О следующей неделе: ${preferences.notifyAboutNextWeek ? "✅" : "❌"}`,
+            "options_notifications_nextweek_toggle",
+          ),
+        ],
+        [Markup.button.callback("Назад", "options_menu")],
+      ]),
+    );
   }
 }
 
@@ -134,6 +173,8 @@ export async function openSettings(ctx: Context) {
   };
   updateOptionsMsg(ctx);
 }
+
+//TODO: Allow configs in /config with 'timestring'
 
 // Init options features
 export async function initOptions(bot: Telegraf<Context>) {
@@ -176,7 +217,10 @@ export async function initOptions(bot: Telegraf<Context>) {
       return updateOptionsMsg(ctx);
     }
     preferences.theme = theme;
-    await db.user.update({ where: { id: user.id }, data: { preferences } });
+    await db.user.update({
+      where: { id: user.id },
+      data: { preferences, lastActive: new Date() },
+    });
     ctx.session.options.updText = `Тема успешно изменена на "${STYLEMAPS[theme].description}"`;
     ctx.session.options.menu = "";
     if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
@@ -192,6 +236,8 @@ export async function initOptions(bot: Telegraf<Context>) {
   });
 
   bot.action(/options_subgroup_\d/, async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
     if (!action) {
       log.error(
@@ -223,6 +269,7 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { id: user.id },
       data: {
         subgroup: target,
+        lastActive: now,
         ics: {
           upsert: {
             create: { validUntil: now },
@@ -243,6 +290,8 @@ export async function initOptions(bot: Telegraf<Context>) {
   });
 
   bot.action("options_toggle_iet", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
@@ -258,6 +307,7 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { id: user.id },
       data: {
         preferences,
+        lastActive: now,
         ics: {
           upsert: {
             create: { validUntil: now },
@@ -278,6 +328,8 @@ export async function initOptions(bot: Telegraf<Context>) {
   });
 
   bot.action("options_toggle_military", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
@@ -293,6 +345,7 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { id: user.id },
       data: {
         preferences,
+        lastActive: now,
         ics: {
           upsert: {
             create: { validUntil: now },
@@ -313,6 +366,8 @@ export async function initOptions(bot: Telegraf<Context>) {
   });
 
   bot.action("options_menu", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
   });
@@ -326,5 +381,150 @@ export async function initOptions(bot: Telegraf<Context>) {
       ctx.reply(`Произошла ошибка.`);
     }
     ctx.session.options.message = 0;
+  });
+
+  bot.action("options_notifications", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    ctx.session.options.menu = "notifications";
+    updateOptionsMsg(ctx);
+  });
+
+  bot.action("options_notifications_daystart_edit", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    ctx.reply("[WIP] Эта функция пока недоступна");
+  });
+
+  bot.action("options_notifications_nextlesson_toggle", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    preferences.notifyAboutNextLesson = !preferences.notifyAboutNextLesson;
+    await db.user.update({
+      where: { id: user.id },
+      data: { preferences, lastActive: new Date() },
+    });
+    ctx.session.options.updText = `Уведомления о следующей паре ${preferences.notifyAboutNextLesson ? "включены" : "отключены"}`;
+    ctx.session.options.menu = "notifications";
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.action("options_notifications_nextday_toggle", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    preferences.notifyAboutNextDay = !preferences.notifyAboutNextDay;
+    await db.user.update({
+      where: { id: user.id },
+      data: { preferences, lastActive: new Date() },
+    });
+    ctx.session.options.updText = `Уведомления о следующем дне ${preferences.notifyAboutNextDay ? "включены" : "отключены"}`;
+    ctx.session.options.menu = "notifications";
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.action("options_notifications_nextweek_toggle", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    preferences.notifyAboutNextWeek = !preferences.notifyAboutNextWeek;
+    await db.user.update({
+      where: { id: user.id },
+      data: { preferences, lastActive: new Date() },
+    });
+    ctx.session.options.updText = `Уведомления о следующей неделе ${preferences.notifyAboutNextWeek ? "включены" : "отключены"}`;
+    ctx.session.options.menu = "notifications";
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.command("config", async (ctx) => {
+    const [cmd, ...args] = ctx.message.text.trim().split(" ");
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user)
+      return ctx.reply(
+        "Вас не существует в базе данных. Пожалуйста пропишите /start",
+      );
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    if (args.length === 0) {
+      return ctx.reply(
+        `Текущие параметры:\n${JSON.stringify(Object.assign({}, preferences, { subgroup: user.subgroup }), null, 2)}`,
+      );
+    }
+    const field = args.shift()!.toLowerCase();
+    if (field === "theme") {
+      const themes = Object.keys(STYLEMAPS);
+      const target = args[0];
+      if (!target) {
+        return ctx.reply(`Доступные темы: ${themes.join(", ")}`);
+      } else if (!themes.includes(target)) {
+        return ctx.reply(
+          `Такой темы нет.\nДоступные темы: ${themes.join(", ")}`,
+        );
+      }
+      preferences.theme = target;
+      await db.user.update({
+        where: { id: user.id },
+        data: { preferences, lastActive: new Date() },
+      });
+      if (ctx.session.scheduleViewer.message)
+        sendTimetable(ctx, ctx.session.scheduleViewer.week);
+      return ctx.reply(`Тема успешно изменена на '${target}'`);
+    } else if (field === "subgroup") {
+      const arg = args[0]?.trim();
+      const target = isNaN(arg as any) ? null : Number(arg);
+      if (!arg || target === null || target < 0 || target > 2) {
+        return ctx.reply(
+          `Вы можете установить себе подгруппу 1 или 2.\nПодгруппа 0 - обе\nВаша подгруппа: ${user.subgroup ?? 0}`,
+        );
+      }
+      const now = new Date();
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          subgroup: target,
+          lastActive: now,
+          ics: {
+            upsert: {
+              create: { validUntil: now },
+              update: { validUntil: now },
+            },
+          },
+        },
+      });
+      await db.week.updateMany({
+        where: { owner: user.id },
+        data: { cachedUntil: now },
+      });
+      ctx.reply(`Подгруппа успешно изменена на ${target}`);
+    }
   });
 }

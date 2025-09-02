@@ -56,6 +56,9 @@ importers:
       telegraf:
         specifier: ^4.16.3
         version: 4.16.3
+      timestring:
+        specifier: ^7.0.0
+        version: 7.0.0
       toad-scheduler:
         specifier: ^3.1.0
         version: 3.1.0
@@ -1660,6 +1663,10 @@ packages:
 
   through@2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
+
+  timestring@7.0.0:
+    resolution: {integrity: sha512-U7ttxEdKWqHYJ96OGoJJR5gU8Nwkl3tlY0n7Jr4vcpLD2RkVZLE1Ph9k8ZRrZ7LYX9QCtd3M9OUaR9P8Z37QNg==}
+    engines: {node: '>=12'}
 
   tiny-case@1.0.3:
     resolution: {integrity: sha512-Eet/eeMhkO6TX8mnUteS9zgPbUMQa4I6Kkp5ORiBD5476/m+PIRiumP5tmh5ioJpH7k51Kehawy2UDfsnxxY8Q==}
@@ -3366,6 +3373,8 @@ snapshots:
       real-require: 0.2.0
 
   through@2.3.8: {}
+
+  timestring@7.0.0: {}
 
   tiny-case@1.0.3: {}
 

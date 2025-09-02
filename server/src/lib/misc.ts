@@ -4,18 +4,42 @@ import { UserGroupType } from "./lkSchemas";
 import { TeacherType } from "./scheduleSchemas";
 import { getPersonShortname } from "./utils";
 import log from "../logger";
-import { LessonType } from "@prisma/client";
+import { LessonType, User } from "@prisma/client";
+import { TimeSlotMap, TimetableLesson } from "./schedule";
+import { MessageEntity } from "telegraf/types";
 
 export type UserPreferences = {
   theme: string;
   showIet: boolean;
   showMilitary: boolean;
+  notifyBeforeLessons: number;
+  notifyAboutNextLesson: boolean;
+  notifyAboutNextDay: boolean;
+  notifyAboutNextWeek: boolean;
 };
 
 export const UserPreferencesDefaults: UserPreferences = {
   theme: "default",
   showIet: true,
   showMilitary: false,
+  notifyBeforeLessons: 0,
+  notifyAboutNextLesson: false,
+  notifyAboutNextDay: false,
+  notifyAboutNextWeek: false,
+};
+
+export const LessonTypeIcon: Record<LessonType, string> = {
+  Lection: "📗",
+  Practice: "📕",
+  Lab: "📘",
+  Other: "📙",
+  Military: "🫡",
+  Window: "🏝",
+  Exam: "💀",
+  Consult: "🗨",
+  // CourseWork: "🤯",
+  // Test: "📝",
+  Unknown: "❓",
 };
 
 export const LessonTypeName: Record<LessonType, string> = {
@@ -31,6 +55,16 @@ export const LessonTypeName: Record<LessonType, string> = {
   // Test: "Тест",
   Unknown: "Неизвестно",
 };
+
+export const DayString: { normal: string; in: string }[] = [
+  { normal: "воскресенье", in: "в воскресенье" },
+  { normal: "понедельник", in: "в понедельник" },
+  { normal: "вторник", in: "во вторник" },
+  { normal: "среда", in: "в среду" },
+  { normal: "четверг", in: "в четверг" },
+  { normal: "пятница", in: "в пятницу" },
+  { normal: "суббота", in: "в субботу" },
+];
 
 export async function ensureGroupExists(group: {
   id: number;
@@ -174,4 +208,41 @@ export async function findGroupOrOptions(
     return possibleGroups;
   }
   return null;
+}
+
+export async function scheduleMessage(
+  user: User,
+  sendAt: Date,
+  text: string,
+  opts?: { entities?: MessageEntity[]; image?: string },
+) {
+  await db.scheduledMessage.create({
+    data: {
+      chatId: `${user.tgId}`,
+      text,
+      sendAt,
+      entities: opts?.entities as object[],
+      image: opts?.image,
+    },
+  });
+}
+
+export function generateTextLesson(lesson: TimetableLesson): string {
+  const timeslot = TimeSlotMap[lesson.dayTimeSlot];
+  const place = lesson.isOnline
+    ? "Online"
+    : `${lesson.building} - ${lesson.room}`;
+  const subgroupStr = lesson.subgroup ? `👥 Подгруппа: ${lesson.subgroup}` : "";
+  return [
+    `\
+📆 ${timeslot.beginTime} - ${lesson.type === LessonType.Military ? "♾️" : timeslot.endTime}
+📖 ${lesson.discipline}
+${LessonTypeIcon[lesson.type]} ${LessonTypeName[lesson.type]}
+🏢 ${place}
+👤 ${lesson.teacher}
+${subgroupStr}`
+      .replace("\n\n", "\n")
+      .trim(),
+    ...lesson.alts.map(generateTextLesson),
+  ].join("\n+\n");
 }

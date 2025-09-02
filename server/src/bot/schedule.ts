@@ -19,6 +19,7 @@ export async function sendTimetable(
     ignoreCached?: boolean;
     forceUpdate?: boolean;
     queryCtx?: TelegrafContext<Update.CallbackQueryUpdate<CallbackQuery>>;
+    dontUpdateLastActive?: boolean;
   },
 ) {
   if (!ctx?.from?.id) {
@@ -162,6 +163,11 @@ export async function sendTimetable(
     `[BOT] Image viewer [F:${timetable.data.isCommon} I:${timetable.data.withIet}] ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: ctx.from.id },
   );
+  if (!opts?.dontUpdateLastActive)
+    db.user.update({
+      where: { id: user.id },
+      data: { lastActive: new Date() },
+    });
 }
 
 export async function initSchedule(bot: Telegraf<Context>) {

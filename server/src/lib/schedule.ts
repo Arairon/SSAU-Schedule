@@ -556,7 +556,7 @@ async function updateWeekForUser(
   }
 
   // Process week
-  const changes = [] as any[];
+  const changes = [] as any[]; // TODO: Return changes
   const knownLessons = someoneElsesGroup
     ? await getWeekLessons(user, weekNumber, opts.groupId, { ignoreIet: true })
     : await getWeekLessons(user, weekNumber);

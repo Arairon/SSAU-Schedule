@@ -2,21 +2,7 @@ import { LessonType, User } from "@prisma/client";
 import * as ics from "ics";
 import { db } from "../db";
 import log from "../logger";
-import { LessonTypeName } from "./misc";
-
-const LessonTypeIcon: Record<LessonType, string> = {
-  Lection: "📗",
-  Practice: "📕",
-  Lab: "📘",
-  Other: "📙",
-  Military: "🫡",
-  Window: "🏝",
-  Exam: "💀",
-  Consult: "🗨",
-  // CourseWork: "🤯",
-  // Test: "📝",
-  Unknown: "❓",
-};
+import { LessonTypeIcon, LessonTypeName } from "./misc";
 
 export async function generateUserIcs(
   userId: number,
@@ -92,6 +78,8 @@ export async function generateUserIcs(
       validUntil: new Date(Date.now() + 86400_000),
     },
   });
+
+  db.user.update({ where: { id: user.id }, data: { lastActive: now } });
 
   return cal;
 }

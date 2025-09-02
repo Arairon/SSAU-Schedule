@@ -214,68 +214,6 @@ async function init_bot(bot: Telegraf<Context>) {
   await initSchedule(bot);
   await initOptions(bot);
 
-  bot.command("config", async (ctx) => {
-    const [cmd, ...args] = ctx.message.text.trim().split(" ");
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
-    if (!user)
-      return ctx.reply(
-        "Вас не существует в базе данных. Пожалуйста пропишите /start",
-      );
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
-    if (args.length === 0) {
-      return ctx.reply(
-        `Текущие параметры:\n${JSON.stringify(Object.assign({}, preferences, { subgroup: user.subgroup }), null, 2)}`,
-      );
-    }
-    const field = args.shift()!.toLowerCase();
-    if (field === "theme") {
-      const themes = Object.keys(STYLEMAPS);
-      const target = args[0];
-      if (!target) {
-        return ctx.reply(`Доступные темы: ${themes.join(", ")}`);
-      } else if (!themes.includes(target)) {
-        return ctx.reply(
-          `Такой темы нет.\nДоступные темы: ${themes.join(", ")}`,
-        );
-      }
-      preferences.theme = target;
-      await db.user.update({ where: { id: user.id }, data: { preferences } });
-      if (ctx.session.scheduleViewer.message)
-        sendTimetable(ctx, ctx.session.scheduleViewer.week);
-      return ctx.reply(`Тема успешно изменена на '${target}'`);
-    } else if (field === "subgroup") {
-      const arg = args[0]?.trim();
-      const target = isNaN(arg as any) ? null : Number(arg);
-      if (!arg || target === null || target < 0 || target > 2) {
-        return ctx.reply(
-          `Вы можете установить себе подгруппу 1 или 2.\nПодгруппа 0 - обе\nВаша подгруппа: ${user.subgroup ?? 0}`,
-        );
-      }
-      const now = new Date();
-      await db.user.update({
-        where: { id: user.id },
-        data: {
-          subgroup: target,
-          ics: {
-            upsert: {
-              create: { validUntil: now },
-              update: { validUntil: now },
-            },
-          },
-        },
-      });
-      await db.week.updateMany({
-        where: { owner: user.id },
-        data: { cachedUntil: now },
-      });
-      ctx.reply(`Подгруппа успешно изменена на ${target}`);
-    }
-  });
-
   bot.command("invalidate", async (ctx) => {
     const args = ctx.message.text.split(" ");
     args.shift();
@@ -301,6 +239,7 @@ async function init_bot(bot: Telegraf<Context>) {
       await db.user.update({
         where: { id: target },
         data: {
+          lastActive: now,
           ics: {
             upsert: {
               create: { validUntil: now },
