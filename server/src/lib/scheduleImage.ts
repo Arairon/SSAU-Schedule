@@ -60,7 +60,7 @@ const HTML_HEADER_WEEKDAY = `\
 
 const HTML_HEADER_TIMESLOT = `\
 <div class="{style} rounded-lg font-bold p-2 flex flex-col justify-center">
-{start}<hr>{end}
+{start}<hr class="my-1">{end}
 </div>
 `;
 
@@ -317,14 +317,15 @@ export async function generateTimetableImage(
     stylemap?: string;
   },
 ): Promise<Buffer> {
-  const html = await generateTimetableImageHtml(timetable, opts);
   const startTime = process.hrtime.bigint();
+  const html = await generateTimetableImageHtml(timetable, opts);
+  const htmlTime = process.hrtime.bigint();
   const image = (await nodeHtmlToImage({
     html,
   })) as Buffer;
   const endTime = process.hrtime.bigint();
   log.debug(
-    `Generated an image for week [F:${timetable.isCommon} I:${timetable.withIet}] ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `Generated an image for week [F:${timetable.isCommon} I:${timetable.withIet}] ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
     { user: timetable.user },
   );
   return image;
