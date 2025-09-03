@@ -37,7 +37,8 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMap = {
     },
     Practice: {
       name: "Практика",
-      headerStyle: "border-2 border-red-400 bg-red-950 text-white rounded-lg",
+      headerStyle:
+        "border-2 border-red-400 bg-red-950 text-white rounded-lg text-lg",
       barStyle: "hidden text-lg",
       cardStyle:
         "border-2 border-red-400 bg-red-950 text-white rounded-lg px-1 py-2",

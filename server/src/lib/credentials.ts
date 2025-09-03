@@ -5,9 +5,9 @@ const ALGORITHM = "aes-256-cbc";
 const KEY_LENGTH = 32;
 const IV_LENGTH = 16;
 
-function getKey(salt: Buffer) {
+function getKey(salt: Buffer, key?: string) {
   return crypto.pbkdf2Sync(
-    env.SCHED_CREDENTIALS_KEY,
+    key ?? env.SCHED_CREDENTIALS_KEY,
     salt,
     100000,
     KEY_LENGTH,
@@ -15,13 +15,13 @@ function getKey(salt: Buffer) {
   );
 }
 
-function encrypt(data: string) {
+function encrypt(data: string, key?: string) {
   const salt = crypto.randomBytes(16);
   const iv = crypto.randomBytes(IV_LENGTH);
 
-  const key = getKey(salt);
+  const cipherkey = getKey(salt, key);
 
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, cipherkey, iv);
 
   let encrypted = cipher.update(data, "utf8", "hex");
   encrypted += cipher.final("hex");
@@ -32,7 +32,7 @@ function encrypt(data: string) {
   ).toString("base64");
 }
 
-function decrypt(data: string) {
+function decrypt(data: string, key?: string) {
   const decoded = Buffer.from(data, "base64").toString("utf8");
   const parts = decoded.split(":");
 
@@ -44,9 +44,9 @@ function decrypt(data: string) {
   const iv = Buffer.from(parts[1], "hex");
   const encryptedText = parts[2];
 
-  const key = getKey(salt);
+  const cipherkey = getKey(salt, key);
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+  const decipher = crypto.createDecipheriv(ALGORITHM, cipherkey, iv);
 
   let decrypted = decipher.update(encryptedText, "hex", "utf8");
   decrypted += decipher.final("utf8");

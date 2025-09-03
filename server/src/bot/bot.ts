@@ -79,7 +79,10 @@ async function init_bot(bot: Telegraf<Context>) {
     log.info("Bot started!");
     if (env.SCHED_BOT_ADMIN_TGID && env.NODE_ENV === "production") {
       try {
-        void bot.telegram.sendMessage(env.SCHED_BOT_ADMIN_TGID, "Bot started!");
+        void bot.telegram.sendMessage(
+          env.SCHED_BOT_ADMIN_TGID,
+          "Бот запущен!\nЕсли вы видите это не в момент запуска, то значит я крашнулся :D",
+        );
       } catch {
         log.error("Failed to notify admin about bot start");
       }

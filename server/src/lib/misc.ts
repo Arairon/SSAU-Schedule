@@ -212,7 +212,7 @@ export async function scheduleMessage(
   user: User,
   sendAt: Date,
   text: string,
-  opts?: { entities?: MessageEntity[]; image?: string },
+  opts?: { entities?: MessageEntity[]; image?: string; source?: string },
 ) {
   await db.scheduledMessage.create({
     data: {
@@ -221,6 +221,7 @@ export async function scheduleMessage(
       sendAt,
       entities: opts?.entities as object[],
       image: opts?.image,
+      source: opts?.source,
     },
   });
 }

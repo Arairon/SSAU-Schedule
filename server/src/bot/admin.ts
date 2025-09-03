@@ -12,6 +12,7 @@ type ScheduledMessage = {
   text: string;
   entities?: MessageEntity[];
   sendAt: Date;
+  source?: string;
 };
 
 type DbScheduledMessage = {
@@ -32,16 +33,16 @@ export async function initAdmin(bot: Telegraf<Context>) {
     const args = ctx.message.text.split(" ");
     args.shift();
     const arg = args[0]?.trim().toLowerCase();
-    if (arg === "notifs") {
+    if (arg === "dailyupd") {
       const msg = await ctx.reply(
-        "Запущено обновление недель постановка уведомлений в очередь",
+        "Запущено ежедневное обновление недель и постановка уведомлений в очередь",
       );
       await dailyWeekUpdate();
       await ctx.telegram.editMessageText(
         msg.chat.id,
         msg.message_id,
         undefined,
-        "Ближайшие недели обновлены. Уведомления поставлены в очередь",
+        "Ближайшие недели обновлены. Изображения прегенерированы. Уведомления поставлены в очередь",
       );
       return;
     } else if (arg === "test") {
@@ -98,14 +99,27 @@ export async function initAdmin(bot: Telegraf<Context>) {
       if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
         return ctx.reply("Нет, спасибо.");
       if (args.includes("hard")) {
-        await db.weekImage.deleteMany();
+        const result = await db.weekImage.deleteMany();
         return ctx.reply(
-          fmt`Сброшены все изображения. ${italic("Как жестоко...")}`,
+          fmt`Сброшены все ${result.count} изображений. ${italic("Как жестоко...")}`,
         );
       } else {
-        await db.weekImage.updateMany({ data: { validUntil: new Date() } });
-        return ctx.reply("Все изображения были отмечены невалидными");
+        const result = await db.weekImage.updateMany({
+          data: { validUntil: new Date() },
+        });
+        return ctx.reply(
+          `${result.count} изображений были отмечены невалидными`,
+        );
       }
+    } else if (arg === "notifs") {
+      if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
+        return ctx.reply("Нет, спасибо.");
+      const epoch = new Date(0);
+      const result = await db.scheduledMessage.updateMany({
+        where: { wasSentAt: null },
+        data: { wasSentAt: epoch },
+      });
+      return ctx.reply(`Отменена отправка ${result.count} сообщений`);
     }
   });
 
@@ -130,6 +144,7 @@ export async function initAdmin(bot: Telegraf<Context>) {
         text,
         entities: entities as object[],
         sendAt: new Date(),
+        source: "broadcast",
       },
     });
     const replyHeader = `1 Сообщение следующего содержания\n---\n`;
@@ -155,6 +170,7 @@ export async function initAdmin(bot: Telegraf<Context>) {
         text,
         entities: entities,
         sendAt: asap,
+        source: "broadcast",
       });
     }
     await db.scheduledMessage.createMany({

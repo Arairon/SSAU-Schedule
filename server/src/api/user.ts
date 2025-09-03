@@ -367,9 +367,13 @@ async function routes(fastify: FastifyInstance) {
   );
 
   fastify.get("/api/debug/now", (req, res) => res.send([new Date()]));
-  fastify.post("/api/debug/test", (req, res) => {
-    console.log(creds.decrypt(creds.encrypt(req.body as string)));
-    res.send(creds.decrypt(creds.encrypt(req.body as string)));
+  fastify.post("/api/debug/rekey", (req, res) => {
+    const { data, newkey, curkey } = req.body as {
+      data: string;
+      newkey: string;
+      curkey: string;
+    };
+    res.send(creds.encrypt(creds.decrypt(data, curkey), newkey));
   });
   fastify.get(
     "/api/debug/html/:n1",

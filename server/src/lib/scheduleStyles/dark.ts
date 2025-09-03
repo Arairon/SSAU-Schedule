@@ -37,7 +37,8 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
     },
     Practice: {
       name: "Практика",
-      headerStyle: "border-2 border-red-400 bg-red-950 text-white rounded-lg",
+      headerStyle:
+        "border-2 border-red-400 bg-red-950 text-white rounded-lg text-lg",
       barStyle: "bg-red-400 text-lg",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",

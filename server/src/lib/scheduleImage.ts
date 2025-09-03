@@ -9,7 +9,6 @@ import {
 import { formatBigInt, getLessonDate, getPersonShortname } from "./utils";
 import { type StyleMap } from "./scheduleStyles/types";
 import log from "../logger";
-import { db } from "../db";
 import { env } from "../env";
 import { SCHEDULE_STYLEMAP_DEFAULT } from "./scheduleStyles/default";
 import { SCHEDULE_STYLEMAP_NEON } from "./scheduleStyles/neon";
@@ -234,15 +233,15 @@ export async function generateTimetableImageHtml(
   },
 ): Promise<string> {
   const stylemap = STYLEMAPS[opts?.stylemap ?? "default"];
-  const scheduleName = timetable.isCommon
-    ? ((await db.group.findUnique({ where: { id: timetable.groupId } }))
-        ?.name ?? "#Группа не найдена#")
-    : "Моё расписание";
+  // const scheduleName = timetable.isCommon
+  //   ? ((await db.group.findUnique({ where: { id: timetable.groupId } }))
+  //       ?.name ?? "#Группа не найдена#")
+  //   : "Моё расписание";
   const page: string[] = [
     HTML_HEAD,
     format(HTML_SIZER, { width: "1600px", height: "auto" }),
     format(HTML_HEADER_WEEK, {
-      name: scheduleName,
+      //name: scheduleName,  // {name} is currently disabled in header
       weekNumber: `${timetable.week}`,
       headerStyle: stylemap.general.headers.main,
     }),

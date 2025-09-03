@@ -12,6 +12,7 @@ import {
   scheduleMessage,
   UserPreferencesDefaults,
 } from "./misc";
+import type { User, Week } from "@prisma/client";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -74,6 +75,7 @@ export async function dailyWeekUpdate() {
     user: "cron/dailyWeekUpdate",
   });
 
+  // on todays weeknumber
   for (const week of weeks) {
     const user = await db.user.findUnique({
       where: { id: week.owner },
@@ -86,16 +88,12 @@ export async function dailyWeekUpdate() {
       continue;
     }
 
+    // TODO: Remove in prod
     if (user.id !== 1) {
       log.debug("Skipping nonadmin user", { user: "cron/dailyWeekUpdate" });
       continue;
     }
 
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
     const isActive = user.lastActive > weekAgo;
     if (!isActive) {
       // day before week ago. Basically check if it's the first time user is noticed as inactive
@@ -107,6 +105,7 @@ export async function dailyWeekUpdate() {
           user,
           today,
           `Приветствую!\nЗа последнюю неделю я не заметил никакой активности с вашей стороны. Если вы хотите продолжить получать уведомления / обновления календаря - просто запросите расписание снова.\nВ противном же случае просто ничего не делайте и я перестану вам докучать :)`,
+          { source: "cron/dailyWeekUpdate" },
         );
       } else {
         log.debug(
@@ -119,14 +118,32 @@ export async function dailyWeekUpdate() {
       continue;
     }
 
+    const nextWeekPreUpdates = await db.week.findUnique({
+      where: {
+        owner_groupId_year_number: {
+          owner: week.owner,
+          groupId: week.groupId,
+          year: week.year,
+          number: week.number + 1,
+        },
+      },
+    });
+    const nextWeekIsNew =
+      !nextWeekPreUpdates || nextWeekPreUpdates.updatedAt < weekAgo;
+
+    // Update current and next weeks
     const currentWeekChanges = await schedule.updateWeekForUser(
       user,
       week.number,
     );
+    await schedule.getTimetableWithImage(user, week.number);
+
     const nextWeekChanges = await schedule.updateWeekForUser(
       user,
       week.number + 1,
     );
+    await schedule.getTimetableWithImage(user, week.number + 1);
+
     if (!currentWeekChanges || !nextWeekChanges) {
       log.error(
         `Failed to update week for user ${user.id} (${week.number}, ${week.number + 1})`,
@@ -134,17 +151,19 @@ export async function dailyWeekUpdate() {
       );
       continue;
     } else {
-      const newLessons = currentWeekChanges.new.concat(nextWeekChanges.new);
-      const removedLessons = currentWeekChanges.removed.concat(
-        nextWeekChanges.removed,
-      );
+      const newLessons = nextWeekIsNew
+        ? currentWeekChanges.new
+        : currentWeekChanges.new.concat(nextWeekChanges.new);
+      const removedLessons = nextWeekIsNew
+        ? currentWeekChanges.removed
+        : currentWeekChanges.removed.concat(nextWeekChanges.removed);
       newLessons.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
       removedLessons.sort(
         (a, b) => a.beginTime.getTime() - b.beginTime.getTime(),
       );
       if (newLessons.length > 0 || removedLessons.length > 0) {
         log.debug(
-          `User ${user.id} (week #${week.number}) has (+${newLessons.length}, -${removedLessons.length}) schedule changes`,
+          `User ${user.id} (weeks #${week.number}, #${week.number + 1}${nextWeekIsNew ? " [NEW]" : ""}) has (+${currentWeekChanges.new.length}, +${nextWeekChanges.new.length}, -${currentWeekChanges.removed.length}, -${nextWeekChanges.removed.length}) schedule changes.`,
           {
             user: "cron/dailyWeekUpdate",
           },
@@ -167,83 +186,97 @@ ${newLessons.map(formatDbLesson).join("\n")}
 ${removedLessons.map(formatDbLesson).join("\n")}
 `
               : ""),
+          { source: "cron/dailyWeekUpdate" },
         );
       }
     }
-    // TODO: Schedule changes notifications
 
-    const timetable = await schedule.getWeekTimetable(user, week.number);
-    const day = timetable.days[today.getDay() - 1];
+    await scheduleDailyNotificationsForUser(user, week);
 
-    if (!day || day.lessons.length === 0) {
-      // sunday or no lessons
-      await sleep(3000);
-      continue;
-    }
+    await sleep(3000); // To prevent any fun stuff on ssau's end
+  }
+}
 
-    if (preferences.notifyBeforeLessons) {
-      const deltaMinutes = Math.round(preferences.notifyBeforeLessons / 60);
-      const minutes = deltaMinutes % 10 === 1 ? "минуту" : "минут";
-      await scheduleMessage(
-        user,
-        new Date(
-          day.beginTime.getTime() - preferences.notifyBeforeLessons * 1000,
-        ),
-        `\
+async function scheduleDailyNotificationsForUser(user: User, week: Week) {
+  const today = new Date(Date.now() + 42200_000); // add half a day to ensure 'today' and not 'tonight'
+  today.setHours(7, 0); // 7 AM in Europe/Samara
+  const preferences = Object.assign(
+    {},
+    UserPreferencesDefaults,
+    user.preferences,
+  );
+  const timetable = await schedule.getWeekTimetable(user, week.number);
+  const day = timetable.days[today.getDay() - 1];
+
+  if (!day || day.lessons.length === 0) {
+    // sunday or no lessons
+    return;
+  }
+
+  if (preferences.notifyBeforeLessons) {
+    const deltaMinutes = Math.round(preferences.notifyBeforeLessons / 60);
+    const minutes = deltaMinutes % 10 === 1 ? "минуту" : "минут";
+    await scheduleMessage(
+      user,
+      new Date(
+        day.beginTime.getTime() - preferences.notifyBeforeLessons * 1000,
+      ),
+      `\
 Доброе утро!
 Через ${deltaMinutes} ${minutes} начнутся занятия.
 Первая пара:
 ${generateTextLesson(day.lessons[0])}
 `,
+      { source: "cron/dailyNotifs" },
+    );
+  }
+
+  day.lessons.slice(0, -1).map((lesson, index) => {
+    if (preferences.notifyAboutNextLesson) {
+      const nextLesson = day.lessons[index + 1];
+      void scheduleMessage(
+        user,
+        lesson.endTime,
+        `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
+        { source: "cron/dailyNotifs" },
       );
     }
+  });
 
-    day.lessons.slice(0, -1).map((lesson, index) => {
-      if (preferences.notifyAboutNextLesson) {
-        const nextLesson = day.lessons[index + 1];
-        void scheduleMessage(
-          user,
-          lesson.endTime,
-          `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
-        );
-      }
-    });
-
-    const nextStudyDay = timetable.days
-      .slice(day.weekday)
-      .filter((day) => day.lessons.length > 0)
-      .at(-1);
-    if (preferences.notifyAboutNextDay && day.weekday < 6) {
-      if (nextStudyDay) {
-        await scheduleMessage(
-          user,
-          day.endTime,
-          `\
+  const nextStudyDay = timetable.days
+    .slice(day.weekday)
+    .filter((day) => day.lessons.length > 0)
+    .at(-1);
+  if (preferences.notifyAboutNextDay && day.weekday < 6) {
+    if (nextStudyDay) {
+      await scheduleMessage(
+        user,
+        day.endTime,
+        `\
 Сегодня больше ничего нет
 Следующие занятия ${DayString[nextStudyDay.weekday].in}, ${nextStudyDay.beginTime.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}:
 
 ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----\n")}
 `,
-        );
-      }
-    }
-
-    if (preferences.notifyAboutNextWeek && !nextStudyDay) {
-      const timetable = await schedule.getTimetableWithImage(
-        user,
-        week.number + 1,
-      );
-      void scheduleMessage(
-        user,
-        day.endTime,
-        "Сегодня больше ничего нет\nНа фото расписание на следующую неделю",
-        {
-          image: timetable.image.data.toString("base64"),
-        },
+        { source: "cron/dailyNotifs" },
       );
     }
+  }
 
-    await sleep(3000); // To prevent any fun stuff on ssau's end
+  if (preferences.notifyAboutNextWeek && !nextStudyDay) {
+    const timetable = await schedule.getTimetableWithImage(
+      user,
+      week.number + 1,
+    );
+    void scheduleMessage(
+      user,
+      day.endTime,
+      "На этой неделе больше ничего нет\nНа фото расписание на следующую неделю",
+      {
+        image: timetable.image.data.toString("base64"),
+        source: "cron/dailyNotifs",
+      },
+    );
   }
 }
 

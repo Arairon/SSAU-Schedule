@@ -136,7 +136,12 @@ async function getTimetableWithImage(
   const now = new Date();
   const year = (opts?.year ?? 0) || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
-  const stylemap = opts?.stylemap ?? "default";
+  const preferences = Object.assign(
+    {},
+    UserPreferencesDefaults,
+    user.preferences,
+  );
+  const stylemap = opts?.stylemap ?? preferences.theme ?? "default";
   if (opts?.forceUpdate) opts.ignoreCached = true;
 
   if (!groupId) {
@@ -599,8 +604,13 @@ async function updateWeekForUser(
 
   // Process week
   const knownLessons = someoneElsesGroup
-    ? await getWeekLessons(user, weekNumber, opts.groupId, { ignoreIet: true })
-    : await getWeekLessons(user, weekNumber);
+    ? await getWeekLessons(user, weekNumber, opts.groupId, {
+        ignoreIet: true,
+        ignorePreferences: true,
+      })
+    : await getWeekLessons(user, weekNumber, undefined, {
+        ignorePreferences: true,
+      });
   const updatedTeachers: number[] = [];
   const updatedGroups: number[] = [];
   const updatedFlows: number[] = [];
@@ -968,6 +978,7 @@ async function updateWeekForUser(
   );
 
   return {
+    week,
     new: newLessons,
     removed: removedLessons.filter((i) => i.weekNumber === week.number),
   };

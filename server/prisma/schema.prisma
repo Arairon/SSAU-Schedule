@@ -184,6 +184,7 @@ model ScheduledMessage {
   text     String
   image    String?
   entities Json    @default(value: "[]")
+  source   String  @default("n/a")
 
   sendAt    DateTime
   wasSentAt DateTime?
