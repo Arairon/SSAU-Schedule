@@ -455,7 +455,7 @@ export async function initOptions(bot: Telegraf<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.action(/^options_notifications_daystart_set_\d+$/, async (ctx) => {
+  bot.action(/^options_notifications_daystart_set_(\d+)$/, async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
