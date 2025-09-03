@@ -59,38 +59,42 @@ async function updateOptionsMsg(ctx: Context) {
   if (menu === "") {
     const theme =
       STYLEMAPS[preferences.theme ?? "default"] ?? STYLEMAPS.default;
-    return ctx.telegram.editMessageText(
-      chat,
-      msgId,
-      undefined,
-      newText,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            `Тема: ${theme.description}`,
-            "options_themes",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `Подгруппа: ${(user.subgroup ?? 0) || "Обе"}`,
-            "options_subgroup",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `ИОТы: ${preferences.showIet ? "✅" : "❌"}`,
-            "options_toggle_iet",
-          ),
-          Markup.button.callback(
-            `Военка: ${preferences.showMilitary ? "✅" : "❌"}`,
-            "options_toggle_military",
-          ),
-        ],
-        [Markup.button.callback(`Уведомления`, "options_notifications")],
-        [Markup.button.callback("Закрыть", "options_close")],
-      ]),
-    );
+    return ctx.telegram
+      .editMessageText(
+        chat,
+        msgId,
+        undefined,
+        newText,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              `Тема: ${theme.description}`,
+              "options_themes",
+            ),
+          ],
+          [
+            Markup.button.callback(
+              `Подгруппа: ${(user.subgroup ?? 0) || "Обе"}`,
+              "options_subgroup",
+            ),
+          ],
+          [
+            Markup.button.callback(
+              `ИОТы: ${preferences.showIet ? "✅" : "❌"}`,
+              "options_toggle_iet",
+            ),
+            Markup.button.callback(
+              `Военка: ${preferences.showMilitary ? "✅" : "❌"}`,
+              "options_toggle_military",
+            ),
+          ],
+          [Markup.button.callback(`Уведомления`, "options_notifications")],
+          [Markup.button.callback("Закрыть", "options_close")],
+        ]),
+      )
+      .catch(() => {
+        /* ignore */
+      });
   } else if (menu === "themes") {
     return ctx.telegram.editMessageText(
       chat,
