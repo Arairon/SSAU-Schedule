@@ -157,6 +157,8 @@ async function routes(fastify: FastifyInstance) {
       return res.status(200).send(
         Object.assign({}, user, {
           password: "[redacted]",
+          tgId: user.tgId.toString(),
+          authCookie: "[redacted]",
         }),
       );
     },

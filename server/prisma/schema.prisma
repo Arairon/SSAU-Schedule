@@ -60,6 +60,7 @@ enum LessonType {
 
 model Lesson {
   id            Int        @id // I trust in ssau's autoincremented ids :D
+  infoId        Int
   type          LessonType
   discipline    String
   validUntil    DateTime

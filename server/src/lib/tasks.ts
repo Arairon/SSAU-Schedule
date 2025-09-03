@@ -64,7 +64,7 @@ export async function dailyWeekUpdate() {
   const now = new Date();
   const weekAgo = new Date(Date.now() - 604800_000);
   const today = new Date(Date.now() + 42200_000); // add half a day to ensure 'today' and not 'tonight'
-  today.setHours(3, 0); // 7 AM in Europe/Samara
+  today.setHours(7, 0); // 7 AM in Europe/Samara
   const year = getCurrentYearId();
   const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0); // if sunday - update next week
   const weeks = await db.week.findMany({
@@ -137,6 +137,10 @@ export async function dailyWeekUpdate() {
       const newLessons = currentWeekChanges.new.concat(nextWeekChanges.new);
       const removedLessons = currentWeekChanges.removed.concat(
         nextWeekChanges.removed,
+      );
+      newLessons.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
+      removedLessons.sort(
+        (a, b) => a.beginTime.getTime() - b.beginTime.getTime(),
       );
       if (newLessons.length > 0 || removedLessons.length > 0) {
         log.debug(

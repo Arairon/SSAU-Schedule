@@ -45,6 +45,7 @@ CREATE TABLE "public"."Teacher" (
 -- CreateTable
 CREATE TABLE "public"."Lesson" (
   "id" INTEGER NOT NULL,
+  "infoId" INTEGER NOT NULL,
   "type" "public"."LessonType" NOT NULL,
   "discipline" TEXT NOT NULL,
   "validUntil" TIMESTAMP(3) NOT NULL,

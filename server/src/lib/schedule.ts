@@ -20,6 +20,12 @@ import {
 } from "./misc";
 import { generateTimetableImage } from "./scheduleImage";
 
+Object.assign(axios.defaults.headers, {
+  "Cache-Control": "no-cache",
+  Pragma: "no-cache",
+  Expires: "0",
+});
+
 async function getWeekLessons(
   user: User,
   week: number,
@@ -221,6 +227,10 @@ async function getWeekTimetable(
   if (!opts?.ignoreCached) {
     if (week.timetable && week.cachedUntil > now) {
       log.debug("Timetable good enough. Returning cached", { user: user.id });
+      week.timetable.days.map((day) => {
+        day.beginTime = new Date(day.beginTime);
+        day.endTime = new Date(day.endTime);
+      });
       return week.timetable;
     }
   }
@@ -552,9 +562,11 @@ async function updateWeekForUser(
   //console.log("KNOWN", knownLessons);
 
   const lessonValidUntilDate = new Date(Date.now() + 2592000_000); // 30 days from now
+  //#region Update normal lessons
   for (const lessonList of weekSched.lessons) {
     // Create shared info for all lessons in list
     const info = {
+      infoId: lessonList.id,
       discipline: formatSentence(lessonList.discipline.name),
       conferenceUrl: lessonList.conference?.url,
       weekday: lessonList.weekday.id,
@@ -656,13 +668,16 @@ async function updateWeekForUser(
       if (lesson.weekNumber === week.number) lessonsInThisWeek.push(lesson.id);
     }
   }
+  //#endregion
 
+  //#region Update IET lessons
   if (week.owner !== 0) {
     log.debug("Updating iet lessons", { user: user.id });
     //const flowsToJoin: number[] = [];
     for (const lessonList of weekSched.ietLessons) {
       // Create shared info for all lessons in list
       const info = {
+        infoId: lessonList.id,
         discipline: formatSentence(lessonList.flows[0].discipline.name),
         conferenceUrl: lessonList.conference?.url,
         weekday: lessonList.weekday.id,
@@ -772,6 +787,7 @@ async function updateWeekForUser(
   } else {
     log.info(`Skipping iet lessons for 'common' owned week`, { user: user.id });
   }
+  //#endregion
 
   await db.week.update({
     where: { id: week.id },
@@ -848,14 +864,14 @@ async function updateWeekForUser(
       }
     }
   }
-  const missingLessons: number[] = [];
+  const missingLessonsInfoId: number[] = [];
   const updatedLessonIds = updatedLessons.map((i) => i.id);
   for (const knownLesson of knownLessons.all) {
     if (!updatedLessonIds.includes(knownLesson.id)) {
       if (someoneElsesGroup && knownLesson.isIet) {
         //ignore
       } else {
-        missingLessons.push(knownLesson.id);
+        missingLessonsInfoId.push(knownLesson.id);
       }
     }
   }
@@ -864,7 +880,7 @@ async function updateWeekForUser(
     where: {
       // if is missing or left orphaned
       OR: [
-        { id: { in: missingLessons } },
+        { infoId: { in: missingLessonsInfoId } },
         { week: { none: {} } }, // No week
       ],
       validUntil: { gt: now },
@@ -899,7 +915,7 @@ async function updateWeekForUser(
   // TODO Might need to add change detection to individual lessons later
   log.debug(
     `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${removedLessons
-      .filter((i) => knownLessonsIds.includes(i.id))
+      .filter((i) => i.weekNumber === week.number)
       .map((i) => i.id)
       .join()}]`,
     { user: user.id },
@@ -907,7 +923,7 @@ async function updateWeekForUser(
 
   return {
     new: newLessons,
-    removed: removedLessons.filter((i) => knownLessonsIds.includes(i.id)),
+    removed: removedLessons.filter((i) => i.weekNumber === week.number),
   };
 }
 
