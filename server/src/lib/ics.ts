@@ -1,7 +1,12 @@
 import * as ics from "ics";
 import { db } from "../db";
 import log from "../logger";
-import { LessonTypeIcon, LessonTypeName } from "./misc";
+import {
+  LessonTypeIcon,
+  LessonTypeName,
+  UserPreferencesDefaults,
+} from "./misc";
+import { LessonType } from "@prisma/client";
 
 export async function generateUserIcs(
   userId: number,
@@ -16,6 +21,11 @@ export async function generateUserIcs(
     return "";
   }
   log.debug("Generating new ics", { user: user.id });
+  const preferences = Object.assign(
+    {},
+    UserPreferencesDefaults,
+    user.preferences,
+  );
   const now = new Date();
   const normalLessons = await db.lesson.findMany({
     where: {
@@ -25,23 +35,27 @@ export async function generateUserIcs(
     },
     include: { groups: true, teacher: true },
   });
-  const ietLessons = await db.lesson.findMany({
-    where: {
-      validUntil: { gt: now },
-      flows: { some: { user: { some: { id: user.id } } } },
-      //subgroup: user.subgroup ?? undefined, //TODO: Figure out if subgroups belong on IET
-    },
-    include: { flows: true, teacher: true },
-  });
+  const ietLessons = preferences.showIet
+    ? await db.lesson.findMany({
+        where: {
+          validUntil: { gt: now },
+          flows: { some: { user: { some: { id: user.id } } } },
+          //subgroup: user.subgroup ?? undefined, //TODO: Figure out if subgroups belong on IET
+        },
+        include: { flows: true, teacher: true },
+      })
+    : [];
 
   const events: ics.EventAttributes[] = [];
 
   for (const lesson of [...normalLessons, ...ietLessons]) {
     if (user.subgroup && lesson.subgroup && user.subgroup !== lesson.subgroup)
       continue;
+    if (!preferences.showMilitary && lesson.type === LessonType.Military)
+      continue;
     const event: ics.EventAttributes = {
       title:
-        `${LessonTypeIcon[lesson.type]} ${lesson.discipline}` +
+        `${LessonTypeIcon[lesson.type]} ${lesson.discipline} ${lesson.isIet ? "[ИОТ]" : ""}` +
         (lesson.subgroup !== null ? ` (${lesson.subgroup})` : ""),
       description:
         `${lesson.teacher.name}` +
