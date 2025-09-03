@@ -95,7 +95,7 @@ const dailyWeekUpdate = new AsyncTask(
         UserPreferencesDefaults,
         user.preferences,
       );
-      const isActive = user.lastActive < weekAgo;
+      const isActive = user.lastActive > weekAgo;
       if (!isActive) {
         // day before week ago. Basically check if it's the first time user is noticed as inactive
         if (user.lastActive > new Date(Date.now() - 604800_000 - 86400_000)) {

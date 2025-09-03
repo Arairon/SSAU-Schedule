@@ -15,6 +15,8 @@ export const env = createEnv({
       .string()
       .min(64, "The credentials key must be at least 64 characters long."),
     SCHED_PORT: z.coerce.number().int().default(3000),
+    SCHED_HOST: z.string().default("0.0.0.0"),
+    CHROME_PATH: z.string().optional(),
     TZ: z.string().default("Europe/Samara"),
     LOG_LEVEL: z.string().toLowerCase().default("info"),
     FASTIFY_LOG_LEVEL: z.string().toLowerCase().optional().default("error"),

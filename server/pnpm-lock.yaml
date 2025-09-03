@@ -1782,6 +1782,7 @@ packages:
   puppeteer@23.2.2:
     resolution: {integrity: sha512-3RX5vEhlOE/9M7ZXxoJVvI7pbOF3fzFK4etwbdii7w+r58q+krK5l2FXWlA1ETnNs7ilM/KLFc0n6K8VUi99dA==}
     engines: {node: '>=18'}
+    deprecated: < 24.9.0 is no longer supported
     hasBin: true
 
   pure-rand@6.1.0:

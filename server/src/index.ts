@@ -30,7 +30,7 @@ async function start() {
     for (const job of cronjobs) server.scheduler.addCronJob(job);
   });
 
-  server.listen({ port: env.SCHED_PORT }, (err, addr) => {
+  server.listen({ port: env.SCHED_PORT, host: env.SCHED_HOST }, (err, addr) => {
     if (err) {
       log.error(err);
       process.exit(1);

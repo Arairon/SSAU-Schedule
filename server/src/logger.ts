@@ -8,8 +8,8 @@ const f = format.combine(
   format.align(),
   format.printf((info) => {
     if (typeof info.user === "number")
-      return `${info.timestamp as string} ${info.level} [${info.user.toString().padStart(12, " ")}]: ${info.message as string}`;
-    return `${info.timestamp as string} ${info.level} [${(info.user as string) ?? "unk"}]: ${info.message as string}`;
+      return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${info.user.toString().padStart(12, " ")}]: ${info.message as string}`;
+    return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${(info.user as string) ?? "unk"}]: ${info.message as string}`;
   }),
 );
 

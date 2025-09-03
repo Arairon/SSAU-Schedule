@@ -190,6 +190,9 @@ export async function initSchedule(bot: Telegraf<Context>) {
   });
 
   bot.action("schedule_button_next", async (ctx) => {
+    if (!ctx.session.scheduleViewer.message)
+      ctx.session.scheduleViewer.message =
+        ctx.callbackQuery.message?.message_id ?? 0;
     const week = ctx.session.scheduleViewer.week + 1;
     if (week === 53) {
       return ctx.answerCbQuery(
@@ -202,6 +205,9 @@ export async function initSchedule(bot: Telegraf<Context>) {
   });
 
   bot.action("schedule_button_prev", async (ctx) => {
+    if (!ctx.session.scheduleViewer.message)
+      ctx.session.scheduleViewer.message =
+        ctx.callbackQuery.message?.message_id ?? 0;
     const week = ctx.session.scheduleViewer.week - 1;
     if (week === 0) {
       return ctx.answerCbQuery("Расписания на нулевую неделю не существует");
@@ -212,6 +218,9 @@ export async function initSchedule(bot: Telegraf<Context>) {
   });
 
   bot.action("schedule_button_refresh", async (ctx) => {
+    if (!ctx.session.scheduleViewer.message)
+      ctx.session.scheduleViewer.message =
+        ctx.callbackQuery.message?.message_id ?? 0;
     const week = ctx.session.scheduleViewer.week;
     sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
       return handleError(ctx, e as Error);
@@ -219,6 +228,9 @@ export async function initSchedule(bot: Telegraf<Context>) {
   });
 
   bot.action("schedule_button_forceupdate", async (ctx) => {
+    if (!ctx.session.scheduleViewer.message)
+      ctx.session.scheduleViewer.message =
+        ctx.callbackQuery.message?.message_id ?? 0;
     const week = ctx.session.scheduleViewer.week;
     return sendTimetable(ctx, week, { forceUpdate: true, queryCtx: ctx });
   });
