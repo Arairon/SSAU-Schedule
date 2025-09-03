@@ -228,7 +228,8 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
 `,
         { link_preview_options: { is_disabled: true } },
       );
-    return ctx.reply(fmt`\
+    return ctx.reply(
+      fmt`\
 Добро пожаловать, ${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}!
 
 Вы можете запросить своё расписание по команде /schedule [номер недели] (по умолчанию текущая неделя)
@@ -242,7 +243,9 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
 Исходный код: https://github.com/Arairon/SSAU-Schedule
 Администратор бота: ${env.SCHED_BOT_ADMIN_CONTACT}
 Автор бота: @arairon
-`);
+`,
+      { link_preview_options: { is_disabled: true } },
+    );
   });
 
   await initSchedule(bot);
