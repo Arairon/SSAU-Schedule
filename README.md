@@ -1,5 +1,12 @@
 # SSAU Schedule
 
+[![botlink](https://badgen.net/badge/icon/@arai_ssau_bot?icon=telegram&label&color=red)](https://t.me/arai_ssau_bot)
+[![author](https://badgen.net/badge/icon/Автор?icon=telegram&label)](https://t.me/arairon)
+
+[![release](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-release.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-release.yml)
+[![preview](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-main.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-main.yml)
+[![dev](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-dev.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-dev.yml)
+
 > [!warning]
 > Бот НЕ официальный! Я не имею никакого отношения к учебному отделу ССАУ, я просто студент.
 
