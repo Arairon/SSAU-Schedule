@@ -48,6 +48,9 @@ async function start(ctx: Context, userId: number) {
 Для начала потребуется войти в личный кабинет. Вы можете это сделать по команде /login
 Каковы гарантии что я не украду ваш аккаунт лк? Никаких :)
 Ну а если серьёзно, то зачем оно мне надо...
+
+Исходный код: https://github.com/arairon/ssau-schedule
+Админ бота: ${env.SCHED_BOT_ADMIN_CONTACT}
     `);
 }
 
@@ -56,7 +59,7 @@ const stage = new Scenes.Stage([loginScene]);
 async function sendErrorMessage(ctx: Context, comment?: string) {
   try {
     return ctx.reply(
-      `Что-то пошло не так. Свяжитесь с ${env.SCHED_BOT_ADMIN_CONTACT}.\n${comment ?? ""}`,
+      `Что-то пошло не так. Если это повторится - свяжитесь с ${env.SCHED_BOT_ADMIN_CONTACT}.\n${comment ?? ""}`,
     );
   } catch {
     log.error("Error occured during sendErrorMessage. Ignoring.", {
@@ -181,6 +184,29 @@ async function init_bot(bot: Telegraf<Context>) {
   bot.command("cancel", async (ctx) => {
     log.debug(JSON.stringify(ctx.scene.current));
     return ctx.scene.leave();
+  });
+
+  bot.command("ics", async (ctx) => {
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(
+        "Вас не существует в базе данных. Пожалуйста пропишите /start",
+      );
+    }
+    return ctx.reply(
+      fmt`\
+Инструкция по установке: https://l9labs.ru/stud_bot/ics.html
+(Украдено у l9 :D)
+
+Ваша ссылка:
+https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
+
+‼️Файл по этой ссылке не для скачивания‼️
+Содержимое ссылки генерируется динамически в зависимости от текущего расписания и ваших настроек.
+Добавьте её в календарь и включите синхронизацию.
+ `,
+      { link_preview_options: { is_disabled: true } },
+    );
   });
 
   await initSchedule(bot);

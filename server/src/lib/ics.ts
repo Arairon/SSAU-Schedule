@@ -40,7 +40,6 @@ export async function generateUserIcs(
     if (user.subgroup && lesson.subgroup && user.subgroup !== lesson.subgroup)
       continue;
     const event: ics.EventAttributes = {
-      calName: "Расписание",
       title:
         `${LessonTypeIcon[lesson.type]} ${lesson.discipline}` +
         (lesson.subgroup !== null ? ` (${lesson.subgroup})` : ""),
@@ -59,14 +58,22 @@ export async function generateUserIcs(
     events.push(event);
   }
 
-  const { error, value: cal } = ics.createEvents(events);
+  const { error, value: rawcal } = ics.createEvents(events, {
+    calName: "Расписание",
+    productId: "github.com/arairon/ssau-schedule",
+  });
 
-  if (error) {
+  if (error || !rawcal) {
     log.error(`Error generating ics ${JSON.stringify(error)}`, {
       user: user.id,
     });
     return "";
   }
+
+  const cal = rawcal.replace(
+    "X-WR-CALNAME",
+    "X-WR-TIMEZONE:Europe/Samara\nX-WR-CALNAME",
+  ); // A hack to include timezone, since ics lib doesn't support it
 
   await db.userIcs.upsert({
     where: { id: user.id },
