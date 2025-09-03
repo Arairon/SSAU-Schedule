@@ -145,9 +145,10 @@ model Week {
   lessons   Lesson[]
   updatedAt DateTime @default(value: "1970-01-01T00:00:00.000Z") // Updated from SSAU
 
-  timetable   Json?
-  images      WeekImage[]
-  cachedUntil DateTime    @default(value: "1970-01-01T00:00:00.000Z")
+  timetable     Json?
+  timetableHash String?
+  images        WeekImage[]
+  cachedUntil   DateTime    @default(value: "1970-01-01T00:00:00.000Z")
 
   createdAt    DateTime @default(now())
   db_updatedAt DateTime @updatedAt()
@@ -162,14 +163,17 @@ model WeekImage {
   week   Week @relation(fields: [weekId], references: [id], onDelete: Cascade)
   weekId Int
 
-  stylemap   String   @default("default")
-  tgId       String?
-  data       String
+  stylemap      String   @default("default")
+  tgId          String?
+  data          String
+  timetableHash String
   // Add preferences?
-  validUntil DateTime
+  validUntil    DateTime
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
+
+  @@unique([weekId, stylemap, timetableHash])
 }
 
 model ScheduledMessage {

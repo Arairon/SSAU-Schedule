@@ -1,3 +1,5 @@
+import crypto from "crypto";
+
 export const FIRST_STUDY_DAY = new Date("1970-01-01T00:00:00.000"); // No Z for TZ compliance
 
 function init_first_day() {
@@ -60,6 +62,12 @@ export function formatBigInt(x: bigint | number) {
 
 export function formatSentence(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+export function md5(string: string) {
+  const hash = crypto.createHash("md5");
+  hash.update(string);
+  return hash.digest("hex");
 }
 
 export type ReturnObj<T> =

@@ -1,5 +1,6 @@
 import { Markup, type Telegraf } from "telegraf";
 import { fmt } from "telegraf/format";
+import timestring from "timestring";
 import { type Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
@@ -26,6 +27,8 @@ const menuText: Record<string, string> = {
   themes: "Выберите новую тему",
   subgroup: "Выберите подгруппу",
   notifications: "Уведомления (Применяются только со следующего дня)",
+  notifications_daystart:
+    "Чтобы установить произвольное время используйте\n/config notify daystart [строка]\nПример строки: 1h 30m 30s",
 };
 
 async function updateOptionsMsg(ctx: Context) {
@@ -154,6 +157,64 @@ async function updateOptionsMsg(ctx: Context) {
           ),
         ],
         [Markup.button.callback("Назад", "options_menu")],
+      ]),
+    );
+  } else if (menu === "notifications_daystart") {
+    return ctx.telegram.editMessageText(
+      chat,
+      msgId,
+      undefined,
+      newText,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            `Отключить`,
+            "options_notifications_daystart_set_0",
+          ),
+        ],
+        [
+          Markup.button.callback(
+            `15 мин`,
+            "options_notifications_daystart_set_15",
+          ),
+          Markup.button.callback(
+            `30 мин`,
+            "options_notifications_daystart_set_30",
+          ),
+          Markup.button.callback(
+            `45 мин`,
+            "options_notifications_daystart_set_45",
+          ),
+        ],
+        [
+          Markup.button.callback(
+            `1 час`,
+            "options_notifications_daystart_set_60",
+          ),
+          Markup.button.callback(
+            `1.5 часа`,
+            "options_notifications_daystart_set_90",
+          ),
+          Markup.button.callback(
+            `2 часа`,
+            "options_notifications_daystart_set_120",
+          ),
+        ],
+        [
+          Markup.button.callback(
+            `2.5 часа`,
+            "options_notifications_daystart_set_150",
+          ),
+          Markup.button.callback(
+            `3 часа`,
+            "options_notifications_daystart_set_180",
+          ),
+          Markup.button.callback(
+            `4 часа`,
+            "options_notifications_daystart_set_240",
+          ),
+        ],
+        [Markup.button.callback("Назад", "options_notifications")],
       ]),
     );
   }
@@ -389,7 +450,59 @@ export async function initOptions(bot: Telegraf<Context>) {
   bot.action("options_notifications_daystart_edit", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    return ctx.reply("[WIP] Эта функция пока недоступна");
+    ctx.session.options.menu = "notifications_daystart";
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.action(/^options_notifications_daystart_set_\d+$/, async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
+    if (!action) {
+      log.error(
+        `Action not found error. Action: ${JSON.stringify(ctx.callbackQuery)}`,
+        { user: ctx.callbackQuery.from.id },
+      );
+      return ctx.reply(
+        `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
+      );
+    }
+    const rawtarget = action.split("_").at(-1);
+    if (Number.isNaN(Number(rawtarget))) {
+      return ctx.reply(
+        `Произошла ошибка. Время не является числом... Как так то...`,
+      );
+    }
+    const time = Number(rawtarget) * 60;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    if (time === preferences.notifyBeforeLessons) {
+      ctx.session.options.updText = `Оставляем время: "${time / 60} мин"`;
+      ctx.session.options.menu = "notifications";
+      return updateOptionsMsg(ctx);
+    }
+    preferences.notifyBeforeLessons = time;
+    const now = new Date();
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        preferences,
+        lastActive: now,
+      },
+    });
+    if (time)
+      ctx.session.options.updText = `Установлено время: "${time / 60} мин"`;
+    else
+      ctx.session.options.updText = `Уведомления перед началом занятий отключены`;
+    ctx.session.options.menu = "notifications";
+    return updateOptionsMsg(ctx);
   });
 
   bot.action("options_notifications_nextlesson_toggle", async (ctx) => {
@@ -461,7 +574,10 @@ export async function initOptions(bot: Telegraf<Context>) {
   bot.command("config", async (ctx) => {
     const args = ctx.message.text.trim().split(" ");
     args.shift(); // remove command
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await db.user.findUnique({
+      where: { tgId: ctx.from.id },
+      include: { group: true },
+    });
     if (!user)
       return ctx.reply(
         "Вас не существует в базе данных. Пожалуйста пропишите /start",
@@ -473,7 +589,21 @@ export async function initOptions(bot: Telegraf<Context>) {
     );
     if (args.length === 0) {
       return ctx.reply(
-        `Текущие параметры:\n${JSON.stringify(Object.assign({}, preferences, { subgroup: user.subgroup }), null, 2)}`,
+        `Текущие параметры:\n${JSON.stringify(
+          Object.assign(
+            {},
+            {
+              theme: "placeholder",
+              subgroup: user.subgroup,
+              group: user.group
+                ? `${user.group.name} #${user.groupId}`
+                : "Отсутствует",
+            },
+            preferences,
+          ),
+          null,
+          2,
+        )}`,
       );
     }
     const field = args.shift()!.toLowerCase();
@@ -522,6 +652,40 @@ export async function initOptions(bot: Telegraf<Context>) {
         data: { cachedUntil: now },
       });
       return ctx.reply(`Подгруппа успешно изменена на ${target}`);
+    } else if (field === "notify") {
+      const subfield = args.shift()?.toLowerCase() ?? null;
+      if (!subfield) {
+        return ctx.reply(
+          "Для настройки уведомлений требуется выбрать поле, например /config notify daystart [время]",
+        );
+      }
+      if (subfield === "daystart") {
+        const arg = args.join(" ");
+        if (!arg) {
+          return ctx.reply(
+            "Для настройки уведомлений о начале занятий требуется выбрать время.\nПример: /config notify daystart 1h 30m 30s",
+          );
+        }
+        const time = timestring(arg, "seconds");
+        if (time < 0 || time > 14400) {
+          return ctx.reply(
+            `Максимальное время: 4 часа. Получено время: ${time}с (${(time / 3600).toFixed(2)}ч)`,
+          );
+        }
+        preferences.notifyBeforeLessons = time;
+        await db.user.update({
+          where: { id: user.id },
+          data: {
+            preferences,
+            lastActive: new Date(),
+          },
+        });
+        return ctx.reply(
+          `Установлено время: ${time}с (${(time / 3600).toFixed(2)}ч)`,
+        );
+      }
+    } else {
+      return ctx.reply("Поле не найдено");
     }
   });
 }

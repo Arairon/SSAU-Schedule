@@ -6,6 +6,7 @@ import {
   getLessonDate,
   getWeekFromDate,
   getCurrentYearId,
+  md5,
 } from "./utils";
 import { db } from "../db";
 import { lk } from "./lk";
@@ -148,20 +149,27 @@ async function getTimetableWithImage(
     groupId,
     images: { stylemap },
   });
+  const validImages = week.timetableHash
+    ? week.images.filter((i) => i.timetableHash === week.timetableHash)
+    : [];
   //const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
+  log.debug(
+    `Requested Image ${stylemap}/${week.groupId}/${week.year}/${week.number} (i: ${validImages.length}/${week.images.length})`,
+    { user: user.id },
+  );
 
   if (!opts?.ignoreCached && week.timetable && week.cachedUntil > now) {
-    if (week.images.length > 0) {
+    if (validImages.length > 0) {
       log.debug("Timetable Image good enough. Returning cached", {
         user: user.id,
       });
-      const { data: imageData, ...otherData } = week.images[0];
+      const { data: imageData, ...otherData } = validImages[0];
       return {
         data: week.timetable,
         image: { ...otherData, data: Buffer.from(imageData, "base64") },
       };
     } else {
-      log.debug("Timetable good enough, but no valid image was found", {
+      log.debug("Image not found, but timetable is good", {
         user: user.id,
       });
     }
@@ -179,6 +187,40 @@ async function getTimetableWithImage(
         ignoreIet: opts?.ignoreIet,
       });
 
+  const timetableHash =
+    usingCachedTimetable && week.timetableHash
+      ? week.timetableHash
+      : md5(JSON.stringify(timetable));
+
+  if (!opts?.ignoreCached && timetableHash) {
+    const existingImage = await db.weekImage.findUnique({
+      where: {
+        weekId_stylemap_timetableHash: {
+          weekId: week.id,
+          stylemap,
+          timetableHash,
+        },
+      },
+    });
+    if (existingImage) {
+      log.debug(`Found a valid image with same timetable hash. Returning`, {
+        user: user.id,
+      });
+      await db.weekImage.update({
+        where: { id: existingImage.id },
+        data: {
+          validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
+        },
+      });
+      return {
+        data: timetable,
+        image: Object.assign(existingImage, {
+          data: Buffer.from(existingImage.data, "base64"),
+        }),
+      };
+    }
+  }
+
   const image = await generateTimetableImage(timetable, { stylemap });
 
   //if (!opts?.dontCache) {}
@@ -187,7 +229,8 @@ async function getTimetableWithImage(
       weekId: week.id,
       stylemap: stylemap,
       data: image.toString("base64"),
-      validUntil: new Date(Date.now() + 604800_000), // 1 week
+      timetableHash: timetableHash,
+      validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
     },
   });
 
@@ -224,14 +267,16 @@ async function getWeekTimetable(
   const week = await getDbWeek(user, weekN, { year, groupId });
   const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
 
-  if (!opts?.ignoreCached) {
-    if (week.timetable && week.cachedUntil > now) {
+  if (!opts?.ignoreCached && week.timetable) {
+    if (week.cachedUntil > now) {
       log.debug("Timetable good enough. Returning cached", { user: user.id });
       week.timetable.days.map((day) => {
         day.beginTime = new Date(day.beginTime);
         day.endTime = new Date(day.endTime);
       });
       return week.timetable;
+    } else {
+      log.debug("Cached timetable expired. Generating new", { user: user.id });
     }
   }
 
@@ -329,15 +374,26 @@ async function getWeekTimetable(
   }
 
   if (!opts?.dontCache) {
-    //const updatedWeek =
+    const timetableHash = md5(JSON.stringify(timetable));
     await db.week.update({
       where: { id: week.id },
       data: {
-        timetable: timetable,
+        timetable,
+        timetableHash,
         cachedUntil: new Date(Date.now() + 604800_000), // 1 week
         images: {
-          updateMany: { where: {}, data: { validUntil: now } },
+          updateMany: {
+            where: { timetableHash },
+            data: { validUntil: new Date(Date.now() + 4 * 604800_000) },
+          },
         },
+        // No longer invalidating images if they've been generated using the same timetable. Checked by hash. Instead update them
+        // images: {
+        //   updateMany: {
+        //     where: { timetableHash: { not: timetableHash } },
+        //     data: { validUntil: now },
+        //   },
+        // },
       },
     });
   }
@@ -799,6 +855,7 @@ async function updateWeekForUser(
         }),
       },
       updatedAt: now,
+      cachedUntil: now,
     },
   });
 
@@ -907,11 +964,6 @@ async function updateWeekForUser(
   // });
 
   //const invalidatedWeekIds = invalidatedWeeks.map((i) => i.id);
-
-  await db.weekImage.updateMany({
-    where: { weekId: week.id },
-    data: { validUntil: now },
-  });
 
   // TODO Might need to add change detection to individual lessons later
   log.debug(
