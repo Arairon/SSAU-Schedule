@@ -146,15 +146,23 @@ export async function sendTimetable(
     });
   }
   if (!existingMessage || !chatId || !timetable.image.tgId) {
+    const image = timetable.image.tgId ?? { source: timetable.image.data };
     const msg = await ctx.replyWithPhoto(
-      { source: timetable.image.data },
+      image,
       Object.assign({}, buttonsMarkup, {
         caption: `Расписание на ${timetable.data.week} неделю`,
       }),
     );
-    log.debug(
-      `Uploaded new image ${msg.photo[0].file_id} from ${timetable.image.id}`,
-    );
+    if (timetable.image.tgId) {
+      log.debug(`Reused already uploaded image #${timetable.image.id}`, {
+        user: user.tgId,
+      });
+    } else {
+      log.debug(
+        `Uploaded new image ${msg.photo[0].file_id} from ${timetable.image.id}`,
+        { user: user.tgId },
+      );
+    }
     await db.weekImage.update({
       where: { id: timetable.image.id },
       data: { tgId: msg.photo[0].file_id },

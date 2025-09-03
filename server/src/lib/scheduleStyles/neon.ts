@@ -6,7 +6,7 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMap = {
   general: {
     mainStyle: "gap-1 text-lg leading-5 text-center",
     headers: {
-      main: "bg-black text-white text-lg font-bold border-2 border-white rounded-lg",
+      main: "bg-black text-white text-lg font-bold border-2 border-white rounded-lg hidden",
       timeLabel: "border-2 border-cyan-600 bg-cyan-900 text-white",
       weekday: "border-2 border-cyan-600 bg-cyan-900 text-white",
       timeslot: "border-2 border-cyan-600 bg-cyan-900 text-white",

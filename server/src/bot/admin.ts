@@ -92,8 +92,20 @@ export async function initAdmin(bot: Telegraf<Context>) {
         { user: ctx.from.id },
       );
       return ctx.reply(
-        `Сброшены сгенерированные расписания, изображения и календари для #${target ?? "all"}`,
+        `Сброшены сгенерированные расписания и календари для #${target ?? "all"}`,
       );
+    } else if (arg === "images") {
+      if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
+        return ctx.reply("Нет, спасибо.");
+      if (args.includes("hard")) {
+        await db.weekImage.deleteMany();
+        return ctx.reply(
+          fmt`Сброшены все изображения. ${italic("Как жестоко...")}`,
+        );
+      } else {
+        await db.weekImage.updateMany({ data: { validUntil: new Date() } });
+        return ctx.reply("Все изображения были отмечены невалидными");
+      }
     }
   });
 

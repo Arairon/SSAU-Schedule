@@ -147,8 +147,8 @@ model Week {
 
   timetable     Json?
   timetableHash String?
-  images        WeekImage[]
-  cachedUntil   DateTime    @default(value: "1970-01-01T00:00:00.000Z")
+  //images        WeekImage[]
+  cachedUntil   DateTime @default(value: "1970-01-01T00:00:00.000Z")
 
   createdAt    DateTime @default(now())
   db_updatedAt DateTime @updatedAt()
@@ -159,9 +159,9 @@ model Week {
 }
 
 model WeekImage {
-  id     Int  @id @default(autoincrement())
-  week   Week @relation(fields: [weekId], references: [id], onDelete: Cascade)
-  weekId Int
+  id Int @id @default(autoincrement())
+  //week   Week @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  //weekId Int
 
   stylemap      String   @default("default")
   tgId          String?
@@ -173,7 +173,8 @@ model WeekImage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 
-  @@unique([weekId, stylemap, timetableHash])
+  @@unique([stylemap, timetableHash])
+  @@index([stylemap, timetableHash])
 }
 
 model ScheduledMessage {

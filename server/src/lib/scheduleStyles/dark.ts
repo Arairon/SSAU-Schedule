@@ -6,7 +6,7 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMap = {
   general: {
     mainStyle: "gap-1 text-lg leading-5 text-center",
     headers: {
-      main: "bg-slate-800 text-white border-2 border-slate-500 rounded-lg text-lg font-bold",
+      main: "bg-slate-800 text-white border-2 border-slate-500 rounded-lg text-lg font-bold hidden",
       timeLabel: "bg-cyan-800 text-white",
       weekday: "bg-cyan-800 text-white",
       timeslot: "bg-cyan-900 text-white",

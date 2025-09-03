@@ -38,8 +38,8 @@ const HTML_SIZER = `<style>body{width:{width};height:{height};}</style>\n`;
 
 const HTML_HEADER_WEEK = `\
 <header class="{headerStyle} items-center flex flex-col p-1">
-<a class="">{name}, {weekNumber} неделя</a>
-</header>`;
+<a class="">{weekNumber} неделя</a>
+</header>`; // Removed {name}
 
 const HTML_NAV_OPEN = `<nav class="flex flex-row justify-between gap-2 font-bold text-center">`;
 

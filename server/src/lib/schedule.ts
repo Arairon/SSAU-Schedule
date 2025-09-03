@@ -1,4 +1,4 @@
-import type { Lesson, $Enums, User, Week, WeekImage } from "@prisma/client";
+import type { Lesson, $Enums, User, Week } from "@prisma/client";
 import { LessonType } from "@prisma/client";
 import axios from "axios";
 import {
@@ -147,23 +147,30 @@ async function getTimetableWithImage(
   const week = await getDbWeek(user, weekN, {
     year,
     groupId,
-    images: { stylemap },
   });
-  const validImages = week.timetableHash
-    ? week.images.filter((i) => i.timetableHash === week.timetableHash)
-    : [];
   //const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
   log.debug(
-    `Requested Image ${stylemap}/${week.groupId}/${week.year}/${week.number} (i: ${validImages.length}/${week.images.length})`,
+    `Requested Image ${stylemap}/${week.groupId}/${week.year}/${week.number}`,
     { user: user.id },
   );
 
-  if (!opts?.ignoreCached && week.timetable && week.cachedUntil > now) {
-    if (validImages.length > 0) {
+  if (
+    !opts?.ignoreCached &&
+    week.timetable &&
+    week.timetableHash &&
+    week.cachedUntil > now
+  ) {
+    const existingImage = await db.weekImage.findUnique({
+      where: {
+        stylemap_timetableHash: { stylemap, timetableHash: week.timetableHash },
+        validUntil: { gt: now },
+      },
+    });
+    if (existingImage) {
       log.debug("Timetable Image good enough. Returning cached", {
         user: user.id,
       });
-      const { data: imageData, ...otherData } = validImages[0];
+      const { data: imageData, ...otherData } = existingImage;
       return {
         data: week.timetable,
         image: { ...otherData, data: Buffer.from(imageData, "base64") },
@@ -195,8 +202,7 @@ async function getTimetableWithImage(
   if (!opts?.ignoreCached && timetableHash) {
     const existingImage = await db.weekImage.findUnique({
       where: {
-        weekId_stylemap_timetableHash: {
-          weekId: week.id,
+        stylemap_timetableHash: {
           stylemap,
           timetableHash,
         },
@@ -226,10 +232,9 @@ async function getTimetableWithImage(
   //if (!opts?.dontCache) {}
   const createdImage = await db.weekImage.create({
     data: {
-      weekId: week.id,
       stylemap: stylemap,
-      data: image.toString("base64"),
       timetableHash: timetableHash,
+      data: image.toString("base64"),
       validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
     },
   });
@@ -381,12 +386,6 @@ async function getWeekTimetable(
         timetable,
         timetableHash,
         cachedUntil: new Date(Date.now() + 604800_000), // 1 week
-        images: {
-          updateMany: {
-            where: { timetableHash },
-            data: { validUntil: new Date(Date.now() + 4 * 604800_000) },
-          },
-        },
         // No longer invalidating images if they've been generated using the same timetable. Checked by hash. Instead update them
         // images: {
         //   updateMany: {
@@ -395,6 +394,10 @@ async function getWeekTimetable(
         //   },
         // },
       },
+    });
+    await db.weekImage.updateMany({
+      where: { timetableHash },
+      data: { validUntil: new Date(Date.now() + 4 * 604800_000) },
     });
   }
   return timetable;
@@ -491,14 +494,9 @@ async function getDbWeek(
     year?: number;
     nonPersonal?: boolean;
     update?: boolean;
-    images?:
-      | {
-          stylemap?: string;
-        }
-      | boolean;
   },
 ): Promise<
-  Omit<Week, "timetable"> & { images: WeekImage[] } & {
+  Omit<Week, "timetable"> & {
     timetable: WeekTimetable | null;
   }
 > {
@@ -517,10 +515,6 @@ async function getDbWeek(
   }
 
   const upd = opts?.update ? now : undefined;
-  if (opts?.images && opts.images === true) opts.images = {};
-  const includeImgs = opts?.images
-    ? { where: Object.assign({}, opts.images, { validUntil: { gt: now } }) }
-    : false;
 
   const week = await db.week.upsert({
     where: {
@@ -533,7 +527,6 @@ async function getDbWeek(
     },
     create: { owner, groupId, year, number: weekNumber, updatedAt: upd },
     update: upd ? { updatedAt: upd } : {},
-    include: { images: includeImgs },
   });
 
   if (week.timetable) {
