@@ -235,7 +235,7 @@ export function generateTextLesson(lesson: TimetableLesson): string {
     `\
 📆 ${timeslot.beginTime} - ${lesson.type === LessonType.Military ? "♾️" : timeslot.endTime}
 📖 ${lesson.discipline}
-${LessonTypeIcon[lesson.type]} ${LessonTypeName[lesson.type]}
+${LessonTypeIcon[lesson.type]} ${LessonTypeName[lesson.type]} ${lesson.isIet ? "[ИОТ]" : ""}
 🏢 ${place}
 👤 ${lesson.teacher}
 ${subgroupStr}`
@@ -261,5 +261,5 @@ export function formatDbLesson(lesson: Lesson) {
     hour: "numeric",
     minute: "numeric",
   });
-  return `${date} ${startTime} - ${endTime} ${lesson.discipline}`;
+  return `${date} / ${startTime} - ${endTime}\n${LessonTypeIcon[lesson.type]} ${lesson.discipline} ${lesson.isIet ? "[ИОТ]" : ""}`;
 }

@@ -46,10 +46,11 @@ async function getWeekLessons(
       ? { not: LessonType.Military }
       : undefined;
 
+  const now = new Date();
   const lessons = await db.lesson.findMany({
     where: {
       weekNumber: week,
-      validUntil: { gt: new Date() },
+      validUntil: { gt: now },
       groups: { some: { id: groupId ?? user.groupId! } },
       isIet: false,
       type: militaryFilter,
@@ -65,6 +66,7 @@ async function getWeekLessons(
       validUntil: { gt: new Date() },
       flows: { some: { user: { some: { id: user.id } } } },
       isIet: true,
+      type: militaryFilter,
     },
     include: { flows: true, teacher: true },
   });
@@ -547,6 +549,7 @@ async function updateWeekForUser(
   const lessonsInThisWeek: number[] = [];
 
   log.debug("Updating lessons", { user: user.id });
+  //console.log("KNOWN", knownLessons);
 
   const lessonValidUntilDate = new Date(Date.now() + 2592000_000); // 30 days from now
   for (const lessonList of weekSched.lessons) {
@@ -564,7 +567,7 @@ async function updateWeekForUser(
         return { id: group.id };
       }),
     };
-    if (lessonList.discipline.id === 496) {
+    if (lessonList.discipline.name.toLowerCase() === "военная кафедра") {
       info.type = LessonType.Military;
     }
     // Ensure all groups exist in db. Also check for ssau fuckery
@@ -840,7 +843,8 @@ async function updateWeekForUser(
       if (someoneElsesGroup) {
         //ignore
       } else {
-        newLessons.push(updatedLesson);
+        if (updatedLesson.weekNumber === week.number)
+          newLessons.push(updatedLesson);
       }
     }
   }
@@ -863,13 +867,14 @@ async function updateWeekForUser(
         { id: { in: missingLessons } },
         { week: { none: {} } }, // No week
       ],
+      validUntil: { gt: now },
     },
     data: { validUntil: now },
   });
 
   if (removedLessons.length) {
     log.debug(
-      `Invalidated missing or orphaned lessons: ${JSON.stringify(removedLessons)}`,
+      `Invalidated missing or orphaned lessons: ${removedLessons.map((i) => i.id).join()}`,
     );
   }
 
@@ -893,13 +898,16 @@ async function updateWeekForUser(
 
   // TODO Might need to add change detection to individual lessons later
   log.debug(
-    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${removedLessons.map((i) => i.id).join()}]`,
+    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${removedLessons
+      .filter((i) => knownLessonsIds.includes(i.id))
+      .map((i) => i.id)
+      .join()}]`,
     { user: user.id },
   );
 
   return {
     new: newLessons,
-    removed: removedLessons,
+    removed: removedLessons.filter((i) => knownLessonsIds.includes(i.id)),
   };
 }
 
