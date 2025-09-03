@@ -165,8 +165,8 @@ model WeekImage {
   stylemap   String   @default("default")
   tgId       String?
   data       String
-  validUntil DateTime
   // Add preferences?
+  validUntil DateTime
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()

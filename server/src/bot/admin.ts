@@ -1,11 +1,8 @@
-import { Markup, type Telegraf } from "telegraf";
+import { type Telegraf } from "telegraf";
 import { fmt, italic } from "telegraf/format";
 import { type Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
-import { UserPreferencesDefaults } from "../lib/misc";
-import { STYLEMAPS } from "../lib/scheduleImage";
-import { sendTimetable } from "./schedule";
 import { env } from "../env";
 import type { MessageEntity } from "telegraf/types";
 import { dailyWeekUpdate } from "../lib/tasks";

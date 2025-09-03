@@ -86,7 +86,9 @@ export async function sendTimetable(
   } finally {
     if (temp.timeout) clearTimeout(temp.timeout);
     if (temp.msg) {
-      await ctx.deleteMessage(temp.msg.message_id);
+      try {
+        await ctx.deleteMessage(temp.msg.message_id);
+      } catch {}
     }
   }
 
@@ -134,7 +136,9 @@ export async function sendTimetable(
       log.debug(`Image has no tgId, deleting old message and uploading new`, {
         user: ctx.from.id,
       });
-      await ctx.deleteMessage(existingMessage);
+      try {
+        await ctx.deleteMessage(existingMessage);
+      } catch {}
     }
   } else {
     log.debug(`Lost existing message or chatId, uploading new message`, {
@@ -241,7 +245,9 @@ export async function initSchedule(bot: Telegraf<Context>) {
   bot.hears(/^\d\d?$/, async (ctx) => {
     const text = ctx.message.text.trim();
     const week = parseInt(text);
-    void ctx.deleteMessage(ctx.message.message_id);
+    void ctx.deleteMessage(ctx.message.message_id).catch(() => {
+      /* ignore */
+    });
     return sendTimetable(ctx, week);
   });
 

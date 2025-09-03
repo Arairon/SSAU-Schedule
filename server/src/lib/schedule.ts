@@ -579,7 +579,8 @@ async function updateWeekForUser(
         return { id: group.id };
       }),
     };
-    if (lessonList.discipline.name.toLowerCase() === "военная кафедра") {
+    // lessonList.discipline.name.trim().toLowerCase() === "военная кафедра"
+    if (lessonList.discipline.id === 13173) {
       info.type = LessonType.Military;
     }
     // Ensure all groups exist in db. Also check for ssau fuckery
