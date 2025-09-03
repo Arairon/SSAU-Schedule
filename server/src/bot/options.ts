@@ -258,7 +258,7 @@ export async function initOptions(bot: Telegraf<Context>) {
         `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
       );
     }
-    const theme = action.slice(`options_theme_set_`.length);
+    const theme = ctx.match[1];
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
@@ -467,7 +467,7 @@ export async function initOptions(bot: Telegraf<Context>) {
         `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
       );
     }
-    const rawtarget = action.split("_").at(-1);
+    const rawtarget = ctx.match[1];
     if (Number.isNaN(Number(rawtarget))) {
       return ctx.reply(
         `Произошла ошибка. Время не является числом... Как так то...`,

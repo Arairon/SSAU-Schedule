@@ -260,22 +260,67 @@ export async function initSchedule(bot: Telegraf<Context>) {
   });
 
   // 6101(-090301)?D? as a group number
-  bot.hears(/^\d{4}(?:-\d+)?D?$/, async (ctx) => {
-    const group = await findGroupOrOptions({
+  bot.hears(/^\d{4}(?:-\d*)?D?$/, async (ctx) => {
+    const groups = await findGroupOrOptions({
       groupName: ctx.message.text.trim(),
     });
-    if (!group || (Array.isArray(group) && group.length === 0)) {
+    if (!groups || (Array.isArray(groups) && groups.length === 0)) {
       return ctx.reply("Группа или похожие на неё группы не найдены");
     }
-    if (Array.isArray(group)) {
-      if (group.length === 1) {
-        return sendTimetable(ctx, 0, { groupId: group[0].id });
+    if (Array.isArray(groups)) {
+      if (groups.length === 1) {
+        return sendTimetable(ctx, 0, { groupId: groups[0].id });
       } else {
         return ctx.reply(
-          `Найдены следующие группы:\n${group.map((gr) => gr.text).join(", ")}`,
+          `Найдены следующие группы:`,
+          Markup.inlineKeyboard([
+            groups
+              .slice(0, 3)
+              .map((group) =>
+                Markup.button.callback(
+                  group.text,
+                  `schedule_group_open_${group.id}`,
+                ),
+              ),
+            groups
+              .slice(3, 6)
+              .map((group) =>
+                Markup.button.callback(
+                  group.text,
+                  `schedule_group_open_${group.id}`,
+                ),
+              ),
+            groups
+              .slice(6, 9)
+              .map((group) =>
+                Markup.button.callback(
+                  group.text,
+                  `schedule_group_open_${group.id}`,
+                ),
+              ),
+            [Markup.button.callback("Отмена", "schedule_group_open_cancel")],
+          ]),
         );
       }
     }
-    return sendTimetable(ctx, 0, { groupId: group.id });
+    return sendTimetable(ctx, 0, { groupId: groups.id });
+  });
+
+  bot.action(/schedule_group_open_(\d+)/, async (ctx) => {
+    const match = ctx.match;
+    if (!match || match.length < 2) return ctx.answerCbQuery("Ошибка");
+    const groupId = Number(match[1]);
+    if (Number.isNaN(groupId) || groupId <= 0)
+      return ctx.answerCbQuery("Ошибка");
+    void ctx.deleteMessage().catch(() => {
+      /* ignore */
+    });
+    return sendTimetable(ctx, 0, { groupId: groupId });
+  });
+
+  bot.action("schedule_group_open_cancel", async (ctx) => {
+    void ctx.deleteMessage().catch(() => {
+      /* ignore */
+    });
   });
 }
