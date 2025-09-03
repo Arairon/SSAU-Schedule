@@ -66,7 +66,10 @@ export async function generateUserIcs(
         (lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`),
       url: lesson.conferenceUrl ?? undefined,
       start: ics.convertTimestampToArray(lesson.beginTime.getTime(), "utc"),
+      startInputType: "utc",
       end: ics.convertTimestampToArray(lesson.endTime.getTime(), "utc"),
+      endInputType: "utc",
+      uid: `lesson-${lesson.id}@ssau-schedule-bot`,
       categories: [LessonTypeName[lesson.type]],
     };
     events.push(event);
