@@ -283,6 +283,10 @@ async function getWeekTimetable(
       week.timetable.days.map((day) => {
         day.beginTime = new Date(day.beginTime);
         day.endTime = new Date(day.endTime);
+        day.lessons.map((lesson) => {
+          lesson.beginTime = new Date(lesson.beginTime);
+          lesson.endTime = new Date(lesson.endTime);
+        });
       });
       return week.timetable;
     } else {

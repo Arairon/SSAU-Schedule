@@ -4,7 +4,7 @@ import { db } from "../db";
 import { bot } from "../bot/bot";
 import log from "../logger";
 import { getCurrentYearId, getWeekFromDate } from "./utils";
-import { schedule } from "./schedule";
+import { schedule, TimeSlotMap } from "./schedule";
 import {
   DayString,
   formatDbLesson,
@@ -88,11 +88,10 @@ export async function dailyWeekUpdate() {
       continue;
     }
 
-    // TODO: Remove in prod
-    if (user.id !== 1) {
-      log.debug("Skipping nonadmin user", { user: "cron/dailyWeekUpdate" });
-      continue;
-    }
+    // if (user.id !== 1) {
+    //   log.debug("Skipping nonadmin user", { user: "cron/dailyWeekUpdate" });
+    //   continue;
+    // }
 
     const isActive = user.lastActive > weekAgo;
     if (!isActive) {
@@ -234,12 +233,39 @@ ${generateTextLesson(day.lessons[0])}
   day.lessons.slice(0, -1).map((lesson, index) => {
     if (preferences.notifyAboutNextLesson) {
       const nextLesson = day.lessons[index + 1];
-      void scheduleMessage(
-        user,
-        lesson.endTime,
-        `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
-        { source: "cron/dailyNotifs" },
-      );
+      if (nextLesson.dayTimeSlot - lesson.dayTimeSlot > 1) {
+        const windowSpan =
+          TimeSlotMap[nextLesson.dayTimeSlot].beginDelta -
+          TimeSlotMap[lesson.dayTimeSlot].endDelta;
+        const hours = Math.floor(windowSpan / 3600_000);
+        const minutes = Math.floor(windowSpan / 60_000) % 60;
+        const windowSpanStr =
+          (hours ? `${hours} час${hours === 1 ? "" : "а"} ` : "") +
+          (minutes ? `${minutes} минут` : "");
+        void scheduleMessage(
+          user,
+          lesson.endTime,
+          `\
+Сейчас будет окно в ${windowSpanStr}
+
+Затем:
+${generateTextLesson(nextLesson)}`,
+          { source: "cron/dailyNotifs" },
+        );
+        void scheduleMessage(
+          user,
+          new Date(nextLesson.beginTime.getTime() - 300_000), // 5 minutes before
+          `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
+          { source: "cron/dailyNotifs" },
+        );
+      } else {
+        void scheduleMessage(
+          user,
+          lesson.endTime,
+          `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
+          { source: "cron/dailyNotifs" },
+        );
+      }
     }
   });
 
