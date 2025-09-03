@@ -15,6 +15,7 @@ import { loginScene } from "./scenes/login";
 import { initSchedule } from "./schedule";
 import { initOptions } from "./options";
 import { initAdmin } from "./admin";
+import { initConfig } from "./config";
 
 function getDefaultSession(): Session {
   return {
@@ -209,8 +210,44 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
     );
   });
 
+  bot.command("help", async (ctx) => {
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user?.authCookie)
+      return ctx.reply(
+        fmt`\
+Добро пожаловать!
+Этот бот создан в первую очередь для работы для работы с личным кабинетом самарского университета.
+Возможность делать анонимные запросы возможно будет добавлена позже.
+
+Для начала потребуется войти в личный кабинет. Вы можете это сделать по команде /login
+Сохранять данные для входа не обязательно. Бот использует куки для поддержания сессии, но если она слетит - бот сможет воспользоваться данными для входа, если они есть.
+
+Исходный код: https://github.com/Arairon/SSAU-Schedule
+Администратор бота: ${env.SCHED_BOT_ADMIN_CONTACT}
+Автор бота: @arairon
+`,
+        { link_preview_options: { is_disabled: true } },
+      );
+    return ctx.reply(fmt`\
+Добро пожаловать, ${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}!
+
+Вы можете запросить своё расписание по команде /schedule [номер недели] (по умолчанию текущая неделя)
+Так же можно запросить неделю просто введя её номер в чат.
+Для запроса расписания группы просто введите её номер (например "6101-090301D" или частично "6101" для поиска)
+Вы можете запросить ссылку на ICS календарь по команде /ics
+Вы можете изменить настройки по команде /options
+Если вы хотите выйти из аккаунта - используйте /logout
+Если вы хотите сбросить все данные о себе - используйте /start
+
+Исходный код: https://github.com/Arairon/SSAU-Schedule
+Администратор бота: ${env.SCHED_BOT_ADMIN_CONTACT}
+Автор бота: @arairon
+`);
+  });
+
   await initSchedule(bot);
   await initOptions(bot);
+  await initConfig(bot); // The /config command
   await initAdmin(bot);
 
   bot.on(message("text"), async (ctx) => {
