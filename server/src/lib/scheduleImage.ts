@@ -340,8 +340,8 @@ export async function generateTimetableImage(
   })) as Buffer;
   const endTime = process.hrtime.bigint();
   log.debug(
-    `Generated an image for week [F:${timetable.isCommon} I:${timetable.withIet}] ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
-    { user: timetable.user },
+    `Generated an image for week ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
+    { user: -1 },
   );
   return image;
 }

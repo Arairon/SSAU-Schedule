@@ -100,7 +100,7 @@ export type TimetableLesson = {
 };
 
 export type WeekTimetableDay = {
-  user: number;
+  // user: number;
   week: number;
   weekday: number;
   beginTime: Date;
@@ -111,12 +111,12 @@ export type WeekTimetableDay = {
 
 export type WeekTimetable = {
   weekId: number;
-  user: number;
+  // user: number; // To allow sharing hashes
   groupId: number;
   year: number;
   week: number;
-  withIet: boolean;
-  isCommon: boolean;
+  //withIet: boolean;
+  //isCommon: boolean;
   days: WeekTimetableDay[];
 };
 
@@ -317,19 +317,19 @@ async function getWeekTimetable(
 
   const timetable: WeekTimetable = {
     weekId: week.id,
-    user: user.id,
+    // user: user.id,
     groupId: week.groupId,
     year: year,
     week: weekNumber,
-    withIet: (opts?.ignoreIet ?? false) || weekIsCommon,
-    isCommon: weekIsCommon,
+    //withIet: (opts?.ignoreIet ?? false) || weekIsCommon,
+    //isCommon: weekIsCommon,
     days: [],
   };
   for (let dayNumber = 1; dayNumber <= 6; dayNumber++) {
     // Sundays not supported. Hopefully won't have to add them later...
     const date = getLessonDate(weekNumber, dayNumber);
     const dayTimetable: WeekTimetableDay = {
-      user: user.id,
+      // user: user.id,
       week: weekNumber,
       weekday: dayNumber,
       beginTime: new Date(date.getTime() + 86400_000), // max in day to then find min

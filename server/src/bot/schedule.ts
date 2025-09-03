@@ -176,7 +176,7 @@ export async function sendTimetable(
 
   const endTime = process.hrtime.bigint();
   log.info(
-    `[BOT] Image viewer [F:${timetable.data.isCommon} I:${timetable.data.withIet}] ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `[BOT] Image viewer ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: ctx.from.id },
   );
   if (!opts?.dontUpdateLastActive)
