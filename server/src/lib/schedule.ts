@@ -957,19 +957,23 @@ async function updateWeekForUser(
       if (someoneElsesGroup) {
         //ignore
       } else {
-        if (updatedLesson.weekNumber === week.number)
-          newLessons.push(updatedLesson);
+        newLessons.push(updatedLesson);
       }
     }
   }
   const missingLessonsInfoId: number[] = [];
+  //const movedInfoIds: number[] = [];
   const updatedLessonIds = updatedLessons.map((i) => i.id);
   for (const knownLesson of knownLessons.all) {
     if (!updatedLessonIds.includes(knownLesson.id)) {
       if (someoneElsesGroup && knownLesson.isIet) {
         //ignore
       } else {
+        //if (newLessons.map((i) => i.infoId).includes(knownLesson.infoId)) {
+        //  movedInfoIds.push(knownLesson.infoId);
+        //} else {
         missingLessonsInfoId.push(knownLesson.infoId);
+        //}
       }
     }
   }
@@ -982,11 +986,18 @@ async function updateWeekForUser(
     data: { validUntil: now },
   });
   missingLessonsInfoId.push(...orphanedLessons.map((i) => i.infoId));
+  // missingLessonsInfoId.push(
+  //  ...orphanedLessons
+  //    .map((i) => i.infoId)
+  //    .filter((i) => !movedInfoIds.includes(i)),
+  // );
 
   const removedLessons = await db.lesson.updateManyAndReturn({
     where: {
       infoId: { in: missingLessonsInfoId },
+      id: { notIn: newLessons.map((i) => i.id) },
       validUntil: { gt: now },
+      //updatedAt: { lt: now },
     },
     data: { validUntil: now },
   });
@@ -1014,11 +1025,9 @@ async function updateWeekForUser(
   //const invalidatedWeekIds = invalidatedWeeks.map((i) => i.id);
 
   // TODO Might need to add change detection to individual lessons later
+  removedLessons.push(...orphanedLessons);
   log.debug(
-    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${[
-      ...removedLessons,
-      ...orphanedLessons,
-    ]
+    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${removedLessons
       .filter(
         (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
       )
@@ -1038,7 +1047,7 @@ async function updateWeekForUser(
 
   return {
     week,
-    new: newLessons,
+    new: newLessons.filter((i) => i.weekNumber === week.number),
     removed: removedLessons.filter((i) => i.weekNumber === week.number),
   };
 }
