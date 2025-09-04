@@ -427,7 +427,7 @@ async function getWeekTimetable(
       data: {
         timetable,
         timetableHash,
-        cachedUntil: new Date(Date.now() + 604800_000), // 1 week
+        cachedUntil: new Date(Date.now() + 3600_000), // 1 hour
         // No longer invalidating images if they've been generated using the same timetable. Checked by hash. Instead update them
         // images: {
         //   updateMany: {
@@ -439,7 +439,7 @@ async function getWeekTimetable(
     });
     await db.weekImage.updateMany({
       where: { timetableHash },
-      data: { validUntil: new Date(Date.now() + 4 * 604800_000) },
+      data: { validUntil: new Date(Date.now() + 4 * 604800_000) }, // 4 weeks
     });
   }
   return timetable;
@@ -969,26 +969,34 @@ async function updateWeekForUser(
       if (someoneElsesGroup && knownLesson.isIet) {
         //ignore
       } else {
-        missingLessonsInfoId.push(knownLesson.id);
+        missingLessonsInfoId.push(knownLesson.infoId);
       }
     }
   }
 
+  const orphanedLessons = await db.lesson.updateManyAndReturn({
+    where: {
+      week: { none: {} }, // No week
+      validUntil: { gt: now },
+    },
+    data: { validUntil: now },
+  });
+  missingLessonsInfoId.push(...orphanedLessons.map((i) => i.infoId));
+
   const removedLessons = await db.lesson.updateManyAndReturn({
     where: {
-      // if is missing or left orphaned
-      OR: [
-        { infoId: { in: missingLessonsInfoId } },
-        { week: { none: {} } }, // No week
-      ],
+      infoId: { in: missingLessonsInfoId },
       validUntil: { gt: now },
     },
     data: { validUntil: now },
   });
 
+  if (missingLessonsInfoId.length) {
+    log.debug(`Invalidating infoIds: [${missingLessonsInfoId.join()}]`);
+  }
   if (removedLessons.length) {
     log.debug(
-      `Invalidated missing or orphaned lessons: ${removedLessons.map((i) => i.id).join()}`,
+      `Invalidated missing lessons: ${removedLessons.map((i) => i.id).join()} and orphaned: ${orphanedLessons.map((i) => i.id).join()}`,
     );
   }
 
@@ -1007,12 +1015,26 @@ async function updateWeekForUser(
 
   // TODO Might need to add change detection to individual lessons later
   log.debug(
-    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${removedLessons
-      .filter((i) => i.weekNumber === week.number)
+    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${[
+      ...removedLessons,
+      ...orphanedLessons,
+    ]
+      .filter(
+        (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
+      )
       .map((i) => i.id)
       .join()}]`,
     { user: user.id },
   );
+
+  // I wonder if these are needed, since weeks cache now lives only 1h
+  // if (
+  //   newLessons.length +
+  //   removedLessons.filter((i) => i.weekNumber === week.number).length
+  // ) {
+  //   // Invalidate all week caches if detected changes
+  //   await db.week.updateMany({ data: { cachedUntil: now } });
+  // }
 
   return {
     week,

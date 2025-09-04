@@ -88,6 +88,7 @@ export async function dailyWeekUpdate() {
   today.setHours(7, 0); // 7 AM in Europe/Samara
   const year = getCurrentYearId();
   const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0); // if sunday - update next week
+  await db.week.updateMany({ data: { cachedUntil: now } }); // Invalidate week caches to avoid confusion
   const weeks = await db.week.findMany({
     where: { number: weekNumber, owner: { not: 0 }, year },
   });

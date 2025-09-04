@@ -36,13 +36,14 @@ function getDefaultSession(): Session {
 }
 
 async function reset(ctx: Context, userId: number) {
-  await db.user.delete({ where: { id: userId } });
+  await db.user.delete({ where: { tgId: userId } });
 }
 
 async function start(ctx: Context, userId: number) {
   await db.user.create({ data: { tgId: userId } });
   Object.assign(ctx.session, getDefaultSession());
-  return ctx.reply(fmt`
+  return ctx.reply(
+    fmt`
 Добро пожаловать!
 Этот бот создан в первую очередь для работы для работы с личным кабинетом самарского университета.
 Возможность делать анонимные запросы возможно будет добавлена позже.
@@ -54,8 +55,11 @@ async function start(ctx: Context, userId: number) {
 Расписания подгружаются ежедневно в час ночи, чтобы это компенсировать, однако подгружаются они только для текущих настроек, так что при смене настрое может снова потребоваться генерировать новые изображения
 
 Исходный код: https://github.com/arairon/ssau-schedule
-Админ бота: ${env.SCHED_BOT_ADMIN_CONTACT}
-    `);
+Администратор бота: ${env.SCHED_BOT_ADMIN_CONTACT}
+Автор бота: @arairon
+    `,
+    { link_preview_options: { is_disabled: true } },
+  );
 }
 
 const stage = new Scenes.Stage([loginScene]);

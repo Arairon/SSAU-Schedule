@@ -177,4 +177,33 @@ export async function initAdmin(bot: Telegraf<Context>) {
       { entities },
     );
   });
+
+  bot.command("stats", async (ctx) => {
+    const user = await db.user.findUnique({
+      where: { tgId: ctx.from.id },
+      include: { group: true },
+    });
+    if (!user)
+      return ctx.reply(
+        `Вас не существует в базе данных, пожалуйста пропишите /start`,
+      );
+    if (ctx.message.text.includes("admin")) {
+      if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
+        return ctx.reply("Вы не администратор");
+    }
+    const notificationsCount = await db.scheduledMessage.count({
+      where: { chatId: `${user.tgId}`, wasSentAt: null },
+    });
+    return ctx.reply(`\
+Вы: ${user.fullname ?? "Неизвестный Пользователь"}
+Ваша группа: ${user.group?.name ?? "Отсутствует"} ${user.subgroup ? `(Подгруппа: ${user.subgroup})` : ""}
+${
+  user.authCookie
+    ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
+    : `Вы не вошли в ЛК`
+}
+Уведомлений в очереди: ${notificationsCount}
+
+`);
+  });
 }
