@@ -157,6 +157,7 @@ async function getTimetableWithImage(
   const week = await getDbWeek(user, weekN, {
     year,
     groupId,
+    nonPersonal: !!opts?.groupId,
   });
   //const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
   log.debug(
@@ -197,7 +198,7 @@ async function getTimetableWithImage(
   const timetable = usingCachedTimetable
     ? week.timetable!
     : await getWeekTimetable(user, week.number, {
-        groupId: week.groupId,
+        groupId: opts?.groupId,
         year: week.year,
         ignoreCached: opts?.ignoreCached,
         forceUpdate: opts?.forceUpdate,
@@ -235,6 +236,11 @@ async function getTimetableWithImage(
           data: Buffer.from(existingImage.data, "base64"),
         }),
       };
+    } else {
+      log.debug(
+        `Could not find a valid image with same hash. Generating new. (hash:${timetableHash})`,
+        { user: user.id },
+      );
     }
   }
 
@@ -283,15 +289,19 @@ async function getWeekTimetable(
   const weekNumber = weekN || getWeekFromDate(now);
   const year = (opts?.year ?? 0) || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
-  const subgroup = groupId === user.groupId ? user.subgroup : null;
 
   if (!groupId) {
     log.error(`Groupless user @getWeekTimetable`, { user: user.id });
     throw new Error(`Groupless user @getWeekTimetable`);
   }
 
-  const week = await getDbWeek(user, weekN, { year, groupId });
-  const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets
+  const week = await getDbWeek(user, weekN, {
+    year,
+    groupId,
+    nonPersonal: !!opts?.groupId,
+  });
+  const weekIsCommon = week.owner === 0; // NonPersonal -> ignore iets and subgroup options
+  const subgroup = weekIsCommon ? null : user.subgroup;
 
   if (!opts?.ignoreCached && week.timetable) {
     if (week.cachedUntil > now) {
@@ -331,7 +341,7 @@ async function getWeekTimetable(
   }
 
   log.debug(
-    `${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number}) Generating timetable`,
+    `Week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number}) Generating timetable`,
     {
       user: user.id,
     },

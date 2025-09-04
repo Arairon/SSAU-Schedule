@@ -61,6 +61,7 @@ export async function sendScheduledNotifications() {
       } else {
         await bot.telegram.sendMessage(msg.chatId, msg.text, {
           entities: msg.entities as object[] as MessageEntity[],
+          link_preview_options: { is_disabled: true },
         });
       }
     } catch (e) {

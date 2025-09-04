@@ -64,18 +64,24 @@ export async function initAdmin(bot: Telegraf<Context>) {
         where: { owner: target },
         data: { cachedUntil: now },
       });
-      await db.user.update({
-        where: { id: target },
-        data: {
-          lastActive: now,
-          ics: {
-            upsert: {
-              create: { validUntil: now },
-              update: { validUntil: now },
+      if (target) {
+        await db.user.update({
+          where: { id: target },
+          data: {
+            lastActive: now,
+            ics: {
+              upsert: {
+                create: { validUntil: now },
+                update: { validUntil: now },
+              },
             },
           },
-        },
-      });
+        });
+      } else {
+        await db.userIcs.updateMany({
+          data: { validUntil: now },
+        });
+      }
       log.debug(
         `Invalidated cached timetables, images and ics for #${target ?? "all"}`,
         { user: ctx.from.id },

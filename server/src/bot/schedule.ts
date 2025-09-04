@@ -11,7 +11,11 @@ import { db } from "../db";
 import { formatBigInt } from "../lib/utils";
 import { env } from "../env";
 import { schedule } from "../lib/schedule";
-import { findGroupOrOptions, UserPreferencesDefaults } from "../lib/misc";
+import {
+  findGroupOrOptions,
+  generateTextLesson,
+  UserPreferencesDefaults,
+} from "../lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 
@@ -32,6 +36,9 @@ export async function sendTimetable(
     );
     return;
   }
+  // if (ctx.chat?.type !== "private") {
+  //   return ctx.reply("Работа вне ЛС пока не поддерживается.");
+  // }
   if (week < 0 || week > 52) return;
 
   const startTime = process.hrtime.bigint();
@@ -41,8 +48,11 @@ export async function sendTimetable(
       "Вы не найдены в базе данных. Пожалуйста пропишите /start",
     );
   }
-  const group =
+  const groupId =
     opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
+  const group = groupId
+    ? await db.group.findUnique({ where: { id: groupId } })
+    : null;
 
   const preferences = Object.assign(
     {},
@@ -74,7 +84,7 @@ export async function sendTimetable(
   let timetable;
   try {
     timetable = await schedule.getTimetableWithImage(user, week, {
-      groupId: group,
+      groupId: groupId,
       forceUpdate: opts?.forceUpdate ?? undefined,
       stylemap: preferences.theme,
     });
@@ -98,8 +108,10 @@ export async function sendTimetable(
       Markup.button.callback("🔄", "schedule_button_refresh"),
       Markup.button.callback("➡️", "schedule_button_next"),
     ],
-    [Markup.button.callback("⚙️ Настройки", "open_options")],
-    ctx.from.id === env.SCHED_BOT_ADMIN_TGID
+    ctx?.chat?.type === "private"
+      ? [Markup.button.callback("⚙️ Настройки", "open_options")]
+      : [],
+    ctx?.chat?.type === "private" && ctx.from.id === env.SCHED_BOT_ADMIN_TGID
       ? [
           Markup.button.callback(
             "[admin] Обновить насильно",
@@ -123,7 +135,9 @@ export async function sendTimetable(
           {
             type: "photo",
             media: timetable.image.tgId,
-            caption: `Расписание на ${timetable.data.week} неделю`,
+            caption:
+              `Расписание на ${timetable.data.week} неделю` +
+              (group ? `\nДля группы ${group.name}` : ""),
           },
           buttonsMarkup,
         );
@@ -133,6 +147,7 @@ export async function sendTimetable(
         }
       }
     } else {
+      // TODO: UploadMedia instead?
       log.debug(`Image has no tgId, deleting old message and uploading new`, {
         user: ctx.from.id,
       });
@@ -150,7 +165,9 @@ export async function sendTimetable(
     const msg = await ctx.replyWithPhoto(
       image,
       Object.assign({}, buttonsMarkup, {
-        caption: `Расписание на ${timetable.data.week} неделю`,
+        caption:
+          `Расписание на ${timetable.data.week} неделю` +
+          (group ? `\nДля группы ${group.name}` : ""),
       }),
     );
     if (timetable.image.tgId) {
@@ -172,7 +189,7 @@ export async function sendTimetable(
   }
 
   ctx.session.scheduleViewer.week = timetable.data.week;
-  ctx.session.scheduleViewer.groupId = timetable.data.groupId;
+  ctx.session.scheduleViewer.groupId = groupId; // Keep undefined if was undefined. This is used for overrides
 
   const endTime = process.hrtime.bigint();
   log.info(
@@ -186,6 +203,33 @@ export async function sendTimetable(
     });
 }
 
+async function sendGroupSelector(
+  ctx: Context,
+  groups: { id: number; text: string }[],
+) {
+  return ctx.reply(
+    `Найдены следующие группы:`,
+    Markup.inlineKeyboard([
+      groups
+        .slice(0, 3)
+        .map((group) =>
+          Markup.button.callback(group.text, `schedule_group_open_${group.id}`),
+        ),
+      groups
+        .slice(3, 6)
+        .map((group) =>
+          Markup.button.callback(group.text, `schedule_group_open_${group.id}`),
+        ),
+      groups
+        .slice(6, 9)
+        .map((group) =>
+          Markup.button.callback(group.text, `schedule_group_open_${group.id}`),
+        ),
+      [Markup.button.callback("Отмена", "schedule_group_open_cancel")],
+    ]),
+  );
+}
+
 export async function initSchedule(bot: Telegraf<Context>) {
   bot.command("schedule", async (ctx) => {
     ctx.session.scheduleViewer = {
@@ -193,10 +237,29 @@ export async function initSchedule(bot: Telegraf<Context>) {
       message: 0,
       week: 0,
     };
-    const arg = ctx.message.text.split(" ").at(1);
+    const group = /^.* (\d{4}(?:-\d*)?D?)(?: \d+)?$/
+      .exec(ctx.message.text)
+      ?.at(1);
+    const groupIds = group
+      ? await findGroupOrOptions({ groupName: group })
+      : undefined;
+    let groupId: number | undefined = undefined;
+    if (group || groupIds) {
+      if (
+        groupIds === null ||
+        (Array.isArray(groupIds) && groupIds.length === 0)
+      ) {
+        return ctx.reply(`Группа "${group}" не найдена`);
+      } else if (Array.isArray(groupIds)) {
+        if (groupIds.length === 1) groupId = groupIds[0].id;
+        else return sendGroupSelector(ctx, groupIds);
+      } else if (groupIds) groupId = groupIds.id;
+    }
+    const weekArg = /^.* (\d+)(?: .*)?$/.exec(ctx.message.text)?.at(1) ?? "nan";
     let week = 0;
-    if (arg && !Number.isNaN(Number(arg))) week = Number(arg);
-    sendTimetable(ctx, week).catch((e) => {
+    if (weekArg && !Number.isNaN(Number(weekArg.trim())))
+      week = Number(weekArg);
+    sendTimetable(ctx, week, { groupId: groupId ?? undefined }).catch((e) => {
       return handleError(ctx, e as Error);
     });
   });
@@ -247,10 +310,68 @@ export async function initSchedule(bot: Telegraf<Context>) {
     return sendTimetable(ctx, week, { forceUpdate: true, queryCtx: ctx });
   });
 
-  bot.action("open_options", (ctx) => openSettings(ctx));
+  bot.action("open_options", (ctx) => {
+    if (ctx.chat?.type !== "private") {
+      return ctx.reply("Настройки доступны только в личном чате");
+    }
+    return openSettings(ctx);
+  });
+
+  bot.command("today", async (ctx) => {
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(
+        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
+      );
+    }
+    const now = new Date();
+    const timetable = await schedule.getWeekTimetable(user, 0);
+    const day = timetable.days.at(now.getDay() - 1);
+    if (!day?.lessons.length || now.getDay() === 0) {
+      return ctx.reply("Сегодня занятий нет :D");
+    }
+    return ctx.reply(
+      `\
+Занятия сегодня:
+
+${day.lessons.map(generateTextLesson).join("\n=====\n")}
+`,
+      { link_preview_options: { is_disabled: true } },
+    );
+  });
+
+  bot.command("now", async (ctx) => {
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(
+        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
+      );
+    }
+    const now = new Date();
+    const timetable = await schedule.getWeekTimetable(user, 0);
+    const day = timetable.days.at(now.getDay() - 1);
+    if (!day?.lessons.length || now.getDay() === 0) {
+      return ctx.reply("Сегодня занятий нет :D");
+    }
+    const lesson = day.lessons.find((l) => l.endTime > now);
+    if (!lesson) {
+      return ctx.reply("На сегодня занятия закончились :D");
+    }
+    return ctx.reply(
+      `\
+${lesson.beginTime > now ? "Сейчас будет:" : "Сейчас идёт:"}
+
+${generateTextLesson(lesson)}
+`,
+      { link_preview_options: { is_disabled: true } },
+    );
+  });
 
   // 0 - 99 as a week number
   bot.hears(/^\d\d?$/, async (ctx) => {
+    if (ctx.chat?.type !== "private") {
+      return;
+    }
     const text = ctx.message.text.trim();
     const week = parseInt(text);
     void ctx.deleteMessage(ctx.message.message_id).catch(() => {
@@ -261,6 +382,9 @@ export async function initSchedule(bot: Telegraf<Context>) {
 
   // 6101(-090301)?D? as a group number
   bot.hears(/^\d{4}(?:-\d*)?D?$/, async (ctx) => {
+    if (ctx.chat?.type !== "private") {
+      return;
+    }
     const groups = await findGroupOrOptions({
       groupName: ctx.message.text.trim(),
     });
@@ -271,36 +395,7 @@ export async function initSchedule(bot: Telegraf<Context>) {
       if (groups.length === 1) {
         return sendTimetable(ctx, 0, { groupId: groups[0].id });
       } else {
-        return ctx.reply(
-          `Найдены следующие группы:`,
-          Markup.inlineKeyboard([
-            groups
-              .slice(0, 3)
-              .map((group) =>
-                Markup.button.callback(
-                  group.text,
-                  `schedule_group_open_${group.id}`,
-                ),
-              ),
-            groups
-              .slice(3, 6)
-              .map((group) =>
-                Markup.button.callback(
-                  group.text,
-                  `schedule_group_open_${group.id}`,
-                ),
-              ),
-            groups
-              .slice(6, 9)
-              .map((group) =>
-                Markup.button.callback(
-                  group.text,
-                  `schedule_group_open_${group.id}`,
-                ),
-              ),
-            [Markup.button.callback("Отмена", "schedule_group_open_cancel")],
-          ]),
-        );
+        return sendGroupSelector(ctx, groups);
       }
     }
     return sendTimetable(ctx, 0, { groupId: groups.id });

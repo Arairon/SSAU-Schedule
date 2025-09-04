@@ -229,7 +229,7 @@ export async function scheduleMessage(
 export function generateTextLesson(lesson: TimetableLesson): string {
   const timeslot = TimeSlotMap[lesson.dayTimeSlot];
   const place = lesson.isOnline
-    ? "Online"
+    ? `Online (${lesson.conferenceUrl ?? "ссылка отсутствует"})`
     : `${lesson.building} - ${lesson.room}`;
   const subgroupStr = lesson.subgroup ? `👥 Подгруппа: ${lesson.subgroup}` : "";
   return [
