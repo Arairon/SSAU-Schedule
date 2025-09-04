@@ -4,23 +4,11 @@ import { type Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
 import { env } from "../env";
-import type { MessageEntity } from "telegraf/types";
-import { dailyWeekUpdate } from "../lib/tasks";
-
-type ScheduledMessage = {
-  chatId: string;
-  text: string;
-  entities?: MessageEntity[];
-  sendAt: Date;
-  source?: string;
-};
-
-type DbScheduledMessage = {
-  chatId: string;
-  text: string;
-  entities?: object[];
-  sendAt: Date;
-};
+import {
+  dailyWeekUpdate,
+  type DbScheduledMessage,
+  type ScheduledMessage,
+} from "../lib/tasks";
 
 // Task for any testing that needs to happen
 async function taskTest() {

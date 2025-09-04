@@ -7,6 +7,7 @@ import {
   getWeekFromDate,
   getCurrentYearId,
   md5,
+  formatBigInt,
 } from "./utils";
 import { db } from "../db";
 import { lk } from "./lk";
@@ -129,6 +130,7 @@ async function getTimetableWithImage(
     ignoreCached?: boolean;
     //dontCache?: boolean;
     forceUpdate?: boolean;
+    ignoreUpdate?: boolean;
     ignoreIet?: boolean;
     stylemap?: string;
   },
@@ -142,7 +144,10 @@ async function getTimetableWithImage(
     user.preferences,
   );
   const stylemap = opts?.stylemap ?? preferences.theme ?? "default";
-  if (opts?.forceUpdate) opts.ignoreCached = true;
+  if (opts?.forceUpdate) {
+    opts.ignoreCached = true;
+    opts.ignoreUpdate = false;
+  }
 
   if (!groupId) {
     log.error(`Groupless user @getWeekTimetable`, { user: user.id });
@@ -196,6 +201,7 @@ async function getTimetableWithImage(
         year: week.year,
         ignoreCached: opts?.ignoreCached,
         forceUpdate: opts?.forceUpdate,
+        ignoreUpdate: opts?.ignoreUpdate,
         ignoreIet: opts?.ignoreIet,
       });
 
@@ -235,10 +241,20 @@ async function getTimetableWithImage(
   const image = await generateTimetableImage(timetable, { stylemap });
 
   //if (!opts?.dontCache) {}
-  const createdImage = await db.weekImage.create({
-    data: {
+  const createdImage = await db.weekImage.upsert({
+    where: {
+      stylemap_timetableHash: {
+        stylemap: stylemap,
+        timetableHash: timetableHash,
+      },
+    },
+    create: {
       stylemap: stylemap,
       timetableHash: timetableHash,
+      data: image.toString("base64"),
+      validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
+    },
+    update: {
       data: image.toString("base64"),
       validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
     },
@@ -259,6 +275,7 @@ async function getWeekTimetable(
     ignoreCached?: boolean;
     dontCache?: boolean;
     forceUpdate?: boolean;
+    ignoreUpdate?: boolean;
     ignoreIet?: boolean;
   },
 ) {
@@ -267,7 +284,6 @@ async function getWeekTimetable(
   const year = (opts?.year ?? 0) || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
   const subgroup = groupId === user.groupId ? user.subgroup : null;
-  if (opts?.forceUpdate) opts.ignoreCached = true;
 
   if (!groupId) {
     log.error(`Groupless user @getWeekTimetable`, { user: user.id });
@@ -294,17 +310,24 @@ async function getWeekTimetable(
     }
   }
 
-  if (opts?.forceUpdate) {
-    log.debug("Requested forceUpdate. Updating week", { user: user.id });
-    await updateWeekForUser(user, weekNumber, { year, groupId });
-  } else if (Date.now() - week.updatedAt.getTime() > 86400_000) {
-    // 1 day
-    log.debug("Week updatedAt too old. Updating week", { user: user.id });
-    await updateWeekForUser(user, weekNumber, { year, groupId });
+  if (!opts?.ignoreUpdate) {
+    if (opts?.forceUpdate) {
+      log.debug("Requested forceUpdate. Updating week", { user: user.id });
+      await updateWeekForUser(user, weekNumber, { year, groupId });
+    } else if (Date.now() - week.updatedAt.getTime() > 86400_000) {
+      // 1 day
+      log.debug("Week updatedAt too old. Updating week", { user: user.id });
+      await updateWeekForUser(user, weekNumber, { year, groupId });
+    } else {
+      log.debug("Week Timetable updatedAt look good. Not updating from ssau", {
+        user: user.id,
+      });
+    }
   } else {
-    log.debug("Week Timetable updatedAt look good. Not updating from ssau", {
-      user: user.id,
-    });
+    log.debug(
+      `Ignoring updates and generating purely based on current db info`,
+      { user: user.id },
+    );
   }
 
   log.debug(
@@ -1007,9 +1030,38 @@ async function updateWeekRangeForUser(
   }
 }
 
+async function pregenerateImagesForUser(
+  user: User,
+  week: number,
+  count?: number,
+  opts?: { groupId?: number; year?: number },
+) {
+  const startTime = process.hrtime.bigint();
+  log.info(`Pregenerating #${week}: ${count ?? 1} images for user.`, {
+    user: user.id,
+  });
+  for (let weekNumber = week; weekNumber < week + (count ?? 1); weekNumber++) {
+    const week = await getDbWeek(user, weekNumber, {
+      groupId: opts?.groupId,
+      year: opts?.year,
+    });
+    await getTimetableWithImage(
+      user,
+      week.number,
+      Object.assign({}, opts, { ignoreUpdates: true }),
+    );
+  }
+  const endTime = process.hrtime.bigint();
+  log.debug(
+    `Pregenerated #${week}: ${count ?? 1} images for user. Took: ${formatBigInt(endTime - startTime)}ns`,
+    { user: user.id },
+  );
+}
+
 export const schedule = {
   updateWeekForUser,
   updateWeekRangeForUser,
   getWeekTimetable,
   getTimetableWithImage,
+  pregenerateImagesForUser,
 };
