@@ -4,7 +4,6 @@ import { type Context } from "./types";
 import { db } from "../db";
 import { UserPreferencesDefaults } from "../lib/misc";
 import { STYLEMAPS } from "../lib/scheduleImage";
-import { sendTimetable } from "./schedule";
 
 // config.ts refers to the /config command, not the bot configuration :]
 const config_field_names: Record<string, string> = {
@@ -60,8 +59,8 @@ ${Object.entries(preferences)
         where: { id: user.id },
         data: { preferences, lastActive: new Date() },
       });
-      if (ctx.session.scheduleViewer.message)
-        void sendTimetable(ctx, ctx.session.scheduleViewer.week);
+      //if (ctx.session.scheduleViewer.message)
+      //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
       return ctx.reply(`Тема успешно изменена на '${target}'`);
     } else if (field === "subgroup") {
       const arg = args[0]?.trim();

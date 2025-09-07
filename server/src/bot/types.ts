@@ -15,6 +15,7 @@ export interface Session extends Scenes.SceneSessionData {
     menu: string;
     updText: string | null;
   };
+  runningScheduleUpdate: boolean;
   scheduleViewer: {
     message: number;
     chatId: number;

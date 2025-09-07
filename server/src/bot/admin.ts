@@ -191,9 +191,17 @@ export async function initAdmin(bot: Telegraf<Context>) {
       if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
         return ctx.reply("Вы не администратор");
     }
-    const notificationsCount = await db.scheduledMessage.count({
+    const notifications = await db.scheduledMessage.groupBy({
+      by: ["source"],
       where: { chatId: `${user.tgId}`, wasSentAt: null },
+      _count: {
+        _all: true,
+      },
     });
+    const notificationsCount = notifications.reduce(
+      (a: number, b) => a + b._count._all,
+      0,
+    );
     return ctx.reply(`\
 Вы: ${user.fullname ?? "Неизвестный Пользователь"}
 Ваша группа: ${user.group?.name ?? "Отсутствует"} ${user.subgroup ? `(Подгруппа: ${user.subgroup})` : ""}
@@ -202,8 +210,7 @@ ${
     ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
     : `Вы не вошли в ЛК`
 }
-Уведомлений в очереди: ${notificationsCount}
-
+Уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
 `);
   });
 }

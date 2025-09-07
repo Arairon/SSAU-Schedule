@@ -1,14 +1,9 @@
-import {
-  Markup,
-  type Telegraf,
-  type Context as TelegrafContext,
-} from "telegraf";
+import { Markup, type Telegraf } from "telegraf";
 import { fmt } from "telegraf/format";
-import { type CallbackQuery, type Message, type Update } from "telegraf/types";
-import { type Context } from "./types";
+import type { Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
-import { formatBigInt } from "../lib/utils";
+import { formatBigInt, getWeekFromDate } from "../lib/utils";
 import { env } from "../env";
 import { schedule } from "../lib/schedule";
 import {
@@ -18,189 +13,322 @@ import {
 } from "../lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
+import { lk } from "../lib/lk";
 
-export async function sendTimetable(
+async function sendTimetable(
   ctx: Context,
   week: number,
-  opts?: {
-    groupId?: number;
-    ignoreCached?: boolean;
-    forceUpdate?: boolean;
-    queryCtx?: TelegrafContext<Update.CallbackQueryUpdate<CallbackQuery>>;
-    dontUpdateLastActive?: boolean;
-  },
+  groupId?: number,
+  opts?: { forceUpdate?: boolean },
 ) {
-  if (!ctx?.from?.id) {
-    log.error(
-      `Some otherwordly being requested a timetable... ${JSON.stringify(ctx)}`,
+  if (ctx.session.runningScheduleUpdate) {
+    const msg = await ctx.reply(
+      "Обновление уже запущено, пожалуйста подождите.",
     );
+    setTimeout(() => {
+      ctx.deleteMessage(msg.message_id).catch(() => {
+        log.warn(`Failed to delete temporary 'update already started' msg`);
+      });
+    }, 2500);
     return;
   }
-  // if (ctx.chat?.type !== "private") {
-  //   return ctx.reply("Работа вне ЛС пока не поддерживается.");
-  // }
-  if (week < 0 || week > 52) return;
-
-  const startTime = process.hrtime.bigint();
-  const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
-  if (!user) {
-    return ctx.reply(
-      "Вы не найдены в базе данных. Пожалуйста пропишите /start",
-    );
-  }
-  const groupId =
-    opts?.groupId ?? ctx.session.scheduleViewer.groupId ?? undefined;
-  const group = groupId
-    ? await db.group.findUnique({ where: { id: groupId } })
-    : null;
-
-  const preferences = Object.assign(
-    {},
-    UserPreferencesDefaults,
-    user.preferences,
-  );
-
-  const chatId = ctx.session.scheduleViewer.chatId || null;
-  const existingMessage = ctx.session.scheduleViewer.message || null;
-  const temp: {
-    msg: Message.TextMessage | null;
-    timeout: NodeJS.Timeout | null;
-  } = { msg: null, timeout: null };
-  if (existingMessage && chatId) {
-    temp.timeout = setTimeout(() => {
-      void ctx.telegram.editMessageCaption(
-        chatId,
-        existingMessage,
-        undefined,
-        "Создание изображения...",
-      );
-    }, 100);
-  } else {
-    temp.timeout = setTimeout(() => {
-      void ctx.reply("Создание изображения...").then((m) => (temp.msg = m));
-    }, 100);
-  }
-
-  let timetable;
+  ctx.session.runningScheduleUpdate = true;
   try {
-    timetable = await schedule.getTimetableWithImage(user, week, {
-      groupId: groupId,
-      forceUpdate: opts?.forceUpdate ?? undefined,
-      stylemap: preferences.theme,
-    });
-  } catch {
-    return ctx.reply(fmt`
+    const user = await db.user.findUnique({ where: { tgId: ctx?.from?.id } });
+    if (!user) {
+      return ctx.reply(
+        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
+      );
+    }
+    const isAuthed = await lk.ensureAuth(user);
+    const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
+    const group = groupId
+      ? await db.group.findUnique({ where: { id: groupId } })
+      : null;
+
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+
+    log.debug(
+      `[bot] Requested schedule ${preferences.theme}/${groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+      { user: ctx?.from?.id },
+    );
+    const startTime = process.hrtime.bigint();
+
+    let tempMsgId: number | null = null;
+    const creatingMessageTimeout = setTimeout(() => {
+      try {
+        ctx
+          .reply("Создание изображения...")
+          .then((m) => {
+            tempMsgId = m.message_id;
+          })
+          .catch(() => {
+            /*ignore*/
+          });
+      } catch {}
+    }, 150);
+
+    let timetable;
+    try {
+      timetable = await schedule.getTimetableWithImage(user, weekNumber, {
+        groupId: group?.id ?? undefined,
+        stylemap: preferences.theme,
+        forceUpdate: opts?.forceUpdate ?? undefined,
+        ignoreUpdate: !isAuthed,
+      });
+    } catch (e) {
+      log.error(`Failed to get timetable ${String(e)}`, {
+        user: ctx?.from?.id,
+      });
+      return ctx.reply(fmt`
 Произошла ошибка при обновлении.
 Попробуйте повторно войти в аккаунт через /login
         `);
-  } finally {
-    if (temp.timeout) clearTimeout(temp.timeout);
-    if (temp.msg) {
+    }
+
+    clearTimeout(creatingMessageTimeout);
+    if (tempMsgId) {
       try {
-        await ctx.deleteMessage(temp.msg.message_id);
+        await ctx.deleteMessage(tempMsgId);
       } catch {}
     }
-  }
 
-  const buttonsMarkup = Markup.inlineKeyboard([
-    [
-      Markup.button.callback("⬅️", "schedule_button_prev"),
-      Markup.button.callback("🔄", "schedule_button_refresh"),
-      Markup.button.callback("➡️", "schedule_button_next"),
-    ],
-    ctx?.chat?.type === "private"
-      ? [Markup.button.callback("⚙️ Настройки", "open_options")]
-      : [],
-    ctx?.chat?.type === "private" && ctx.from.id === env.SCHED_BOT_ADMIN_TGID
-      ? [
-          Markup.button.callback(
-            "[admin] Обновить насильно",
-            "schedule_button_forceupdate",
-          ),
-        ]
-      : [],
-  ]);
+    const buttonsMarkup = Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "⬅️",
+          `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
+        ),
+        Markup.button.callback(
+          "🔄",
+          `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`,
+        ),
+        Markup.button.callback(
+          "➡️",
+          `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
+        ),
+      ],
+      ctx?.chat?.type === "private"
+        ? [Markup.button.callback("⚙️ Настройки", "open_options")]
+        : [],
+      ctx?.chat?.type === "private" &&
+      ctx?.from?.id === env.SCHED_BOT_ADMIN_TGID
+        ? [
+            Markup.button.callback(
+              "[admin] Обновить насильно",
+              `schedule_button_view_${groupId ?? 0}/${week}/force`,
+            ),
+          ]
+        : [],
+    ]);
 
-  if (existingMessage && chatId) {
-    if (timetable.image.tgId) {
-      log.debug(
-        `Image already uploaded. Changing image inplace to ${timetable.image.tgId}`,
-        { user: ctx.from.id },
-      );
-      try {
-        await ctx.telegram.editMessageMedia(
-          chatId,
-          existingMessage,
-          undefined,
-          {
-            type: "photo",
-            media: timetable.image.tgId,
-            caption:
-              `Расписание на ${timetable.data.week} неделю` +
-              (group ? `\nДля группы ${group.name}` : ""),
-          },
-          buttonsMarkup,
-        );
-      } catch {
-        if (opts?.queryCtx) {
-          await opts.queryCtx.answerCbQuery("Ничего не изменилось");
-        }
-      }
-    } else {
-      // TODO: UploadMedia instead?
-      log.debug(`Image has no tgId, deleting old message and uploading new`, {
-        user: ctx.from.id,
-      });
-      try {
-        await ctx.deleteMessage(existingMessage);
-      } catch {}
-    }
-  } else {
-    log.debug(`Lost existing message or chatId, uploading new message`, {
-      user: ctx.from.id,
-    });
-  }
-  if (!existingMessage || !chatId || !timetable.image.tgId) {
-    const image = timetable.image.tgId ?? { source: timetable.image.data };
     const msg = await ctx.replyWithPhoto(
-      image,
-      Object.assign({}, buttonsMarkup, {
+      timetable.image.tgId ?? { source: timetable.image.data },
+      {
         caption:
           `Расписание на ${timetable.data.week} неделю` +
-          (group ? `\nДля группы ${group.name}` : ""),
-      }),
+          (timetable.data.week === getWeekFromDate(new Date())
+            ? " (текущая)"
+            : "") +
+          (group ? `\nДля группы ${group.name}` : "") +
+          (!isAuthed
+            ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
+            : ""),
+        reply_markup: buttonsMarkup.reply_markup,
+      },
     );
-    if (timetable.image.tgId) {
-      log.debug(`Reused already uploaded image #${timetable.image.id}`, {
-        user: user.tgId,
+    if (!timetable.image.tgId) {
+      log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
+        user: ctx?.from?.id,
       });
-    } else {
-      log.debug(
-        `Uploaded new image ${msg.photo[0].file_id} from ${timetable.image.id}`,
-        { user: user.tgId },
+      await db.weekImage.update({
+        where: { id: timetable.image.id },
+        data: { tgId: msg.photo[0].file_id },
+      });
+    }
+    const endTime = process.hrtime.bigint();
+    log.debug(
+      `[bot] Image viewer ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+      { user: ctx?.from?.id },
+    );
+    ctx.session.scheduleViewer.message = msg.message_id;
+    ctx.session.scheduleViewer.chatId = msg.chat.id;
+    ctx.session.scheduleViewer.week = timetable.data.week;
+    ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
+  } catch (e) {
+    log.error(`Failed to send timetable ${String(e)}`, { user: ctx?.from?.id });
+    return ctx.reply(
+      fmt`
+Произошла неизвестная ошибка при отправке.
+Попробуйте повторно войти в аккаунт через /login
+        `,
+    );
+  } finally {
+    ctx.session.runningScheduleUpdate = false;
+  }
+}
+
+export async function updateTimetable(
+  ctx: Context,
+  week: number,
+  groupId?: number,
+  opts?: { forceUpdate?: boolean },
+) {
+  if (ctx.session.runningScheduleUpdate) {
+    return ctx.answerCbQuery("Обновление уже запущено, пожалуйста подождите.");
+  }
+  ctx.session.runningScheduleUpdate = true;
+  try {
+    const userId = ctx?.from?.id;
+    const chat = ctx.chat;
+    const msgId =
+      ctx?.callbackQuery?.message?.message_id ??
+      ctx.session.scheduleViewer.message;
+    if (!msgId || !chat) {
+      log.error(`No message ID in callbackQuery`, { user: userId });
+      return ctx.answerCbQuery(
+        "Произошла ошибка, пожалуйста используйте /schedule.",
       );
     }
-    await db.weekImage.update({
-      where: { id: timetable.image.id },
-      data: { tgId: msg.photo[0].file_id },
+    const user = await db.user.findUnique({ where: { tgId: userId } });
+    if (!user) {
+      return ctx.reply(
+        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
+      );
+    }
+    const isAuthed = await lk.ensureAuth(user);
+    const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
+    const group = groupId
+      ? await db.group.findUnique({ where: { id: groupId } })
+      : null;
+
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+
+    log.debug(
+      `[bot.viewer] Requested schedule ${preferences.theme}/${groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+      { user: userId },
+    );
+    const startTime = process.hrtime.bigint();
+
+    const creatingMessageTimeout = setTimeout(() => {
+      try {
+        ctx
+          .editMessageCaption("Создание изображения...", {
+            reply_markup: Markup.inlineKeyboard([]).reply_markup,
+          })
+          .catch(() => {
+            /*ignore*/
+          });
+      } catch {}
+    }, 150);
+
+    let timetable;
+    try {
+      timetable = await schedule.getTimetableWithImage(user, weekNumber, {
+        groupId: group?.id ?? undefined,
+        stylemap: preferences.theme,
+        forceUpdate: opts?.forceUpdate ?? undefined,
+        ignoreUpdate: !isAuthed,
+      });
+    } catch (e) {
+      log.error(`Failed to get timetable ${String(e)}`, { user: userId });
+      return ctx.reply(fmt`
+Произошла ошибка при обновлении.
+Попробуйте повторно войти в аккаунт через /login
+        `);
+    }
+
+    clearTimeout(creatingMessageTimeout);
+
+    if (!timetable.image.tgId) {
+      log.debug(`Image had no tgId, uploading new`, { user: userId });
+      try {
+        // TODO: UploadMedia instead.
+        return ctx.reply(
+          "[WIP] Изображение не отправлено. Дождитесь перехода на grammY :D",
+        );
+      } catch {}
+      return;
+    }
+
+    const buttonsMarkup = Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "⬅️",
+          `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
+        ),
+        Markup.button.callback(
+          "🔄",
+          `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`,
+        ),
+        Markup.button.callback(
+          "➡️",
+          `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
+        ),
+      ],
+      chat.type === "private"
+        ? [Markup.button.callback("⚙️ Настройки", "open_options")]
+        : [],
+      chat.type === "private" && userId === env.SCHED_BOT_ADMIN_TGID
+        ? [
+            Markup.button.callback(
+              "[admin] Обновить насильно",
+              `schedule_button_view_${groupId ?? 0}/${week}/force`,
+            ),
+          ]
+        : [],
+    ]);
+
+    try {
+      await ctx.telegram.editMessageMedia(
+        chat.id,
+        msgId,
+        undefined,
+        {
+          type: "photo",
+          media: timetable.image.tgId,
+          caption:
+            `Расписание на ${timetable.data.week} неделю` +
+            (timetable.data.week === getWeekFromDate(new Date())
+              ? " (текущая)"
+              : "") +
+            (group ? `\nДля группы ${group.name}` : "") +
+            (!isAuthed
+              ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
+              : ""),
+        },
+        buttonsMarkup,
+      );
+    } catch {
+      log.debug(`Error: unchanged. Ignoring`, { user: userId });
+      await ctx.answerCbQuery("Ничего не изменилось");
+    }
+    const endTime = process.hrtime.bigint();
+    log.debug(
+      `[bot] Image viewer update ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+      { user: userId },
+    );
+
+    ctx.session.scheduleViewer.message = msgId;
+    ctx.session.scheduleViewer.chatId = chat.id;
+    ctx.session.scheduleViewer.week = timetable.data.week;
+    ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
+  } catch (e) {
+    log.error(`Failed to update timetable msg ${String(e)}`, {
+      user: ctx?.from?.id,
     });
-    ctx.session.scheduleViewer.message = msg.message_id; // else keep existing
-    ctx.session.scheduleViewer.chatId = msg.chat.id;
+    return ctx.answerCbQuery("Произошла ошибка при обновлении.");
+  } finally {
+    ctx.session.runningScheduleUpdate = false;
   }
-
-  ctx.session.scheduleViewer.week = timetable.data.week;
-  ctx.session.scheduleViewer.groupId = groupId; // Keep undefined if was undefined. This is used for overrides
-
-  const endTime = process.hrtime.bigint();
-  log.info(
-    `[BOT] Image viewer ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
-    { user: ctx.from.id },
-  );
-  if (!opts?.dontUpdateLastActive)
-    await db.user.update({
-      where: { id: user.id },
-      data: { lastActive: new Date() },
-    });
 }
 
 async function sendGroupSelector(
@@ -259,55 +387,28 @@ export async function initSchedule(bot: Telegraf<Context>) {
     let week = 0;
     if (weekArg && !Number.isNaN(Number(weekArg.trim())))
       week = Number(weekArg);
-    sendTimetable(ctx, week, { groupId: groupId ?? undefined }).catch((e) => {
+    sendTimetable(ctx, week, groupId ?? undefined).catch((e) => {
       return handleError(ctx, e as Error);
     });
   });
 
-  bot.action("schedule_button_next", async (ctx) => {
-    if (!ctx.session.scheduleViewer.message)
-      ctx.session.scheduleViewer.message =
-        ctx.callbackQuery.message?.message_id ?? 0;
-    const week = ctx.session.scheduleViewer.week + 1;
-    if (week === 53) {
-      return ctx.answerCbQuery(
-        "Расписания на 53 неделю не существует. Это первая неделя следующего года",
-      );
+  bot.action(/schedule_button_view_(\d+)\/(\d+)(\/force)?/, async (ctx) => {
+    const match = ctx.match;
+    if (!match || match.length < 2) return ctx.answerCbQuery("Ошибка");
+    const groupId = Number(match[1]);
+    const week = Number(match[2]);
+    const forceUpdate = Boolean(match[3]);
+    if (Number.isNaN(week) || Number.isNaN(groupId)) {
+      log.warn(`Invalid view request: ${ctx.match.join()}`, {
+        user: ctx.from.id,
+      });
+      return ctx.answerCbQuery("Ошибка: Неверный запрос");
     }
-    sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
-      return handleError(ctx, e as Error);
-    });
-  });
-
-  bot.action("schedule_button_prev", async (ctx) => {
-    if (!ctx.session.scheduleViewer.message)
-      ctx.session.scheduleViewer.message =
-        ctx.callbackQuery.message?.message_id ?? 0;
-    const week = ctx.session.scheduleViewer.week - 1;
-    if (week === 0) {
-      return ctx.answerCbQuery("Расписания на нулевую неделю не существует");
-    }
-    sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
-      return handleError(ctx, e as Error);
-    });
-  });
-
-  bot.action("schedule_button_refresh", async (ctx) => {
-    if (!ctx.session.scheduleViewer.message)
-      ctx.session.scheduleViewer.message =
-        ctx.callbackQuery.message?.message_id ?? 0;
-    const week = ctx.session.scheduleViewer.week;
-    sendTimetable(ctx, week, { queryCtx: ctx }).catch((e) => {
-      return handleError(ctx, e as Error);
-    });
-  });
-
-  bot.action("schedule_button_forceupdate", async (ctx) => {
-    if (!ctx.session.scheduleViewer.message)
-      ctx.session.scheduleViewer.message =
-        ctx.callbackQuery.message?.message_id ?? 0;
-    const week = ctx.session.scheduleViewer.week;
-    return sendTimetable(ctx, week, { forceUpdate: true, queryCtx: ctx });
+    updateTimetable(ctx, week, groupId || undefined, { forceUpdate }).catch(
+      (e) => {
+        return handleError(ctx, e as Error);
+      },
+    );
   });
 
   bot.action("open_options", (ctx) => {
@@ -377,6 +478,13 @@ ${generateTextLesson(lesson)}
     void ctx.deleteMessage(ctx.message.message_id).catch(() => {
       /* ignore */
     });
+    if (ctx.session.scheduleViewer.message) {
+      return updateTimetable(
+        ctx,
+        week,
+        ctx.session.scheduleViewer.groupId ?? undefined,
+      );
+    }
     return sendTimetable(ctx, week);
   });
 
@@ -393,12 +501,12 @@ ${generateTextLesson(lesson)}
     }
     if (Array.isArray(groups)) {
       if (groups.length === 1) {
-        return sendTimetable(ctx, 0, { groupId: groups[0].id });
+        return sendTimetable(ctx, 0, groups[0].id);
       } else {
         return sendGroupSelector(ctx, groups);
       }
     }
-    return sendTimetable(ctx, 0, { groupId: groups.id });
+    return sendTimetable(ctx, 0, groups.id);
   });
 
   bot.action(/schedule_group_open_(\d+)/, async (ctx) => {
@@ -410,7 +518,7 @@ ${generateTextLesson(lesson)}
     void ctx.deleteMessage().catch(() => {
       /* ignore */
     });
-    return sendTimetable(ctx, 0, { groupId: groupId });
+    return sendTimetable(ctx, 0, groupId);
   });
 
   bot.action("schedule_group_open_cancel", async (ctx) => {

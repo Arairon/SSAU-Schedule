@@ -26,6 +26,7 @@ function getDefaultSession(): Session {
       menu: "",
       updText: null,
     },
+    runningScheduleUpdate: false,
     scheduleViewer: {
       message: 0,
       chatId: 0,

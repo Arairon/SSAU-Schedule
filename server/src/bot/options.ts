@@ -5,7 +5,6 @@ import log from "../logger";
 import { db } from "../db";
 import { UserPreferencesDefaults } from "../lib/misc";
 import { STYLEMAPS } from "../lib/scheduleImage";
-import { sendTimetable } from "./schedule";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -281,8 +280,8 @@ export async function initOptions(bot: Telegraf<Context>) {
     });
     ctx.session.options.updText = `Тема успешно изменена на "${STYLEMAPS[theme].description}"`;
     ctx.session.options.menu = "";
-    if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
+    //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
+    //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     return updateOptionsMsg(ctx);
   });
 
@@ -340,8 +339,8 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { owner: user.id },
       data: { cachedUntil: now },
     });
-    if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
+    //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
+    //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
@@ -378,8 +377,8 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { owner: user.id },
       data: { cachedUntil: now },
     });
-    if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
+    //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
+    //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Отображение ИОТов ${preferences.showIet ? "включено" : "отключено"}`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
@@ -416,8 +415,8 @@ export async function initOptions(bot: Telegraf<Context>) {
       where: { owner: user.id },
       data: { cachedUntil: now },
     });
-    if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
-      void sendTimetable(ctx, ctx.session.scheduleViewer.week);
+    //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
+    //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Отображение военки ${preferences.showMilitary ? "включено" : "отключено"}`;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
