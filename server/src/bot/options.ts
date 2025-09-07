@@ -1,5 +1,4 @@
-import { Markup, type Telegraf } from "telegraf";
-import { fmt } from "telegraf/format";
+import { InlineKeyboard, type Bot } from "grammy";
 import { type Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
@@ -52,179 +51,116 @@ async function updateOptionsMsg(ctx: Context) {
     UserPreferencesDefaults,
     user.preferences,
   );
-  const newText = fmt`Настройки\n==============================\n${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
+  const newText = `Настройки\n==============================\n${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
   ctx.session.options.updText = null;
   if (menu === "") {
     const theme =
       STYLEMAPS[preferences.theme ?? "default"] ?? STYLEMAPS.default;
-    return ctx.telegram
-      .editMessageText(
-        chat,
-        msgId,
-        undefined,
-        newText,
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              `Тема: ${theme.description}`,
-              "options_themes",
-            ),
-          ],
-          [
-            Markup.button.callback(
-              `Подгруппа: ${(user.subgroup ?? 0) || "Обе"}`,
-              "options_subgroup",
-            ),
-          ],
-          [
-            Markup.button.callback(
-              `ИОТы: ${preferences.showIet ? "✅" : "❌"}`,
-              "options_toggle_iet",
-            ),
-            Markup.button.callback(
-              `Военка: ${preferences.showMilitary ? "✅" : "❌"}`,
-              "options_toggle_military",
-            ),
-          ],
-          [Markup.button.callback(`Уведомления`, "options_notifications")],
-          [Markup.button.callback("Закрыть", "options_close")],
-        ]),
-      )
+    return ctx.api
+      .editMessageText(chat, msgId, newText, {
+        reply_markup: new InlineKeyboard()
+          .text(`Тема: ${theme.description}`, "options_themes")
+          .row()
+          .text(
+            `Подгруппа: ${(user.subgroup ?? 0) || "Обе"}`,
+            "options_subgroup",
+          )
+          .row()
+          .text(
+            `ИОТы: ${preferences.showIet ? "✅" : "❌"}`,
+            "options_toggle_iet",
+          )
+          .text(
+            `Военка: ${preferences.showMilitary ? "✅" : "❌"}`,
+            "options_toggle_military",
+          )
+          .row()
+          .text(`Уведомления`, "options_notifications")
+          .row()
+          .text(`Закрыть`, "options_close")
+          .row(),
+      })
       .catch(() => {
         /* ignore */
       });
   } else if (menu === "themes") {
-    return ctx.telegram.editMessageText(
-      chat,
-      msgId,
-      undefined,
-      newText,
-      Markup.inlineKeyboard([
-        ...Object.values(STYLEMAPS).map((theme) => [
-          Markup.button.callback(
-            `${theme.description}`,
-            `options_theme_set_${theme.name}`,
-          ),
-        ]),
-        [Markup.button.callback("Назад", "options_menu")],
-      ]),
+    const keyboard = new InlineKeyboard();
+    Object.values(STYLEMAPS).map((theme) =>
+      keyboard
+        .text(`${theme.description}`, `options_theme_set_${theme.name}`)
+        .row(),
     );
+    keyboard.text("Назад", "options_menu").row();
+    return ctx.api.editMessageText(chat, msgId, newText, {
+      reply_markup: keyboard,
+    });
   } else if (menu === "subgroup") {
-    return ctx.telegram.editMessageText(
-      chat,
-      msgId,
-      undefined,
-      newText,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback("Обе", "options_subgroup_0"),
-          Markup.button.callback("Первая", "options_subgroup_1"),
-          Markup.button.callback("Вторая", "options_subgroup_2"),
-        ],
-        [Markup.button.callback("Назад", "options_menu")],
-      ]),
-    );
+    return ctx.api.editMessageText(chat, msgId, newText, {
+      reply_markup: new InlineKeyboard()
+        .text("Обе", "options_subgroup_0")
+        .row()
+        .text("Первая", "options_subgroup_1")
+        .row()
+        .text("Вторая", "options_subgroup_2")
+        .row()
+        .text("Назад", "options_menu")
+        .row(),
+    });
   } else if (menu === "notifications") {
     const notifyBeforeLessonsMinutes = Math.round(
       preferences.notifyBeforeLessons / 60,
     );
-    return ctx.telegram.editMessageText(
-      chat,
-      msgId,
-      undefined,
-      newText,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            `Перед началом занятий: ${notifyBeforeLessonsMinutes ? `за ${notifyBeforeLessonsMinutes} мин` : "Выкл"}`,
-            "options_notifications_daystart_edit",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `О следующей паре: ${preferences.notifyAboutNextLesson ? "✅" : "❌"}`,
-            "options_notifications_nextlesson_toggle",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `О следующем дне: ${preferences.notifyAboutNextDay ? "✅" : "❌"}`,
-            "options_notifications_nextday_toggle",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `О следующей неделе: ${preferences.notifyAboutNextWeek ? "✅" : "❌"}`,
-            "options_notifications_nextweek_toggle",
-          ),
-        ],
-        [Markup.button.callback("Назад", "options_menu")],
-      ]),
-    );
+    return ctx.api.editMessageText(chat, msgId, newText, {
+      reply_markup: new InlineKeyboard()
+        .text(
+          `Перед началом занятий: ${notifyBeforeLessonsMinutes ? `за ${notifyBeforeLessonsMinutes} мин` : "Выкл"}`,
+          "options_notifications_daystart_edit",
+        )
+        .row()
+        .text(
+          `О следующей паре: ${preferences.notifyAboutNextLesson ? "✅" : "❌"}`,
+          "options_notifications_nextlesson_toggle",
+        )
+        .row()
+        .text(
+          `О следующем дне: ${preferences.notifyAboutNextDay ? "✅" : "❌"}`,
+          "options_notifications_nextday_toggle",
+        )
+        .row()
+        .text(
+          `О следующей неделе: ${preferences.notifyAboutNextWeek ? "✅" : "❌"}`,
+          "options_notifications_nextweek_toggle",
+        )
+        .row()
+        .text("Назад", "options_menu")
+        .row(),
+    });
   } else if (menu === "notifications_daystart") {
-    return ctx.telegram.editMessageText(
-      chat,
-      msgId,
-      undefined,
-      newText,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            `Отключить`,
-            "options_notifications_daystart_set_0",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `15 мин`,
-            "options_notifications_daystart_set_15",
-          ),
-          Markup.button.callback(
-            `30 мин`,
-            "options_notifications_daystart_set_30",
-          ),
-          Markup.button.callback(
-            `45 мин`,
-            "options_notifications_daystart_set_45",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `1 час`,
-            "options_notifications_daystart_set_60",
-          ),
-          Markup.button.callback(
-            `1.5 часа`,
-            "options_notifications_daystart_set_90",
-          ),
-          Markup.button.callback(
-            `2 часа`,
-            "options_notifications_daystart_set_120",
-          ),
-        ],
-        [
-          Markup.button.callback(
-            `2.5 часа`,
-            "options_notifications_daystart_set_150",
-          ),
-          Markup.button.callback(
-            `3 часа`,
-            "options_notifications_daystart_set_180",
-          ),
-          Markup.button.callback(
-            `4 часа`,
-            "options_notifications_daystart_set_240",
-          ),
-        ],
-        [Markup.button.callback("Назад", "options_notifications")],
-      ]),
-    );
+    return ctx.api.editMessageText(chat, msgId, newText, {
+      reply_markup: new InlineKeyboard()
+        .text(`Отключить`, "options_notifications_daystart_set_0")
+        .row()
+        .text(`15 мин`, "options_notifications_daystart_set_15")
+        .text(`30 мин`, "options_notifications_daystart_set_30")
+        .text(`45 мин`, "options_notifications_daystart_set_45")
+        .row()
+        .text(`1 час`, "options_notifications_daystart_set_60")
+        .text(`1.5 часа`, "options_notifications_daystart_set_90")
+        .text(`2 часа`, "options_notifications_daystart_set_120")
+        .row()
+        .text(`2.5 часа`, "options_notifications_daystart_set_150")
+        .text(`3 часа`, "options_notifications_daystart_set_180")
+        .text(`4 часа`, "options_notifications_daystart_set_240")
+        .row()
+        .text("Назад", "options_notifications")
+        .row(),
+    });
   }
 }
 
 export async function openSettings(ctx: Context) {
   if (ctx.session.options.message)
-    void ctx.deleteMessage(ctx.session.options.message);
+    void ctx.api.deleteMessage(ctx.chat!.id, ctx.session.options.message);
   ctx.session.options = {
     message: 0,
     menu: "",
@@ -234,20 +170,20 @@ export async function openSettings(ctx: Context) {
 }
 
 // Init options features
-export async function initOptions(bot: Telegraf<Context>) {
+export async function initOptions(bot: Bot<Context>) {
   bot.command("options", async (ctx) => {
-    await ctx.deleteMessage(ctx.message.message_id);
+    await ctx.deleteMessage();
     return openSettings(ctx);
   });
 
-  bot.action("options_themes", async (ctx) => {
+  bot.callbackQuery("options_themes", async (ctx) => {
     ctx.session.options.menu = "themes";
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     return updateOptionsMsg(ctx);
   });
 
-  bot.action(/options_theme_set_(\w+)/, async (ctx) => {
+  bot.callbackQuery(/options_theme_set_(\w+)/, async (ctx) => {
     const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
     if (!action) {
       log.error(
@@ -285,14 +221,14 @@ export async function initOptions(bot: Telegraf<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_subgroup", async (ctx) => {
+  bot.callbackQuery("options_subgroup", async (ctx) => {
     ctx.session.options.menu = "subgroup";
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     return updateOptionsMsg(ctx);
   });
 
-  bot.action(/options_subgroup_\d/, async (ctx) => {
+  bot.callbackQuery(/options_subgroup_\d/, async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
@@ -346,7 +282,7 @@ export async function initOptions(bot: Telegraf<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_toggle_iet", async (ctx) => {
+  bot.callbackQuery("options_toggle_iet", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
@@ -384,7 +320,7 @@ export async function initOptions(bot: Telegraf<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_toggle_military", async (ctx) => {
+  bot.callbackQuery("options_toggle_military", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
@@ -422,90 +358,95 @@ export async function initOptions(bot: Telegraf<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_menu", async (ctx) => {
+  bot.callbackQuery("options_menu", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_close", async (ctx) => {
+  bot.callbackQuery("options_close", async (ctx) => {
     const target =
       ctx.session.options.message || ctx.callbackQuery.message?.message_id;
     try {
-      await ctx.deleteMessage(target);
+      if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
     } catch {
       await ctx.reply(`Произошла ошибка.`);
     }
     ctx.session.options.message = 0;
   });
 
-  bot.action("options_notifications", async (ctx) => {
+  bot.callbackQuery("options_notifications", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     ctx.session.options.menu = "notifications";
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_notifications_daystart_edit", async (ctx) => {
+  bot.callbackQuery("options_notifications_daystart_edit", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     ctx.session.options.menu = "notifications_daystart";
     return updateOptionsMsg(ctx);
   });
 
-  bot.action(/^options_notifications_daystart_set_(\d+)$/, async (ctx) => {
-    if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
-    if (!action) {
-      log.error(
-        `Action not found error. Action: ${JSON.stringify(ctx.callbackQuery)}`,
-        { user: ctx.callbackQuery.from.id },
+  bot.callbackQuery(
+    /^options_notifications_daystart_set_(\d+)$/,
+    async (ctx) => {
+      if (!ctx.session.options.message)
+        ctx.session.options.message =
+          ctx.callbackQuery.message?.message_id ?? 0;
+      const action =
+        "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
+      if (!action) {
+        log.error(
+          `Action not found error. Action: ${JSON.stringify(ctx.callbackQuery)}`,
+          { user: ctx.callbackQuery.from.id },
+        );
+        return ctx.reply(
+          `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
+        );
+      }
+      const rawtarget = ctx.match[1];
+      if (Number.isNaN(Number(rawtarget))) {
+        return ctx.reply(
+          `Произошла ошибка. Время не является числом... Как так то...`,
+        );
+      }
+      const time = Number(rawtarget) * 60;
+      const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+      if (!user) {
+        return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+      }
+      const preferences = Object.assign(
+        {},
+        UserPreferencesDefaults,
+        user.preferences,
       );
-      return ctx.reply(
-        `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
-      );
-    }
-    const rawtarget = ctx.match[1];
-    if (Number.isNaN(Number(rawtarget))) {
-      return ctx.reply(
-        `Произошла ошибка. Время не является числом... Как так то...`,
-      );
-    }
-    const time = Number(rawtarget) * 60;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
-    if (time === preferences.notifyBeforeLessons) {
-      ctx.session.options.updText = `Оставляем время: "${time / 60} мин"`;
+      if (time === preferences.notifyBeforeLessons) {
+        ctx.session.options.updText = `Оставляем время: "${time / 60} мин"`;
+        ctx.session.options.menu = "notifications";
+        return updateOptionsMsg(ctx);
+      }
+      preferences.notifyBeforeLessons = time;
+      const now = new Date();
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          preferences,
+          lastActive: now,
+        },
+      });
+      if (time)
+        ctx.session.options.updText = `Установлено время: "${time / 60} мин"`;
+      else
+        ctx.session.options.updText = `Уведомления перед началом занятий отключены`;
       ctx.session.options.menu = "notifications";
       return updateOptionsMsg(ctx);
-    }
-    preferences.notifyBeforeLessons = time;
-    const now = new Date();
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        preferences,
-        lastActive: now,
-      },
-    });
-    if (time)
-      ctx.session.options.updText = `Установлено время: "${time / 60} мин"`;
-    else
-      ctx.session.options.updText = `Уведомления перед началом занятий отключены`;
-    ctx.session.options.menu = "notifications";
-    return updateOptionsMsg(ctx);
-  });
+    },
+  );
 
-  bot.action("options_notifications_nextlesson_toggle", async (ctx) => {
+  bot.callbackQuery("options_notifications_nextlesson_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
@@ -527,7 +468,7 @@ export async function initOptions(bot: Telegraf<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_notifications_nextday_toggle", async (ctx) => {
+  bot.callbackQuery("options_notifications_nextday_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
@@ -549,7 +490,7 @@ export async function initOptions(bot: Telegraf<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.action("options_notifications_nextweek_toggle", async (ctx) => {
+  bot.callbackQuery("options_notifications_nextweek_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });

@@ -40,12 +40,12 @@ async function start() {
 
   process.once("SIGINT", () => {
     void server.close();
-    server.bot.stop("SIGINT");
+    void server.botHandle.stop();
   });
 
   process.once("SIGTERM", () => {
     void server.close();
-    server.bot.stop("SIGTERM");
+    void server.botHandle.stop();
   });
 }
 void start();

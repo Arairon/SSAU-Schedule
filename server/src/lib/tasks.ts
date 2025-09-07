@@ -1,4 +1,4 @@
-import { type MessageEntity } from "telegraf/types";
+import { InputFile, type MessageEntity } from "grammy/types";
 import { AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "../db";
 import { bot } from "../bot/bot";
@@ -50,16 +50,16 @@ export async function sendScheduledNotifications() {
   for (const msg of messages) {
     try {
       if (msg.image) {
-        await bot.telegram.sendPhoto(
+        await bot.api.sendPhoto(
           msg.chatId,
-          { source: Buffer.from(msg.image, "base64") },
+          new InputFile(Buffer.from(msg.image, "base64")),
           {
             caption: msg.text,
             caption_entities: msg.entities as object[] as MessageEntity[],
           },
         );
       } else {
-        await bot.telegram.sendMessage(msg.chatId, msg.text, {
+        await bot.api.sendMessage(msg.chatId, msg.text, {
           entities: msg.entities as object[] as MessageEntity[],
           link_preview_options: { is_disabled: true },
         });

@@ -1,13 +1,7 @@
-import type { Scenes, Context as TelegrafContext } from "telegraf";
-import type { Message as TGMessage, Update } from "telegraf/types";
+import type { Context as GrammyContext, SessionFlavor } from "grammy";
+import type { ConversationFlavor } from "@grammyjs/conversations";
 
-export type Message = {
-  text?: TGMessage.TextMessage;
-  photo?: TGMessage.PhotoMessage;
-  video?: TGMessage.VideoMessage;
-};
-
-export interface Session extends Scenes.SceneSessionData {
+export interface Session {
   sceneData: any; //eslint-disable-line @typescript-eslint/no-explicit-any
   loggedIn: boolean;
   options: {
@@ -24,7 +18,6 @@ export interface Session extends Scenes.SceneSessionData {
   };
 }
 
-export interface Context extends TelegrafContext<Update> {
-  session: Session & Scenes.SceneSession<Session>;
-  scene: Scenes.SceneContextScene<Context, Session>;
-}
+export type Context = ConversationFlavor<
+  GrammyContext & SessionFlavor<Session>
+>;

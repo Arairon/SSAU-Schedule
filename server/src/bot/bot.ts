@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
-import { Markup, Scenes, session, Telegraf } from "telegraf";
-import { message } from "telegraf/filters";
-import { bold, fmt } from "telegraf/format";
+import { Bot as GrammyBot, session, InlineKeyboard } from "grammy";
+import { run, type RunnerHandle } from "@grammyjs/runner";
+import { conversations } from "@grammyjs/conversations";
 
 import { env } from "../env";
 import { type Context, type Session } from "./types";
@@ -10,12 +10,13 @@ import log from "../logger";
 import { db } from "../db";
 import { lk } from "../lib/lk";
 import { getPersonShortname } from "../lib/utils";
-import { loginScene } from "./scenes/login";
+// import { loginScene } from "./scenes/login";
 
 import { initSchedule } from "./schedule";
 import { initOptions } from "./options";
 import { initAdmin } from "./admin";
 import { initConfig } from "./config";
+import { initLogin } from "./conversations/login";
 
 function getDefaultSession(): Session {
   return {
@@ -44,7 +45,7 @@ async function start(ctx: Context, userId: number) {
   await db.user.create({ data: { tgId: userId } });
   Object.assign(ctx.session, getDefaultSession());
   return ctx.reply(
-    fmt`
+    `\
 Добро пожаловать!
 Этот бот создан в первую очередь для работы для работы с личным кабинетом самарского университета.
 Возможность делать анонимные запросы возможно будет добавлена позже.
@@ -62,8 +63,6 @@ async function start(ctx: Context, userId: number) {
     { link_preview_options: { is_disabled: true } },
   );
 }
-
-const stage = new Scenes.Stage([loginScene]);
 
 async function sendErrorMessage(ctx: Context, comment?: string) {
   try {
@@ -86,12 +85,19 @@ export async function handleError(ctx: Context, error: Error) {
 }
 
 //TODO: Ensure commands are guarded against non logged in users or fall them back to 'common'
-async function init_bot(bot: Telegraf<Context>) {
-  void bot.launch(() => {
-    log.info("Bot started!");
+async function initBot(bot: GrammyBot<Context>) {
+  bot.use(
+    session({
+      initial: getDefaultSession,
+    }),
+  );
+
+  bot.use(conversations());
+
+  setTimeout(() => {
     if (env.SCHED_BOT_ADMIN_TGID && env.NODE_ENV === "production") {
       try {
-        void bot.telegram.sendMessage(
+        void bot.api.sendMessage(
           env.SCHED_BOT_ADMIN_TGID,
           "Бот запущен!\nЕсли вы видите это не в момент запуска, то значит я крашнулся :D",
         );
@@ -99,9 +105,9 @@ async function init_bot(bot: Telegraf<Context>) {
         log.error("Failed to notify admin about bot start");
       }
     }
-  });
+  }, 3000);
 
-  bot.use(stage.middleware());
+  //bot.use(stage.middleware());
 
   bot.use((ctx: Context, next) => {
     if (ctx.message && "text" in ctx.message)
@@ -109,70 +115,102 @@ async function init_bot(bot: Telegraf<Context>) {
     return next();
   });
 
-  bot.catch((err, ctx) => {
-    return handleError(ctx, err as Error);
+  bot.catch((err) => {
+    const ctx = err.ctx;
+    const error = err.error;
+    log.error(`[BOT] ${JSON.stringify(error)}`, { user: ctx?.from?.id ?? -1 });
+    return ctx.api.sendMessage(
+      `${env.SCHED_BOT_ADMIN_TGID}`,
+      `Бот словил еррор в диалоге с ${ctx.from?.id}: ${JSON.stringify(error)}`,
+    );
   });
 
-  bot.start(async (ctx) => {
-    const userId = ctx.from.id;
+  await initLogin(bot);
+
+  await initSchedule(bot);
+  await initOptions(bot);
+  await initConfig(bot); // The /config command
+  await initAdmin(bot);
+
+  bot.command("start", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) {
+      return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
+        parse_mode: "HTML",
+      });
+    }
     const existingUser = await db.user.findUnique({
-      where: { tgId: ctx.from.id },
+      where: { tgId: userId },
     });
     if (!existingUser) {
       return start(ctx, userId);
     } else {
       return ctx.reply(
-        fmt`
+        `\
 Вы уверены что хотите сбросить все настройки?
 Будет сброшено всё: Календари, настроки, данные для входа, группы и т.п.
         `,
-        Markup.inlineKeyboard([
-          Markup.button.callback("Отмена", "start_reset_cancel"),
-          Markup.button.callback("Да, сбросить", "start_reset_confirm"),
-        ]),
+        {
+          reply_markup: new InlineKeyboard()
+            .text("Отмена", "start_reset_cancel")
+            .text("Да, сбросить", "start_reset_confirm"),
+        },
       );
     }
   });
 
-  bot.action("start_reset_cancel", async (ctx) => {
+  bot.callbackQuery("start_reset_cancel", async (ctx) => {
     log.debug("start_reset_cancel", { user: ctx.from.id });
     if (ctx.callbackQuery.message?.message_id)
-      void ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
-    await ctx.answerCbQuery();
+      void ctx.api.deleteMessage(
+        ctx.from.id,
+        ctx.callbackQuery.message?.message_id,
+      );
+    await ctx.answerCallbackQuery();
   });
 
-  bot.action("start_reset_confirm", async (ctx) => {
+  bot.callbackQuery("start_reset_confirm", async (ctx) => {
     log.debug("start_reset_confirm", { user: ctx.from.id });
     if (ctx.callbackQuery.message?.message_id)
-      void ctx.deleteMessage(ctx.callbackQuery.message?.message_id);
-    await ctx.answerCbQuery();
+      void ctx.api.deleteMessage(
+        ctx.from.id,
+        ctx.callbackQuery.message?.message_id,
+      );
+    await ctx.answerCallbackQuery();
     return reset(ctx, ctx.from.id).then(() => start(ctx, ctx.from.id));
   });
 
   bot.command("login", async (ctx) => {
+    if (!ctx.from) return;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (user) {
       ctx.session.loggedIn = true;
       if (user.username && user.password) {
-        await ctx.reply(fmt`
+        await ctx.reply(`
 Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.
 Если вы хотите выйти - используйте /logout
       `);
         return;
       }
       if (user.authCookie && user.sessionExpiresAt > new Date()) {
-        await ctx.reply(fmt`
+        await ctx.reply(`
 Ваша сессия как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}' всё ещё активна.
 Если вы хотите её прервать, используйте /logout
       `);
         return;
       }
     }
-    void ctx.deleteMessage(ctx.message.message_id);
-    return ctx.scene.enter("LK_LOGIN");
+    return ctx.conversation.enter("LK_LOGIN");
+    //void ctx.deleteMessage(ctx.message.message_id);
+    //return ctx.scene.enter("LK_LOGIN");
   });
 
   bot.command("logout", async (ctx) => {
+    if (!ctx.from) {
+      return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
+        parse_mode: "HTML",
+      });
+    }
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
       return ctx.reply(
@@ -182,20 +220,21 @@ async function init_bot(bot: Telegraf<Context>) {
     const hadCredentials = user.username && user.password;
     await lk.resetAuth(user, { resetCredentials: true });
     return ctx.reply(
-      fmt`
+      `
 Сессия завершена. ${hadCredentials ? "Данные для входа удалены." : ""}
-Внимание: Если вы собираетесь в будующем входить в ${bold("другой")} аккаунт ссау, то вам следует сбросить данные о себе через /start
-Если же вы собираетесь продолжать использовать текущий аккаут - сбрасывать ничего не нужно.
+Внимание: Если вы собираетесь в будующем входить в <b>другой</b> аккаунт ссау, то вам следует сбросить данные о себе через /start
+Если же вы собираетесь продолжать использовать текущий аккаунт - сбрасывать ничего не нужно.
       `,
+      { parse_mode: "HTML" },
     );
   });
 
-  bot.command("cancel", async (ctx) => {
-    log.debug(JSON.stringify(ctx.scene.current));
-    return ctx.scene.leave();
-  });
-
   bot.command("ics", async (ctx) => {
+    if (!ctx.from) {
+      return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
+        parse_mode: "HTML",
+      });
+    }
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
       return ctx.reply(
@@ -203,7 +242,7 @@ async function init_bot(bot: Telegraf<Context>) {
       );
     }
     return ctx.reply(
-      fmt`\
+      `\
 Инструкция по установке: https://l9labs.ru/stud_bot/ics.html
 (Украдено у l9 :D)
 
@@ -219,10 +258,15 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
   });
 
   bot.command("help", async (ctx) => {
+    if (!ctx.from) {
+      return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
+        parse_mode: "HTML",
+      });
+    }
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user?.authCookie)
       return ctx.reply(
-        fmt`\
+        `\
 Добро пожаловать!
 Этот бот создан в первую очередь для работы для работы с личным кабинетом самарского университета.
 Возможность делать анонимные запросы возможно будет добавлена позже.
@@ -240,7 +284,7 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
         { link_preview_options: { is_disabled: true } },
       );
     return ctx.reply(
-      fmt`\
+      `\
 Добро пожаловать, ${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}!
 
 Вы можете запросить своё расписание по команде /schedule [номер недели?] (по умолчанию текущая неделя)
@@ -263,12 +307,7 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
     );
   });
 
-  await initSchedule(bot);
-  await initOptions(bot);
-  await initConfig(bot); // The /config command
-  await initAdmin(bot);
-
-  bot.on(message("text"), async (ctx) => {
+  bot.on("message:text", async (ctx) => {
     log.debug(`[ignored: message fell]`, { user: ctx.from.id });
   });
 
@@ -281,7 +320,7 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
   // });
 }
 
-export const bot = new Telegraf<Context>(env.SCHED_BOT_TOKEN);
+export const bot = new GrammyBot<Context>(env.SCHED_BOT_TOKEN);
 
 async function init(fastify: FastifyInstance) {
   const TOKEN = env.SCHED_BOT_TOKEN;
@@ -291,15 +330,13 @@ async function init(fastify: FastifyInstance) {
       async (fastify) => {
         log.debug("Registering bot..");
 
-        bot.use(
-          session({
-            defaultSession: getDefaultSession,
-          }),
-        );
+        await initBot(bot);
+        const handle = run(bot);
 
-        await init_bot(bot);
+        log.debug("Bot registered");
 
         fastify.decorate("bot", bot);
+        fastify.decorate("botHandle", handle);
       },
       {
         name: "arais-sched-bot",
@@ -315,7 +352,8 @@ async function init(fastify: FastifyInstance) {
 
 declare module "fastify" {
   interface FastifyInstance {
-    bot: Telegraf<Context>;
+    bot: GrammyBot<Context>;
+    botHandle: RunnerHandle;
   }
 }
 

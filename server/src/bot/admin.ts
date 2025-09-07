@@ -1,5 +1,4 @@
-import { type Telegraf } from "telegraf";
-import { fmt, italic } from "telegraf/format";
+import type { Bot } from "grammy";
 import { type Context } from "./types";
 import log from "../logger";
 import { db } from "../db";
@@ -15,8 +14,9 @@ async function taskTest() {
   // nothing
 }
 
-export async function initAdmin(bot: Telegraf<Context>) {
+export async function initAdmin(bot: Bot<Context>) {
   bot.command("runtask", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
     const args = ctx.message.text.split(" ");
     args.shift();
@@ -26,10 +26,9 @@ export async function initAdmin(bot: Telegraf<Context>) {
         "Запущено ежедневное обновление недель и постановка уведомлений в очередь",
       );
       await dailyWeekUpdate();
-      await ctx.telegram.editMessageText(
+      await ctx.api.editMessageText(
         msg.chat.id,
         msg.message_id,
-        undefined,
         "Ближайшие недели обновлены. Изображения прегенерированы. Уведомления поставлены в очередь",
       );
       return;
@@ -42,6 +41,7 @@ export async function initAdmin(bot: Telegraf<Context>) {
   });
 
   bot.command("invalidate", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     // TODO: disable invalidation for nonadmin
     const args = ctx.message.text.split(" ");
     args.shift();
@@ -95,7 +95,8 @@ export async function initAdmin(bot: Telegraf<Context>) {
       if (args.includes("hard")) {
         const result = await db.weekImage.deleteMany();
         return ctx.reply(
-          fmt`Сброшены все ${result.count} изображений. ${italic("Как жестоко...")}`,
+          `Сброшены все ${result.count} изображений. <i>Как жестоко...</i>`,
+          { parse_mode: "HTML" },
         );
       } else {
         const result = await db.weekImage.updateMany({
@@ -119,14 +120,17 @@ export async function initAdmin(bot: Telegraf<Context>) {
 
   // debug command used to test error handling
   bot.command("suicide", (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     if (ctx.from.id === env.SCHED_BOT_ADMIN_TGID) throw new Error("Well, fuck");
     else
       return ctx.reply(
-        fmt`Ты. Ужасный. Человек.\n${italic('Я серьёзно, тут так и написано: "Ужасный человек"')}`,
+        `Ты. Ужасный. Человек.\n<i>Я серьёзно, тут так и написано: "Ужасный человек"</i>`,
+        { parse_mode: "HTML" },
       );
   });
 
   bot.command("broadcastTest", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
     const text = ctx.message.text.slice(14).trimStart();
     if (!text) return ctx.reply("Получено пустое сообщение. Отправка отменена");
@@ -150,6 +154,7 @@ export async function initAdmin(bot: Telegraf<Context>) {
   });
 
   bot.command("broadcast", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
     const text = ctx.message.text.slice(10).trimStart();
     if (!text) return ctx.reply("Получено пустое сообщение. Отправка отменена");
@@ -179,6 +184,7 @@ export async function initAdmin(bot: Telegraf<Context>) {
   });
 
   bot.command("stats", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     const user = await db.user.findUnique({
       where: { tgId: ctx.from.id },
       include: { group: true },

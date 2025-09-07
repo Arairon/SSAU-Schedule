@@ -1,4 +1,4 @@
-import { type Telegraf } from "telegraf";
+import type { Bot } from "grammy";
 import timestring from "timestring";
 import { type Context } from "./types";
 import { db } from "../db";
@@ -14,8 +14,9 @@ const config_field_names: Record<string, string> = {
 };
 
 // init config command
-export async function initConfig(bot: Telegraf<Context>) {
+export async function initConfig(bot: Bot<Context>) {
   bot.command("config", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     const args = ctx.message.text.trim().split(" ");
     args.shift(); // remove command
     const user = await db.user.findUnique({

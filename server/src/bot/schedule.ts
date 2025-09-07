@@ -1,6 +1,6 @@
-import { Markup, type Telegraf } from "telegraf";
-import { fmt } from "telegraf/format";
+import { InlineKeyboard, InputFile, type Bot } from "grammy";
 import type { Context } from "./types";
+
 import log from "../logger";
 import { db } from "../db";
 import { formatBigInt, getWeekFromDate } from "../lib/utils";
@@ -26,7 +26,7 @@ async function sendTimetable(
       "Обновление уже запущено, пожалуйста подождите.",
     );
     setTimeout(() => {
-      ctx.deleteMessage(msg.message_id).catch(() => {
+      ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {
         log.warn(`Failed to delete temporary 'update already started' msg`);
       });
     }, 2500);
@@ -84,7 +84,7 @@ async function sendTimetable(
       log.error(`Failed to get timetable ${String(e)}`, {
         user: ctx?.from?.id,
       });
-      return ctx.reply(fmt`
+      return ctx.reply(`
 Произошла ошибка при обновлении.
 Попробуйте повторно войти в аккаунт через /login
         `);
@@ -97,37 +97,35 @@ async function sendTimetable(
       } catch {}
     }
 
-    const buttonsMarkup = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          "⬅️",
-          `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
-        ),
-        Markup.button.callback(
-          "🔄",
-          `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`,
-        ),
-        Markup.button.callback(
-          "➡️",
-          `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
-        ),
-      ],
-      ctx?.chat?.type === "private"
-        ? [Markup.button.callback("⚙️ Настройки", "open_options")]
-        : [],
+    const buttonsMarkup = new InlineKeyboard()
+      .text(
+        "⬅️",
+        `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
+      )
+      .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`)
+      .text(
+        "➡️",
+        `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
+      )
+      .row();
+
+    if (ctx?.chat?.type === "private") {
+      buttonsMarkup.text("⚙️ Настройки", "open_options").row();
+    }
+    if (
       ctx?.chat?.type === "private" &&
       ctx?.from?.id === env.SCHED_BOT_ADMIN_TGID
-        ? [
-            Markup.button.callback(
-              "[admin] Обновить насильно",
-              `schedule_button_view_${groupId ?? 0}/${week}/force`,
-            ),
-          ]
-        : [],
-    ]);
+    ) {
+      buttonsMarkup
+        .text(
+          "[admin] Обновить насильно",
+          `schedule_button_view_${groupId ?? 0}/${week}/force`,
+        )
+        .row();
+    }
 
     const msg = await ctx.replyWithPhoto(
-      timetable.image.tgId ?? { source: timetable.image.data },
+      timetable.image.tgId ?? new InputFile(timetable.image.data),
       {
         caption:
           `Расписание на ${timetable.data.week} неделю` +
@@ -138,7 +136,7 @@ async function sendTimetable(
           (!isAuthed
             ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
             : ""),
-        reply_markup: buttonsMarkup.reply_markup,
+        reply_markup: buttonsMarkup,
       },
     );
     if (!timetable.image.tgId) {
@@ -162,7 +160,7 @@ async function sendTimetable(
   } catch (e) {
     log.error(`Failed to send timetable ${String(e)}`, { user: ctx?.from?.id });
     return ctx.reply(
-      fmt`
+      `
 Произошла неизвестная ошибка при отправке.
 Попробуйте повторно войти в аккаунт через /login
         `,
@@ -179,7 +177,9 @@ export async function updateTimetable(
   opts?: { forceUpdate?: boolean },
 ) {
   if (ctx.session.runningScheduleUpdate) {
-    return ctx.answerCbQuery("Обновление уже запущено, пожалуйста подождите.");
+    return ctx.answerCallbackQuery(
+      "Обновление уже запущено, пожалуйста подождите.",
+    );
   }
   ctx.session.runningScheduleUpdate = true;
   try {
@@ -190,7 +190,7 @@ export async function updateTimetable(
       ctx.session.scheduleViewer.message;
     if (!msgId || !chat) {
       log.error(`No message ID in callbackQuery`, { user: userId });
-      return ctx.answerCbQuery(
+      return ctx.answerCallbackQuery(
         "Произошла ошибка, пожалуйста используйте /schedule.",
       );
     }
@@ -220,9 +220,10 @@ export async function updateTimetable(
 
     const creatingMessageTimeout = setTimeout(() => {
       try {
-        ctx
-          .editMessageCaption("Создание изображения...", {
-            reply_markup: Markup.inlineKeyboard([]).reply_markup,
+        ctx.api
+          .editMessageCaption(chat.id, msgId, {
+            caption: "Создание изображения...",
+            reply_markup: new InlineKeyboard(),
           })
           .catch(() => {
             /*ignore*/
@@ -240,7 +241,7 @@ export async function updateTimetable(
       });
     } catch (e) {
       log.error(`Failed to get timetable ${String(e)}`, { user: userId });
-      return ctx.reply(fmt`
+      return ctx.reply(`
 Произошла ошибка при обновлении.
 Попробуйте повторно войти в аккаунт через /login
         `);
@@ -249,52 +250,43 @@ export async function updateTimetable(
     clearTimeout(creatingMessageTimeout);
 
     if (!timetable.image.tgId) {
-      log.debug(`Image had no tgId, uploading new`, { user: userId });
-      try {
-        // TODO: UploadMedia instead.
-        return ctx.reply(
-          "[WIP] Изображение не отправлено. Дождитесь перехода на grammY :D",
-        );
-      } catch {}
-      return;
+      log.debug(`Image had no tgId, will upload new`, { user: userId });
     }
 
-    const buttonsMarkup = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(
-          "⬅️",
-          `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
-        ),
-        Markup.button.callback(
-          "🔄",
-          `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`,
-        ),
-        Markup.button.callback(
-          "➡️",
-          `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
-        ),
-      ],
-      chat.type === "private"
-        ? [Markup.button.callback("⚙️ Настройки", "open_options")]
-        : [],
-      chat.type === "private" && userId === env.SCHED_BOT_ADMIN_TGID
-        ? [
-            Markup.button.callback(
-              "[admin] Обновить насильно",
-              `schedule_button_view_${groupId ?? 0}/${week}/force`,
-            ),
-          ]
-        : [],
-    ]);
+    const buttonsMarkup = new InlineKeyboard()
+      .text(
+        "⬅️",
+        `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
+      )
+      .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`)
+      .text(
+        "➡️",
+        `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
+      )
+      .row();
+
+    if (ctx?.chat?.type === "private") {
+      buttonsMarkup.text("⚙️ Настройки", "open_options").row();
+    }
+    if (
+      ctx?.chat?.type === "private" &&
+      ctx?.from?.id === env.SCHED_BOT_ADMIN_TGID
+    ) {
+      buttonsMarkup
+        .text(
+          "[admin] Обновить насильно",
+          `schedule_button_view_${groupId ?? 0}/${week}/force`,
+        )
+        .row();
+    }
 
     try {
-      await ctx.telegram.editMessageMedia(
+      await ctx.api.editMessageMedia(
         chat.id,
         msgId,
-        undefined,
         {
           type: "photo",
-          media: timetable.image.tgId,
+          media: timetable.image.tgId ?? new InputFile(timetable.image.data),
           caption:
             `Расписание на ${timetable.data.week} неделю` +
             (timetable.data.week === getWeekFromDate(new Date())
@@ -305,11 +297,11 @@ export async function updateTimetable(
               ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
               : ""),
         },
-        buttonsMarkup,
+        { reply_markup: buttonsMarkup },
       );
     } catch {
       log.debug(`Error: unchanged. Ignoring`, { user: userId });
-      await ctx.answerCbQuery("Ничего не изменилось");
+      await ctx.answerCallbackQuery("Ничего не изменилось");
     }
     const endTime = process.hrtime.bigint();
     log.debug(
@@ -325,7 +317,7 @@ export async function updateTimetable(
     log.error(`Failed to update timetable msg ${String(e)}`, {
       user: ctx?.from?.id,
     });
-    return ctx.answerCbQuery("Произошла ошибка при обновлении.");
+    return ctx.answerCallbackQuery("Произошла ошибка при обновлении.");
   } finally {
     ctx.session.runningScheduleUpdate = false;
   }
@@ -335,31 +327,24 @@ async function sendGroupSelector(
   ctx: Context,
   groups: { id: number; text: string }[],
 ) {
-  return ctx.reply(
-    `Найдены следующие группы:`,
-    Markup.inlineKeyboard([
-      groups
-        .slice(0, 3)
-        .map((group) =>
-          Markup.button.callback(group.text, `schedule_group_open_${group.id}`),
-        ),
-      groups
-        .slice(3, 6)
-        .map((group) =>
-          Markup.button.callback(group.text, `schedule_group_open_${group.id}`),
-        ),
-      groups
-        .slice(6, 9)
-        .map((group) =>
-          Markup.button.callback(group.text, `schedule_group_open_${group.id}`),
-        ),
-      [Markup.button.callback("Отмена", "schedule_group_open_cancel")],
-    ]),
-  );
+  const keyboard = new InlineKeyboard();
+  groups.slice(0, 3).forEach((group) => {
+    keyboard.text(group.text, `schedule_group_open_${group.id}`);
+  });
+  keyboard.row();
+  groups.slice(3, 6).forEach((group) => {
+    keyboard.text(group.text, `schedule_group_open_${group.id}`);
+  });
+  keyboard.row();
+  groups.slice(6, 9).forEach((group) => {
+    keyboard.text(group.text, `schedule_group_open_${group.id}`);
+  });
+  return ctx.reply(`Найдены следующие группы:`, { reply_markup: keyboard });
 }
 
-export async function initSchedule(bot: Telegraf<Context>) {
+export async function initSchedule(bot: Bot<Context>) {
   bot.command("schedule", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     ctx.session.scheduleViewer = {
       chatId: ctx.chat.id,
       message: 0,
@@ -392,26 +377,32 @@ export async function initSchedule(bot: Telegraf<Context>) {
     });
   });
 
-  bot.action(/schedule_button_view_(\d+)\/(\d+)(\/force)?/, async (ctx) => {
-    const match = ctx.match;
-    if (!match || match.length < 2) return ctx.answerCbQuery("Ошибка");
-    const groupId = Number(match[1]);
-    const week = Number(match[2]);
-    const forceUpdate = Boolean(match[3]);
-    if (Number.isNaN(week) || Number.isNaN(groupId)) {
-      log.warn(`Invalid view request: ${ctx.match.join()}`, {
-        user: ctx.from.id,
-      });
-      return ctx.answerCbQuery("Ошибка: Неверный запрос");
-    }
-    updateTimetable(ctx, week, groupId || undefined, { forceUpdate }).catch(
-      (e) => {
-        return handleError(ctx, e as Error);
-      },
-    );
-  });
+  bot.callbackQuery(
+    /schedule_button_view_(\d+)\/(\d+)(\/force)?/,
+    async (ctx) => {
+      const match = ctx.match;
+      if (!match || match.length < 2) return ctx.answerCallbackQuery("Ошибка");
+      const groupId = Number(match[1]);
+      const week = Number(match[2]);
+      const forceUpdate = Boolean(match[3]);
+      if (Number.isNaN(week) || Number.isNaN(groupId)) {
+        log.warn(
+          `Invalid view request: ${typeof ctx.match === "string" ? ctx.match : ctx.match.join()}`,
+          {
+            user: ctx.from.id,
+          },
+        );
+        return ctx.answerCallbackQuery("Ошибка: Неверный запрос");
+      }
+      updateTimetable(ctx, week, groupId || undefined, { forceUpdate }).catch(
+        (e) => {
+          return handleError(ctx, e as Error);
+        },
+      );
+    },
+  );
 
-  bot.action("open_options", (ctx) => {
+  bot.callbackQuery("open_options", (ctx) => {
     if (ctx.chat?.type !== "private") {
       return ctx.reply("Настройки доступны только в личном чате");
     }
@@ -419,6 +410,7 @@ export async function initSchedule(bot: Telegraf<Context>) {
   });
 
   bot.command("today", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
       return ctx.reply(
@@ -442,6 +434,7 @@ ${day.lessons.map(generateTextLesson).join("\n=====\n")}
   });
 
   bot.command("now", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
       return ctx.reply(
@@ -470,14 +463,17 @@ ${generateTextLesson(lesson)}
 
   // 0 - 99 as a week number
   bot.hears(/^\d\d?$/, async (ctx) => {
+    if (!ctx.from || !ctx.message || !ctx.message.text) return;
     if (ctx.chat?.type !== "private") {
       return;
     }
     const text = ctx.message.text.trim();
     const week = parseInt(text);
-    void ctx.deleteMessage(ctx.message.message_id).catch(() => {
-      /* ignore */
-    });
+    void ctx.api
+      .deleteMessage(ctx.message.chat.id, ctx.message.message_id)
+      .catch(() => {
+        /* ignore */
+      });
     if (ctx.session.scheduleViewer.message) {
       return updateTimetable(
         ctx,
@@ -490,6 +486,7 @@ ${generateTextLesson(lesson)}
 
   // 6101(-090301)?D? as a group number
   bot.hears(/^\d{4}(?:-\d*)?D?$/, async (ctx) => {
+    if (!ctx.from || !ctx.message || !ctx.message.text) return;
     if (ctx.chat?.type !== "private") {
       return;
     }
@@ -509,19 +506,19 @@ ${generateTextLesson(lesson)}
     return sendTimetable(ctx, 0, groups.id);
   });
 
-  bot.action(/schedule_group_open_(\d+)/, async (ctx) => {
+  bot.callbackQuery(/schedule_group_open_(\d+)/, async (ctx) => {
     const match = ctx.match;
-    if (!match || match.length < 2) return ctx.answerCbQuery("Ошибка");
+    if (!match || match.length < 2) return ctx.answerCallbackQuery("Ошибка");
     const groupId = Number(match[1]);
     if (Number.isNaN(groupId) || groupId <= 0)
-      return ctx.answerCbQuery("Ошибка");
+      return ctx.answerCallbackQuery("Ошибка");
     void ctx.deleteMessage().catch(() => {
       /* ignore */
     });
     return sendTimetable(ctx, 0, groupId);
   });
 
-  bot.action("schedule_group_open_cancel", async (ctx) => {
+  bot.callbackQuery("schedule_group_open_cancel", async (ctx) => {
     void ctx.deleteMessage().catch(() => {
       /* ignore */
     });
