@@ -1,6 +1,6 @@
 import axios from "axios";
 import { type Lesson, LessonType, type User } from "@prisma/client";
-import { type MessageEntity } from "telegraf/types";
+import { type MessageEntity } from "grammY/types";
 import { db } from "../db";
 import { type TeacherType } from "./scheduleSchemas";
 import { formatSentence, getPersonShortname } from "./utils";
