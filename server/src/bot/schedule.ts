@@ -93,8 +93,12 @@ async function sendTimetable(
     clearTimeout(creatingMessageTimeout);
     if (tempMsgId) {
       try {
-        await ctx.deleteMessage(tempMsgId);
-      } catch {}
+        await ctx.api.deleteMessage(ctx.chat!.id, tempMsgId);
+      } catch {
+        log.warn(`Failed to delete temporary 'creating image' msg`, {
+          user: ctx?.from?.id,
+        });
+      }
     }
 
     const buttonsMarkup = new InlineKeyboard()

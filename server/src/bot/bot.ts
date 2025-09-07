@@ -115,15 +115,19 @@ async function initBot(bot: GrammyBot<Context>) {
     return next();
   });
 
-  bot.catch((err) => {
-    const ctx = err.ctx;
-    const error = err.error;
-    log.error(`[BOT] ${JSON.stringify(error)}`, { user: ctx?.from?.id ?? -1 });
-    return ctx.api.sendMessage(
-      `${env.SCHED_BOT_ADMIN_TGID}`,
-      `Бот словил еррор в диалоге с ${ctx.from?.id}: ${JSON.stringify(error)}`,
-    );
-  });
+  if (env.NODE_ENV === "production") {
+    bot.catch((err) => {
+      const ctx = err.ctx;
+      const error = err.error;
+      log.error(`[BOT] ${JSON.stringify(error)}`, {
+        user: ctx?.from?.id ?? -1,
+      });
+      return ctx.api.sendMessage(
+        `${env.SCHED_BOT_ADMIN_TGID}`,
+        `Бот словил еррор в диалоге с ${ctx.from?.id}: ${JSON.stringify(error)}`,
+      );
+    });
+  }
 
   await initLogin(bot);
 
