@@ -196,6 +196,31 @@ export async function initAdmin(bot: Bot<Context>) {
     if (ctx.message.text.includes("admin")) {
       if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
         return ctx.reply("Вы не администратор");
+      const notifications = await db.scheduledMessage.groupBy({
+        by: ["source"],
+        where: { chatId: `${user.tgId}`, wasSentAt: null },
+        _count: {
+          _all: true,
+        },
+      });
+      const notificationsCount = notifications.reduce(
+        (a: number, b) => a + b._count._all,
+        0,
+      );
+      return ctx.reply(`\
+Всего пользователей: ${await db.user.count()} (Активных за 30 дней: ${await db.user.count(
+        {
+          where: {
+            lastActive: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            },
+          },
+        },
+      )})
+Всего изображений: ${await db.weekImage.count()}
+Всего ICS: ${await db.userIcs.count()}
+Всего уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
+        `);
     }
     const notifications = await db.scheduledMessage.groupBy({
       by: ["source"],
