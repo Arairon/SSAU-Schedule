@@ -22,6 +22,12 @@ async function sendGroupTimetable(
   opts?: { forceUpdate?: boolean },
 ) {
   if (!ctx.chat || !ctx.from) return;
+  if (ctx.session.runningScheduleUpdate) {
+    return ctx.answerCallbackQuery(
+      "Обновление уже запущено, пожалуйста подождите.",
+    );
+  }
+  ctx.session.runningScheduleUpdate = true;
   const groupChat = await db.groupChat.findUnique({
     where: { tgId: ctx.chat.id },
     include: { user: true },
@@ -47,7 +53,11 @@ async function sendGroupTimetable(
     user: ctx.from.id,
   });
 
-  return sendTimetable(ctx, groupChat.user, week, groupChat.groupId, opts);
+  try {
+    return sendTimetable(ctx, groupChat.user, week, groupChat.groupId, opts);
+  } finally {
+    ctx.session.runningScheduleUpdate = false;
+  }
 }
 
 async function sendTimetable(
