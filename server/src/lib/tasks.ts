@@ -12,7 +12,7 @@ import {
   scheduleMessage,
   UserPreferencesDefaults,
 } from "./misc";
-import type { User, Week } from "@prisma/client";
+import type { Lesson, User, Week } from "@prisma/client";
 import { lk } from "./lk";
 
 function sleep(ms: number) {
@@ -96,6 +96,10 @@ export async function dailyWeekUpdate() {
     user: "cron/dailyWeekUpdate",
   });
 
+  const newLessons: Lesson[] = [];
+  const removedLessons: Lesson[] = [];
+
+  // TODO: Also check updates for common weeks
   // on todays weeknumber
   for (const week of weeks) {
     try {
@@ -145,7 +149,7 @@ export async function dailyWeekUpdate() {
         continue;
       }
 
-      const nextWeekPreUpdates = await db.week.findUnique({
+      const nextWeekBeforeUpdates = await db.week.findUnique({
         where: {
           owner_groupId_year_number: {
             owner: week.owner,
@@ -156,7 +160,7 @@ export async function dailyWeekUpdate() {
         },
       });
       const nextWeekIsNew =
-        !nextWeekPreUpdates || nextWeekPreUpdates.updatedAt < weekAgo;
+        !nextWeekBeforeUpdates || nextWeekBeforeUpdates.updatedAt < weekAgo;
 
       try {
         const auth = await lk.ensureAuth(user);
@@ -165,6 +169,7 @@ export async function dailyWeekUpdate() {
             `Failed to ensure auth for user ${user.id}. Probably a lost session`,
             { user: "cron/dailyWeekUpdate" },
           );
+          // TODO: Reset auth?
           await scheduleMessage(
             user,
             today,
@@ -184,8 +189,8 @@ export async function dailyWeekUpdate() {
           today,
           `\
 Приветствую!
-Произошла ошибка авторизации при попытке обновить ваше расписание.
-Пожалуйста, повторно войдите в личный кабинет через /login.`,
+Произошла ошибка при попытке авторизоваться и обновить ваше расписание.
+Можете попробовать повторно войти в личный кабинет через /login, но не факт что это поможет.`,
           { source: "dailyupd/error" },
         );
         continue;
@@ -213,45 +218,12 @@ export async function dailyWeekUpdate() {
         );
         continue;
       } else {
-        const newLessons = nextWeekIsNew
-          ? currentWeekChanges.new
-          : currentWeekChanges.new.concat(nextWeekChanges.new);
-        const removedLessons = nextWeekIsNew
-          ? currentWeekChanges.removed
-          : currentWeekChanges.removed.concat(nextWeekChanges.removed);
-        newLessons.sort(
-          (a, b) => a.beginTime.getTime() - b.beginTime.getTime(),
-        );
-        removedLessons.sort(
-          (a, b) => a.beginTime.getTime() - b.beginTime.getTime(),
-        );
-        if (newLessons.length > 0 || removedLessons.length > 0) {
-          log.debug(
-            `User ${user.id} (weeks #${week.number}, #${week.number + 1}${nextWeekIsNew ? " [NEW]" : ""}) has (+${currentWeekChanges.new.length}, +${nextWeekChanges.new.length}, -${currentWeekChanges.removed.length}, -${nextWeekChanges.removed.length}) schedule changes.`,
-            {
-              user: "cron/dailyWeekUpdate",
-            },
-          );
-          await scheduleMessage(
-            user,
-            today,
-            `\
-Обнаружены изменения в расписании!
-` +
-              (newLessons.length > 0
-                ? `
-Добавлены занятия:
-${newLessons.map(formatDbLesson).join("\n")}
-`
-                : "") +
-              (removedLessons.length > 0
-                ? `
-Удалены занятия:
-${removedLessons.map(formatDbLesson).join("\n")}
-`
-                : ""),
-            { source: "dailyupd/changes" },
-          );
+        // push these to outer scope arrays and later handle separately
+        newLessons.push(...currentWeekChanges.new);
+        removedLessons.push(...currentWeekChanges.removed);
+        if (nextWeekIsNew) {
+          newLessons.push(...nextWeekChanges.new);
+          removedLessons.push(...nextWeekChanges.removed);
         }
       }
 
@@ -267,6 +239,107 @@ ${removedLessons.map(formatDbLesson).join("\n")}
       );
     }
   }
+  //.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime())
+  const newLessonIds = newLessons
+    .map((l) => l.id)
+    .filter((v, i, a) => a.indexOf(v) === i);
+  const removedLessonIds = removedLessons
+    .map((l) => l.id)
+    .filter((v, i, a) => a.indexOf(v) === i);
+  log.debug(
+    `Total week changes: +${newLessonIds.length}, -${removedLessonIds.length}`,
+    {
+      user: "cron/dailyWeekUpdate",
+    },
+  );
+  for (const userId of weeks.map((w) => w.owner)) {
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user?.groupId) continue;
+    const preferences = Object.assign(
+      {},
+      UserPreferencesDefaults,
+      user.preferences,
+    );
+    const userNewLessons = await db.lesson.findMany({
+      where: {
+        id: { in: newLessonIds },
+        isIet: false,
+        groups: { some: { id: user.groupId } },
+        validUntil: { gte: now },
+      },
+    });
+    const userRemovedLessons = await db.lesson.findMany({
+      where: {
+        id: { in: removedLessonIds },
+        isIet: false,
+        groups: { some: { id: user.groupId } },
+        validUntil: { gte: now },
+      },
+    });
+    if (preferences.showIet) {
+      userNewLessons.push(
+        ...(await db.lesson.findMany({
+          where: {
+            id: { in: newLessonIds },
+            isIet: true,
+            flows: { some: { user: { some: { id: user.id } } } },
+            validUntil: { gte: now },
+          },
+        })),
+      );
+      userRemovedLessons.push(
+        ...(await db.lesson.findMany({
+          where: {
+            id: { in: removedLessonIds },
+            isIet: true,
+            flows: { some: { user: { some: { id: user.id } } } },
+            validUntil: { gte: now },
+          },
+        })),
+      );
+    }
+
+    await scheduleLessonChangeNotifications(
+      user,
+      userNewLessons,
+      userRemovedLessons,
+    );
+  }
+}
+
+async function scheduleLessonChangeNotifications(
+  user: User,
+  added: Lesson[],
+  removed: Lesson[],
+) {
+  const today = new Date();
+  if (today.getHours() <= 6) today.setHours(6);
+  log.debug(
+    `User ${user.id} has (+${added.length}, -${removed.length}) schedule changes.`,
+    {
+      user: "cron/dailyWeekUpdate",
+    },
+  );
+  await scheduleMessage(
+    user,
+    today,
+    `\
+Обнаружены изменения в расписании!
+` +
+      (added.length > 0
+        ? `
+Добавлены занятия:
+${added.map(formatDbLesson).join("\n")}
+`
+        : "") +
+      (removed.length > 0
+        ? `
+Удалены занятия:
+${removed.map(formatDbLesson).join("\n")}
+`
+        : ""),
+    { source: "dailyupd/changes" },
+  );
 }
 
 async function scheduleDailyNotificationsForUser(user: User, week: Week) {
@@ -361,8 +434,7 @@ ${generateTextLesson(nextLesson)}`,
 
   const nextStudyDay = timetable.days
     .slice(day.weekday)
-    .filter((day) => day.lessons.length > 0)
-    .at(-1);
+    .find((day) => day.lessons.length > 0);
   if (preferences.notifyAboutNextDay && day.weekday < 6) {
     if (nextStudyDay) {
       notifications.push({
