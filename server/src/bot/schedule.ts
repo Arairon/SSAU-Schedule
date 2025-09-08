@@ -46,6 +46,27 @@ async function sendTimetable(
       ? await db.group.findUnique({ where: { id: groupId } })
       : null;
 
+    if (!group && !user.groupId) {
+      if (user.authCookie) {
+        const infoupd = await lk.updateUserInfo(user);
+        if (!infoupd.ok) {
+          return ctx.reply(
+            "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПри попытке узнать группу через лк произошла ошибка.\nПопробуйте повторно войти в аккаунт через /login",
+          );
+        } else {
+          Object.assign(user, infoupd.data);
+          if (!user.groupId) {
+            return ctx.reply(
+              "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПопробуйте повторно войти в аккаунт через /login",
+            );
+          }
+        }
+      }
+      return ctx.reply(
+        'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nВойдите в лк через /login, настройте группу через "/config group \'6101-090301D\'" или укажите группу в запросе через "/schedule 6101-090301D"',
+      );
+    }
+
     const preferences = Object.assign(
       {},
       UserPreferencesDefaults,
@@ -84,6 +105,7 @@ async function sendTimetable(
       log.error(`Failed to get timetable ${String(e)}`, {
         user: ctx?.from?.id,
       });
+      clearTimeout(creatingMessageTimeout);
       return ctx.reply(`
 Произошла ошибка при обновлении.
 Попробуйте повторно войти в аккаунт через /login
@@ -209,6 +231,27 @@ export async function updateTimetable(
     const group = groupId
       ? await db.group.findUnique({ where: { id: groupId } })
       : null;
+
+    if (!group && !user.groupId) {
+      if (user.authCookie) {
+        const infoupd = await lk.updateUserInfo(user);
+        if (!infoupd.ok) {
+          return ctx.reply(
+            "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПри попытке узнать группу через лк произошла ошибка.\nПопробуйте повторно войти в аккаунт через /login",
+          );
+        } else {
+          Object.assign(user, infoupd.data);
+          if (!user.groupId) {
+            return ctx.reply(
+              "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПопробуйте повторно войти в аккаунт через /login",
+            );
+          }
+        }
+      }
+      return ctx.reply(
+        'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nВойдите в лк через /login, настройте группу через "/config group \'6101-090301D\'" или укажите группу в запросе через "/schedule 6101-090301D"',
+      );
+    }
 
     const preferences = Object.assign(
       {},

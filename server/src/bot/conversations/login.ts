@@ -116,6 +116,7 @@ async function loginConversation(
     );
   }
   if (loginRes.ok) {
+    await lk.updateUserInfo(user);
     await ctx.api.editMessageText(
       msg.chat.id,
       msg.message_id,
