@@ -11,6 +11,9 @@ importers:
       '@fastify/schedule':
         specifier: ^6.0.0
         version: 6.0.0(toad-scheduler@3.1.0)
+      '@grammyjs/commands':
+        specifier: ^1.2.0
+        version: 1.2.0(grammy@1.38.2)
       '@grammyjs/conversations':
         specifier: ^2.1.0
         version: 2.1.0(grammy@1.38.2)
@@ -199,6 +202,11 @@ packages:
     resolution: {integrity: sha512-q4mPXUtqISb+dH2cB7HE7DxXqQmxPee9k0G29ydvGOoj5Aqb+uzUCLtkMVAzpnkPE6oOFGon6+JzWEmfJNS8ig==}
     peerDependencies:
       toad-scheduler: '>=2.0.0'
+
+  '@grammyjs/commands@1.2.0':
+    resolution: {integrity: sha512-np3uZElWtVIQk8w73szBXcubuKFOEGnp+4dHyhw+KeVsN/yVwuaEAxt+kyEhfTUQdNH0zU7ffuCM2l7lVUDBWw==}
+    peerDependencies:
+      grammy: ^1.17.1
 
   '@grammyjs/conversations@2.1.0':
     resolution: {integrity: sha512-nYoHwFyXcQ2lkQejKReoINknkgFjeIZhyJNMBwHng5UHO/ewHKs1dV2XVaLrKkHTZ1gCZ+dKkjEp26wwHyQeGg==}
@@ -2287,6 +2295,10 @@ snapshots:
     dependencies:
       fastify-plugin: 5.0.1
       toad-scheduler: 3.1.0
+
+  '@grammyjs/commands@1.2.0(grammy@1.38.2)':
+    dependencies:
+      grammy: 1.38.2
 
   '@grammyjs/conversations@2.1.0(grammy@1.38.2)':
     dependencies:

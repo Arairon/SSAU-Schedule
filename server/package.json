@@ -22,6 +22,7 @@
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
     "@fastify/schedule": "^6.0.0",
+    "@grammyjs/commands": "^1.2.0",
     "@grammyjs/conversations": "^2.1.0",
     "@grammyjs/runner": "^2.0.3",
     "@prisma/client": "^6.15.0",

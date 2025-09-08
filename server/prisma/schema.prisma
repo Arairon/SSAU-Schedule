@@ -8,14 +8,15 @@ datasource db {
 }
 
 model Group {
-  id       Int       @id
-  name     String
-  specId   Int       @default(0)
-  specName String    @default("Unknown")
-  lessons  Lesson[]
-  user     User[]
-  weeks    Week[]
-  ics      GroupIcs?
+  id         Int         @id
+  name       String
+  specId     Int         @default(0)
+  specName   String      @default("Unknown")
+  lessons    Lesson[]
+  user       User[]
+  weeks      Week[]
+  ics        GroupIcs?
+  groupChats GroupChat[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
@@ -87,24 +88,25 @@ model Lesson {
 }
 
 model User {
-  id                  Int      @id @default(autoincrement())
-  tgId                BigInt   @unique
+  id                  Int         @id @default(autoincrement())
+  tgId                BigInt      @unique
   staffId             Int? // LK id
   fullname            String?
-  group               Group?   @relation(fields: [groupId], references: [id])
+  group               Group?      @relation(fields: [groupId], references: [id])
   groupId             Int?
   flows               Flow[]
   authCookie          String?
-  authCookieExpiresAt DateTime @default(value: "1970-01-01T00:00:00.000Z")
-  sessionExpiresAt    DateTime @default(value: "1970-01-01T00:00:00.000Z")
+  authCookieExpiresAt DateTime    @default(value: "1970-01-01T00:00:00.000Z")
+  sessionExpiresAt    DateTime    @default(value: "1970-01-01T00:00:00.000Z")
   username            String?
   password            String?
   // notifyOnNextLesson  Boolean  @default(true)
   // notifyOnNextDay     Boolean  @default(true)
   // notifyOnNextWeek    Boolean  @default(true)
-  preferences         Json     @default(value: "{}")
+  preferences         Json        @default(value: "{}")
   subgroup            Int?
   ics                 UserIcs?
+  groupChats          GroupChat[]
   //weeks               Week[]
 
   lastActive DateTime @default(now())
@@ -193,4 +195,17 @@ model ScheduledMessage {
   updatedAt DateTime @updatedAt()
 
   @@index([sendAt, wasSentAt])
+}
+
+model GroupChat {
+  id             Int     @id @default(autoincrement())
+  tgId           BigInt  @unique
+  group          Group?  @relation(fields: [groupId], references: [id])
+  groupId        Int?
+  user           User?   @relation(fields: [userId], references: [id])
+  userId         Int?
+  updatesEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
 }

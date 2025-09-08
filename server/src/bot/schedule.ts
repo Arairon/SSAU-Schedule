@@ -14,8 +14,166 @@ import {
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 import { lk } from "../lib/lk";
+import type { User } from "@prisma/client";
+
+async function sendGroupTimetable(ctx: Context, week: number) {
+  if (!ctx.chat || !ctx.from) return;
+  const groupChat = await db.groupChat.findUnique({
+    where: { tgId: ctx.chat.id },
+    include: { user: true },
+  });
+
+  if (!groupChat) {
+    return ctx.reply(
+      `Этот чат не зарегистрирован для получения расписаний. Администратор чата должен быть зарегистрирован в боте и использовать команду /options@${ctx.me.username} в этом чате.`,
+    );
+  }
+  if (!groupChat.groupId) {
+    return ctx.reply(
+      `В этом чате не закреплена группа. Администратор чата должен закрепить группу через /options@${ctx.me.username}.`,
+    );
+  }
+  if (!groupChat.user) {
+    return ctx.reply(
+      `Ответственный за обновления не назначен. Администратор чата должен назначить себя ответственным через /options@${ctx.me.username}.`,
+    );
+  }
+
+  return sendUserTimetable(ctx, week, groupChat.groupId);
+}
 
 async function sendTimetable(
+  ctx: Context,
+  user: User,
+  week: number,
+  groupId?: number,
+  opts?: { forceUpdate?: boolean },
+) {
+  const isAuthed = await lk.ensureAuth(user);
+  const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
+  const preferences = Object.assign(
+    {},
+    UserPreferencesDefaults,
+    user.preferences,
+  );
+
+  const group = groupId
+    ? await db.group.findUnique({ where: { id: groupId } })
+    : null;
+
+  log.debug(
+    `[bot] Requested schedule ${preferences.theme}/${groupId ?? user.groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+    { user: ctx?.from?.id },
+  );
+  const startTime = process.hrtime.bigint();
+
+  let tempMsgId: number | null = null;
+  const creatingMessageTimeout = setTimeout(() => {
+    try {
+      ctx
+        .reply("Создание изображения...")
+        .then((m) => {
+          tempMsgId = m.message_id;
+        })
+        .catch(() => {
+          /*ignore*/
+        });
+    } catch {}
+  }, 150);
+
+  let timetable;
+  try {
+    timetable = await schedule.getTimetableWithImage(user, weekNumber, {
+      groupId: group?.id ?? undefined,
+      stylemap: preferences.theme,
+      forceUpdate: opts?.forceUpdate ?? undefined,
+      ignoreUpdate: !isAuthed,
+    });
+  } catch (e) {
+    log.error(`Failed to get timetable ${String(e)}`, {
+      user: ctx?.from?.id,
+    });
+    clearTimeout(creatingMessageTimeout);
+    return ctx.reply(`
+Произошла ошибка при обновлении.
+Попробуйте повторно войти в аккаунт через /login
+        `);
+  }
+
+  clearTimeout(creatingMessageTimeout);
+  if (tempMsgId) {
+    try {
+      await ctx.api.deleteMessage(ctx.chat!.id, tempMsgId);
+    } catch {
+      log.warn(`Failed to delete temporary 'creating image' msg`, {
+        user: ctx?.from?.id,
+      });
+    }
+  }
+
+  const buttonsMarkup = new InlineKeyboard()
+    .text(
+      "⬅️",
+      `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
+    )
+    .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`)
+    .text(
+      "➡️",
+      `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
+    )
+    .row();
+
+  if (ctx?.chat?.type === "private") {
+    buttonsMarkup.text("⚙️ Настройки", "open_options").row();
+  }
+  if (
+    ctx?.chat?.type === "private" &&
+    ctx?.from?.id === env.SCHED_BOT_ADMIN_TGID
+  ) {
+    buttonsMarkup
+      .text(
+        "[admin] Обновить насильно",
+        `schedule_button_view_${groupId ?? 0}/${week}/force`,
+      )
+      .row();
+  }
+
+  const msg = await ctx.replyWithPhoto(
+    timetable.image.tgId ?? new InputFile(timetable.image.data),
+    {
+      caption:
+        `Расписание на ${timetable.data.week} неделю` +
+        (timetable.data.week === getWeekFromDate(new Date())
+          ? " (текущая)"
+          : "") +
+        (group ? `\nДля группы ${group.name}` : "") +
+        (!isAuthed
+          ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
+          : ""),
+      reply_markup: buttonsMarkup,
+    },
+  );
+  if (!timetable.image.tgId) {
+    log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
+      user: ctx?.from?.id,
+    });
+    await db.weekImage.update({
+      where: { id: timetable.image.id },
+      data: { tgId: msg.photo[0].file_id },
+    });
+  }
+  const endTime = process.hrtime.bigint();
+  log.debug(
+    `[bot] Image viewer ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    { user: ctx?.from?.id },
+  );
+  ctx.session.scheduleViewer.message = msg.message_id;
+  ctx.session.scheduleViewer.chatId = msg.chat.id;
+  ctx.session.scheduleViewer.week = timetable.data.week;
+  ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
+}
+
+async function sendUserTimetable(
   ctx: Context,
   week: number,
   groupId?: number,
@@ -40,13 +198,8 @@ async function sendTimetable(
         "Вы не найдены в базе данных. Пожалуйста пропишите /start",
       );
     }
-    const isAuthed = await lk.ensureAuth(user);
-    const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
-    const group = groupId
-      ? await db.group.findUnique({ where: { id: groupId } })
-      : null;
 
-    if (!group && !user.groupId) {
+    if (!groupId && !user.groupId) {
       if (user.authCookie) {
         const infoupd = await lk.updateUserInfo(user);
         if (!infoupd.ok) {
@@ -68,122 +221,7 @@ async function sendTimetable(
       }
     }
 
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
-
-    log.debug(
-      `[bot] Requested schedule ${preferences.theme}/${groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
-      { user: ctx?.from?.id },
-    );
-    const startTime = process.hrtime.bigint();
-
-    let tempMsgId: number | null = null;
-    const creatingMessageTimeout = setTimeout(() => {
-      try {
-        ctx
-          .reply("Создание изображения...")
-          .then((m) => {
-            tempMsgId = m.message_id;
-          })
-          .catch(() => {
-            /*ignore*/
-          });
-      } catch {}
-    }, 150);
-
-    let timetable;
-    try {
-      timetable = await schedule.getTimetableWithImage(user, weekNumber, {
-        groupId: group?.id ?? undefined,
-        stylemap: preferences.theme,
-        forceUpdate: opts?.forceUpdate ?? undefined,
-        ignoreUpdate: !isAuthed,
-      });
-    } catch (e) {
-      log.error(`Failed to get timetable ${String(e)}`, {
-        user: ctx?.from?.id,
-      });
-      clearTimeout(creatingMessageTimeout);
-      return ctx.reply(`
-Произошла ошибка при обновлении.
-Попробуйте повторно войти в аккаунт через /login
-        `);
-    }
-
-    clearTimeout(creatingMessageTimeout);
-    if (tempMsgId) {
-      try {
-        await ctx.api.deleteMessage(ctx.chat!.id, tempMsgId);
-      } catch {
-        log.warn(`Failed to delete temporary 'creating image' msg`, {
-          user: ctx?.from?.id,
-        });
-      }
-    }
-
-    const buttonsMarkup = new InlineKeyboard()
-      .text(
-        "⬅️",
-        `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
-      )
-      .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`)
-      .text(
-        "➡️",
-        `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
-      )
-      .row();
-
-    if (ctx?.chat?.type === "private") {
-      buttonsMarkup.text("⚙️ Настройки", "open_options").row();
-    }
-    if (
-      ctx?.chat?.type === "private" &&
-      ctx?.from?.id === env.SCHED_BOT_ADMIN_TGID
-    ) {
-      buttonsMarkup
-        .text(
-          "[admin] Обновить насильно",
-          `schedule_button_view_${groupId ?? 0}/${week}/force`,
-        )
-        .row();
-    }
-
-    const msg = await ctx.replyWithPhoto(
-      timetable.image.tgId ?? new InputFile(timetable.image.data),
-      {
-        caption:
-          `Расписание на ${timetable.data.week} неделю` +
-          (timetable.data.week === getWeekFromDate(new Date())
-            ? " (текущая)"
-            : "") +
-          (group ? `\nДля группы ${group.name}` : "") +
-          (!isAuthed
-            ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
-            : ""),
-        reply_markup: buttonsMarkup,
-      },
-    );
-    if (!timetable.image.tgId) {
-      log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
-        user: ctx?.from?.id,
-      });
-      await db.weekImage.update({
-        where: { id: timetable.image.id },
-        data: { tgId: msg.photo[0].file_id },
-      });
-    }
-    const endTime = process.hrtime.bigint();
-    log.debug(
-      `[bot] Image viewer ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
-      { user: ctx?.from?.id },
-    );
-    ctx.session.scheduleViewer.message = msg.message_id;
-    ctx.session.scheduleViewer.chatId = msg.chat.id;
-    ctx.session.scheduleViewer.week = timetable.data.week;
-    ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
+    await sendTimetable(ctx, user, week, groupId, opts);
   } catch (e) {
     log.error(`Failed to send timetable ${String(e)}`, { user: ctx?.from?.id });
     return ctx.reply(
@@ -421,7 +459,11 @@ export async function initSchedule(bot: Bot<Context>) {
     let week = 0;
     if (weekArg && !Number.isNaN(Number(weekArg.trim())))
       week = Number(weekArg);
-    sendTimetable(ctx, week, groupId ?? undefined).catch((e) => {
+
+    if (!groupId && ctx.chat.type !== "private") {
+      return sendGroupTimetable(ctx, week);
+    }
+    sendUserTimetable(ctx, week, groupId ?? undefined).catch((e) => {
       return handleError(ctx, e as Error);
     });
   });
@@ -530,7 +572,7 @@ ${generateTextLesson(lesson)}
         ctx.session.scheduleViewer.groupId ?? undefined,
       );
     }
-    return sendTimetable(ctx, week);
+    return sendUserTimetable(ctx, week);
   });
 
   // 6101(-090301)?D? as a group number
@@ -547,12 +589,12 @@ ${generateTextLesson(lesson)}
     }
     if (Array.isArray(groups)) {
       if (groups.length === 1) {
-        return sendTimetable(ctx, 0, groups[0].id);
+        return sendUserTimetable(ctx, 0, groups[0].id);
       } else {
         return sendGroupSelector(ctx, groups);
       }
     }
-    return sendTimetable(ctx, 0, groups.id);
+    return sendUserTimetable(ctx, 0, groups.id);
   });
 
   bot.callbackQuery(/schedule_group_open_(\d+)/, async (ctx) => {
@@ -564,7 +606,7 @@ ${generateTextLesson(lesson)}
     void ctx.deleteMessage().catch(() => {
       /* ignore */
     });
-    return sendTimetable(ctx, 0, groupId);
+    return sendUserTimetable(ctx, 0, groupId);
   });
 
   bot.callbackQuery("schedule_group_open_cancel", async (ctx) => {
