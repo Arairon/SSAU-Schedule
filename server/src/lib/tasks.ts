@@ -314,6 +314,8 @@ async function scheduleLessonChangeNotifications(
 ) {
   const today = new Date();
   if (today.getHours() <= 6) today.setHours(6);
+  added.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
+  removed.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
   log.debug(
     `User ${user.id} has (+${added.length}, -${removed.length}) schedule changes.`,
     {
