@@ -254,9 +254,29 @@ export async function updateTimetable(
       "Обновление уже запущено, пожалуйста подождите.",
     );
   }
+  if (!ctx.from) return;
   ctx.session.runningScheduleUpdate = true;
   try {
-    const userId = ctx?.from?.id;
+    let userId = ctx.from.id as unknown as bigint;
+    if (ctx.chat?.type !== "private") {
+      const groupchat = await db.groupChat.findUnique({
+        where: { tgId: ctx.chat?.id },
+        include: { user: true },
+      });
+      if (!groupchat?.user) {
+        log.warn(
+          `Image viewer update requested in group chat with no admin/groupchat`,
+        );
+        return ctx.answerCallbackQuery(
+          "Этот чат не зарегистрирован для получения расписаний или у него нет админа",
+        );
+      }
+      log.debug(
+        `Image viewer update requested in group chat ${ctx.chat?.id} as ${groupchat.user.tgId}`,
+        { user: ctx.from.id },
+      );
+      userId = groupchat.user.tgId;
+    }
     const chat = ctx.chat;
     const msgId =
       ctx?.callbackQuery?.message?.message_id ??
