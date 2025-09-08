@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import nodeHtmlToImage from "node-html-to-image";
+import Puppeteer, { type Browser } from "puppeteer";
 
 import {
   TimeSlotMap,
@@ -315,30 +315,35 @@ export async function generateTimetableImageHtml(
   return page.join("");
 }
 
+let browser: Browser | null = null;
+
+void Puppeteer.launch({
+  executablePath: env.CHROME_PATH,
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-extensions",
+    "--disable-software-rasterizer",
+  ],
+}).then((i) => (browser = i));
+
 export async function generateTimetableImage(
   timetable: WeekTimetable,
   opts?: {
     stylemap?: string;
   },
 ): Promise<Buffer> {
+  if (!browser) throw new Error("Puppeteer failed to launch");
   const startTime = process.hrtime.bigint();
   const html = await generateTimetableImageHtml(timetable, opts);
   const htmlTime = process.hrtime.bigint();
-  const image = (await nodeHtmlToImage({
-    html,
-    puppeteerArgs: {
-      executablePath: env.CHROME_PATH,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--disable-extensions",
-        "--disable-software-rasterizer",
-      ],
-    },
-  })) as Buffer;
+  const page = await browser.newPage();
+  await page.setContent(html);
+  const image = (await page.screenshot({ fullPage: true })) as Buffer;
   const endTime = process.hrtime.bigint();
+  await page.close();
   log.debug(
     `Generated an image for week ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
     { user: -1 },
