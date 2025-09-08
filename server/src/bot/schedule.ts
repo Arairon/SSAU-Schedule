@@ -16,7 +16,11 @@ import { openSettings } from "./options";
 import { lk } from "../lib/lk";
 import type { User } from "@prisma/client";
 
-async function sendGroupTimetable(ctx: Context, week: number) {
+async function sendGroupTimetable(
+  ctx: Context,
+  week: number,
+  opts?: { forceUpdate?: boolean },
+) {
   if (!ctx.chat || !ctx.from) return;
   const groupChat = await db.groupChat.findUnique({
     where: { tgId: ctx.chat.id },
@@ -39,7 +43,11 @@ async function sendGroupTimetable(ctx: Context, week: number) {
     );
   }
 
-  return sendUserTimetable(ctx, week, groupChat.groupId);
+  log.debug(`User requested group#${groupChat.id} schedule`, {
+    user: ctx.from.id,
+  });
+
+  return sendTimetable(ctx, groupChat.user, week, groupChat.groupId, opts);
 }
 
 async function sendTimetable(

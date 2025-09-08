@@ -124,7 +124,7 @@ async function initBot(bot: GrammyBot<Context>) {
       });
       return ctx.api.sendMessage(
         `${env.SCHED_BOT_ADMIN_TGID}`,
-        `Бот словил еррор в диалоге с ${ctx.from?.id}: ${JSON.stringify(error)}`,
+        `Бот словил еррор в диалоге ${ctx.chat?.id}:${ctx.from?.id}: ${JSON.stringify(error)}`,
       );
     });
   }
@@ -137,6 +137,7 @@ async function initBot(bot: GrammyBot<Context>) {
   await initAdmin(bot);
 
   bot.command("start", async (ctx) => {
+    if (ctx.chat.type !== "private") return;
     const userId = ctx.from?.id;
     if (!userId) {
       return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
@@ -186,6 +187,7 @@ async function initBot(bot: GrammyBot<Context>) {
 
   bot.command("login", async (ctx) => {
     if (!ctx.from) return;
+    if (ctx.chat.type !== "private") return;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (user) {
       ctx.session.loggedIn = true;
@@ -210,6 +212,7 @@ async function initBot(bot: GrammyBot<Context>) {
   });
 
   bot.command("logout", async (ctx) => {
+    if (ctx.chat.type !== "private") return;
     if (!ctx.from) {
       return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
         parse_mode: "HTML",
@@ -234,6 +237,7 @@ async function initBot(bot: GrammyBot<Context>) {
   });
 
   bot.command("ics", async (ctx) => {
+    if (ctx.chat.type !== "private") return;
     if (!ctx.from) {
       return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
         parse_mode: "HTML",
@@ -262,6 +266,7 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
   });
 
   bot.command("help", async (ctx) => {
+    if (ctx.chat.type !== "private") return;
     if (!ctx.from) {
       return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
         parse_mode: "HTML",

@@ -137,8 +137,9 @@ async function loginConversation(
     const saveAnswer = await conversation.waitForCallbackQuery(
       /login_complete_save/,
       {
-        otherwise: (ctx) =>
-          ctx.api.editMessageText(
+        otherwise: (ctx) => {
+          log.debug("Logged in without saving", { user: userId });
+          return ctx.api.editMessageText(
             msg.chat.id,
             msg.message_id,
             `
@@ -146,7 +147,8 @@ async function loginConversation(
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
 Вход успешен! ${loginRes.data?.fullname ? `Вы вошли как '${getPersonShortname(loginRes.data.fullname)}'` : ``}`,
-          ),
+          );
+        },
       },
     );
 

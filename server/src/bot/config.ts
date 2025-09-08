@@ -17,6 +17,7 @@ const config_field_names: Record<string, string> = {
 export async function initConfig(bot: Bot<Context>) {
   bot.command("config", async (ctx) => {
     if (!ctx.from || !ctx.message) return;
+    if (ctx.chat.type !== "private") return;
     const args = ctx.message.text.trim().split(" ");
     args.shift(); // remove command
     const user = await db.user.findUnique({
