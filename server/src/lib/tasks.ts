@@ -314,6 +314,12 @@ async function scheduleLessonChangeNotifications(
 ) {
   const today = new Date();
   if (today.getHours() <= 6) today.setHours(6);
+  if (added.length + removed.length === 0) {
+    log.debug(`User ${user.id} has no schedule changes.`, {
+      user: "cron/dailyWeekUpdate",
+    });
+    return;
+  }
   added.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
   removed.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
   log.debug(

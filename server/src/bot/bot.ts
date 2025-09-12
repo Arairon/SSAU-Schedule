@@ -109,8 +109,14 @@ async function initBot(bot: GrammyBot<Context>) {
 
   //bot.use(stage.middleware());
 
+  await initLogin(bot);
+
   bot.use((ctx: Context, next) => {
-    if (ctx.message && "text" in ctx.message)
+    if (
+      ctx.message &&
+      "text" in ctx.message &&
+      !ctx.conversation.active().LK_LOGIN
+    )
       log.debug(`${ctx.message.text}`, { user: ctx?.from?.id ?? -1 });
     return next();
   });
@@ -128,8 +134,6 @@ async function initBot(bot: GrammyBot<Context>) {
       );
     });
   }
-
-  await initLogin(bot);
 
   await initSchedule(bot);
   await initOptions(bot);
