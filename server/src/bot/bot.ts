@@ -321,7 +321,9 @@ https://${env.SCHED_BOT_DOMAIN}/api/user/${user.id}/ics
   });
 
   bot.on("message:text", async (ctx) => {
-    log.debug(`[ignored: message fell]`, { user: ctx.from.id });
+    log.debug(`[chat] (${ctx.from.username ?? "N/A"}): ${ctx.message.text}`, {
+      user: ctx.from.id,
+    });
   });
 
   // bot.on(message("photo"), async (ctx) => {

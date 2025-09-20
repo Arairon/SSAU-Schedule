@@ -198,7 +198,7 @@ export async function initAdmin(bot: Bot<Context>) {
         return ctx.reply("Вы не администратор");
       const notifications = await db.scheduledMessage.groupBy({
         by: ["source"],
-        where: { chatId: `${user.tgId}`, wasSentAt: null },
+        where: { wasSentAt: null },
         _count: {
           _all: true,
         },

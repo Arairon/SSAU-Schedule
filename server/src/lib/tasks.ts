@@ -128,25 +128,28 @@ export async function dailyWeekUpdate() {
       const isActive = user.lastActive > weekAgo;
       if (!isActive) {
         // day before week ago. Basically check if it's the first time user is noticed as inactive
-        if (user.lastActive > new Date(Date.now() - 604800_000 - 86400_000)) {
-          log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
-            user: "cron/dailyWeekUpdate",
-          });
-          await scheduleMessage(
-            user,
-            today,
-            `Приветствую!\nЗа последнюю неделю я не заметил никакой активности с вашей стороны. Если вы хотите продолжить получать уведомления / обновления календаря - просто запросите расписание снова.\nВ противном же случае просто ничего не делайте и я перестану вам докучать :)`,
-            { source: "dailyupd/inactive" },
-          );
-        } else {
-          log.debug(
-            `Skipping inactive user: #${user.id}/${user.tgId.toString()}`,
-            {
-              user: "cron/dailyWeekUpdate",
-            },
-          );
-        }
-        continue;
+        log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
+          user: "cron/dailyWeekUpdate",
+        });
+        // if (user.lastActive > new Date(Date.now() - 604800_000 - 86400_000)) {
+        //   log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
+        //     user: "cron/dailyWeekUpdate",
+        //   });
+        //   await scheduleMessage(
+        //     user,
+        //     today,
+        //     `Приветствую!\nЗа последнюю неделю я не заметил никакой активности с вашей стороны. Если вы хотите продолжить получать уведомления / обновления календаря - просто запросите расписание снова.\nВ противном же случае просто ничего не делайте и я перестану вам докучать :)`,
+        //     { source: "dailyupd/inactive" },
+        //   );
+        // } else {
+        //   log.debug(
+        //     `Skipping inactive user: #${user.id}/${user.tgId.toString()}`,
+        //     {
+        //       user: "cron/dailyWeekUpdate",
+        //     },
+        //   );
+        // }
+        // continue;
       }
 
       const nextWeekBeforeUpdates = await db.week.findUnique({
