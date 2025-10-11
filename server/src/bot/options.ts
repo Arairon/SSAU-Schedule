@@ -392,7 +392,9 @@ async function initGroupchatOptions(bot: Bot<Context>) {
     try {
       if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
     } catch {
-      await ctx.reply(`Произошла ошибка.`);
+      await ctx.reply(
+        `Произошла ошибка при попытке удалить сообщение. Сообщения отправленные ранее чем 48 часов назад не могут быть удалены ботом.`,
+      );
     }
     ctx.session.options.message = 0;
   });
@@ -618,7 +620,9 @@ export async function initOptions(bot: Bot<Context>) {
     try {
       if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
     } catch {
-      await ctx.reply(`Произошла ошибка.`);
+      await ctx.reply(
+        `Произошла ошибка при попытке удалить сообщение. Сообщения отправленные ранее чем 48 часов назад не могут быть удалены ботом.`,
+      );
     }
     ctx.session.options.message = 0;
   });

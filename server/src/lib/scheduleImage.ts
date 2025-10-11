@@ -327,6 +327,7 @@ void Puppeteer.launch({
     "--disable-extensions",
     "--disable-software-rasterizer",
   ],
+  protocolTimeout: 180_000,
 }).then((i) => (browser = i));
 
 export async function generateTimetableImage(
@@ -341,7 +342,17 @@ export async function generateTimetableImage(
   const htmlTime = process.hrtime.bigint();
   const page = await browser.newPage();
   await page.setContent(html);
-  const image = (await page.screenshot({ fullPage: true })) as Buffer;
+  await page.bringToFront();
+  let image;
+  try {
+    image = (await page.screenshot({ fullPage: true })) as Buffer;
+  } catch (e) {
+    log.error(`Failed to generate a timetable image. Error: ${String(e)}`, {
+      user: -1,
+    });
+    log.debug(`Failed HTML: \n${html}\n---`, { user: -1 });
+    throw e; // Fuck it, we crash.
+  }
   const endTime = process.hrtime.bigint();
   await page.close();
   log.debug(

@@ -212,7 +212,7 @@ export async function dailyWeekUpdate() {
       );
       await schedule.getTimetableWithImage(user, week.number + 1);
 
-      void schedule.pregenerateImagesForUser(user, week.number, 8); // For now generously pregenerate whole 2 months
+      await schedule.pregenerateImagesForUser(user, week.number, 8); // For now generously pregenerate whole 2 months
 
       if (!currentWeekChanges || !nextWeekChanges) {
         log.error(
