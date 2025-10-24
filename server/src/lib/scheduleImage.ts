@@ -20,7 +20,7 @@ const STATIC_CSS = `@layer properties{@supports (((-webkit-hyphens:none)) and (n
 
 const CSS =
   env.NODE_ENV === "development"
-    ? readFileSync(".\\src\\template\\timetable.css")
+    ? readFileSync("./src/template/timetable.css")
     : STATIC_CSS;
 
 const HTML_HEAD = `\

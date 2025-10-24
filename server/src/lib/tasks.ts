@@ -179,9 +179,12 @@ export async function dailyWeekUpdate() {
             `\
 Приветствую!
 Произошла ошибка авторизации при попытке обновить ваше расписание.
-Пожалуйста, повторно войдите в личный кабинет через /login.`,
+На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
+Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
             { source: "dailyupd/error" },
           );
+          await scheduleDailyNotificationsForUser(user, week);
+          continue;
         }
       } catch (e) {
         log.error(`Failed to ensure auth for user ${user.id}: ${e as Error}`, {
@@ -193,9 +196,11 @@ export async function dailyWeekUpdate() {
           `\
 Приветствую!
 Произошла ошибка при попытке авторизоваться и обновить ваше расписание.
-Можете попробовать повторно войти в личный кабинет через /login, но не факт что это поможет.`,
-          { source: "dailyupd/error" },
+На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
+Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
+{ source: "dailyupd/error" },
         );
+        await scheduleDailyNotificationsForUser(user, week);
         continue;
       }
 
@@ -337,18 +342,18 @@ async function scheduleLessonChangeNotifications(
     `\
 Обнаружены изменения в расписании!
 ` +
-      (added.length > 0
-        ? `
+    (added.length > 0
+      ? `
 Добавлены занятия:
 ${added.map(formatDbLesson).join("\n")}
 `
-        : "") +
-      (removed.length > 0
-        ? `
+      : "") +
+    (removed.length > 0
+      ? `
 Удалены занятия:
 ${removed.map(formatDbLesson).join("\n")}
 `
-        : ""),
+      : ""),
     { source: "dailyupd/changes" },
   );
 }

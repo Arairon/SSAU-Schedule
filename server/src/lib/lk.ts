@@ -79,7 +79,8 @@ async function login(
   if (!loginRes.ok) {
     if (loginRes.error && loginRes.error === "refused") {
       // Credentials incorrect. Reset them
-      await resetAuth(user, { resetCredentials: true });
+      log.debug(`Would have reset credentials, since auth returned: ${loginRes}`, {user: user.id})
+      // await resetAuth(user, { resetCredentials: true });
     }
     return loginRes as { ok: boolean; error?: string; message?: string };
   }
