@@ -1,5 +1,5 @@
-FROM node:24-alpine AS deps
-RUN apk add --no-cache libc6-compat openssl
+FROM oven/bun:1.3.1-alpine AS deps
+#RUN apk add --no-cache libc6-compat openssl;
 
 WORKDIR /app
 
@@ -9,24 +9,26 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_DISABLE_DEV_SHM_USAGE=true
 ENV CHROME_PATH=/usr/bin/chromium-browser
 
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml\* ./
+COPY package.json bun.lock ./
 
-RUN npm install -g pnpm && pnpm i;
+RUN bun install;
 
 # CHROME
-FROM node:24-alpine AS chrome
+FROM oven/bun:1.3.1-alpine AS chrome
 
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init;
 
 ##### RUNNER
-FROM chrome AS builder_and_runner
+FROM chrome AS builder
 
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN npm install -g pnpm && pnpm db:generate && SKIP_ENV_VALIDATION=1 pnpm run build; 
+RUN bun run db:generate && SKIP_ENV_VALIDATION=1 bun run build; 
+
+FROM builder AS runner
 
 ARG DATABASE_URL
 
@@ -37,4 +39,4 @@ ENV TZ=Europe/Samara
 EXPOSE 3000
 ENV PORT=3000
 
-CMD ["npm", "run", "prod"]
+CMD ["bun", "run", "prod"]
