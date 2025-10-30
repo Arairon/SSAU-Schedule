@@ -327,7 +327,7 @@ void Puppeteer.launch({
     "--disable-extensions",
     "--disable-software-rasterizer",
   ],
-  protocolTimeout: 180_000,
+  protocolTimeout: 30_000,
 }).then((i) => (browser = i));
 
 export async function generateTimetableImage(

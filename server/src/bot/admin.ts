@@ -5,6 +5,8 @@ import { db } from "../db";
 import { env } from "../env";
 import {
   dailyWeekUpdate,
+  invalidateDailyNotifications,
+  scheduleDailyNotificationsForAll,
   type DbScheduledMessage,
   type ScheduledMessage,
 } from "../lib/tasks";
@@ -21,22 +23,37 @@ export async function initAdmin(bot: Bot<Context>) {
     const args = ctx.message.text.split(" ");
     args.shift();
     const arg = args[0]?.trim().toLowerCase();
-    if (arg === "dailyupd") {
-      const msg = await ctx.reply(
-        "Запущено ежедневное обновление недель и постановка уведомлений в очередь",
-      );
-      await dailyWeekUpdate();
-      await ctx.api.editMessageText(
-        msg.chat.id,
-        msg.message_id,
-        "Ближайшие недели обновлены. Изображения прегенерированы. Уведомления поставлены в очередь",
-      );
-      return;
-    } else if (arg === "test") {
-      await ctx.reply("Выполняю тестовую задачу");
-      await taskTest();
-    } else {
-      return ctx.reply("Задача не найдена");
+    switch (arg) {
+      case "dailyupd": {
+        const msg = await ctx.reply(
+          "Запущено ежедневное обновление недель и постановка уведомлений в очередь",
+        );
+        await dailyWeekUpdate();
+        await ctx.api.editMessageText(
+          msg.chat.id,
+          msg.message_id,
+          "Ближайшие недели обновлены. Изображения прегенерированы. Уведомления поставлены в очередь",
+        );
+        return;
+      }
+      case "test": {
+        await ctx.reply("Выполняю тестовую задачу");
+        return taskTest();
+      }
+      case "renotifs": {
+        const res = await invalidateDailyNotifications();
+        await ctx.reply(`Отменена отправка ${res.count} уведомлений`)
+        // Fall through to 'notifs'
+      }
+      case "notifs": {
+        const msg = await ctx.reply("Запущена постановка уведомлений в очередь")
+        const updResult = await scheduleDailyNotificationsForAll()
+        await ctx.api.editMessageText(msg.chat.id, msg.message_id, `${updResult} Уведомлений поставлено в очередь.`)
+        break;
+      }
+      default: {
+        return ctx.reply("Задача не найдена");
+      }
     }
   });
 
@@ -236,11 +253,10 @@ export async function initAdmin(bot: Bot<Context>) {
     return ctx.reply(`\
 Вы: ${user.fullname ?? "Неизвестный Пользователь"}
 Ваша группа: ${user.group?.name ?? "Отсутствует"} ${user.subgroup ? `(Подгруппа: ${user.subgroup})` : ""}
-${
-  user.authCookie
-    ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
-    : `Вы не вошли в ЛК`
-}
+${user.authCookie
+        ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
+        : `Вы не вошли в ЛК`
+      }
 Уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
 `);
   });

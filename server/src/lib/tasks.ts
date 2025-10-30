@@ -81,6 +81,46 @@ export async function sendScheduledNotifications() {
   });
 }
 
+export function invalidateDailyNotifications() {
+  return db.scheduledMessage.updateMany({where: {source: {startsWith: "daily"}}, data: {wasSentAt: new Date(0)}})
+}
+
+export async function scheduleDailyNotificationsForAll() {
+  const now = new Date();
+  const year = getCurrentYearId();
+  const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0); // if sunday - update next week
+  const weeks = await db.week.findMany({
+    where: { number: weekNumber, owner: { not: 0 }, year },
+  });
+  let count = 0;
+  for (const week of weeks) {
+    try {
+      const user = await db.user.findUnique({
+        where: { id: week.owner },
+        include: { ics: true },
+      });
+      if (!user) {
+        log.error(`Found orphaned week #${week.id}`, {
+          user: "cron/dailyWeekUpdate",
+        });
+        continue;
+      }
+      const res = await scheduleDailyNotificationsForUser(user, week)
+      if (!res) continue
+      count += res.count;
+    }
+    catch (e) {
+      log.error(
+        `Failed to schedule messages for week #${week.id}: ${e as Error}`,
+        {
+          user: "cron/dailyWeekUpdate",
+        },
+      );
+    }
+  }
+  return count;
+}
+
 export async function dailyWeekUpdate() {
   const now = new Date();
   const weekAgo = new Date(Date.now() - 604800_000);
@@ -173,16 +213,17 @@ export async function dailyWeekUpdate() {
             { user: "cron/dailyWeekUpdate" },
           );
           // TODO: Reset auth?
-          await scheduleMessage(
-            user,
-            today,
-            `\
-Приветствую!
-Произошла ошибка авторизации при попытке обновить ваше расписание.
-На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
-Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
-            { source: "dailyupd/error" },
-          );
+
+//           await scheduleMessage(
+//             user,
+//             today,
+//             `\
+// Приветствую!
+// Произошла ошибка авторизации при попытке обновить ваше расписание.
+// На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
+// Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
+//             { source: "dailyupd/error" },
+//           );
           await scheduleDailyNotificationsForUser(user, week);
           continue;
         }
@@ -190,16 +231,17 @@ export async function dailyWeekUpdate() {
         log.error(`Failed to ensure auth for user ${user.id}: ${e as Error}`, {
           user: "cron/dailyWeekUpdate",
         });
-        await scheduleMessage(
-          user,
-          today,
-          `\
-Приветствую!
-Произошла ошибка при попытке авторизоваться и обновить ваше расписание.
-На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
-Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
-{ source: "dailyupd/error" },
-        );
+
+//         await scheduleMessage(
+//           user,
+//           today,
+//           `\
+// Приветствую!
+// Произошла ошибка при попытке авторизоваться и обновить ваше расписание.
+// На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
+// Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
+// { source: "dailyupd/error" },
+//         );
         await scheduleDailyNotificationsForUser(user, week);
         continue;
       }
@@ -396,7 +438,7 @@ async function scheduleDailyNotificationsForUser(user: User, week: Week) {
 Первая пара:
 ${generateTextLesson(day.lessons[0])}
 `,
-      source: "notifs/daystart",
+      source: "daily/daystart",
     });
     // if first notification is 20+ minutes before lesson, send another one
     if (preferences.notifyBeforeLessons >= 1200) {
@@ -404,7 +446,7 @@ ${generateTextLesson(day.lessons[0])}
         chatId: `${user.tgId}`,
         sendAt: new Date(day.lessons[0].beginTime.getTime() - 600_000), // 10 minutes before
         text: `Сейчас будет:\n${generateTextLesson(day.lessons[0])}`,
-        source: "notifs/daystart",
+        source: "daily/daystart",
       });
     }
   }
@@ -429,20 +471,20 @@ ${generateTextLesson(day.lessons[0])}
 
 Затем:
 ${generateTextLesson(nextLesson)}`,
-          source: "notifs/nextLesson",
+          source: "daily/nextLesson",
         });
         notifications.push({
           chatId: `${user.tgId}`,
           sendAt: new Date(nextLesson.beginTime.getTime() - 600_000), // 10 minutes before
           text: `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
-          source: "notifs/nextLesson",
+          source: "daily/nextLesson",
         });
       } else {
         notifications.push({
           chatId: `${user.tgId}`,
           sendAt: lesson.endTime,
           text: `Сейчас будет:\n${generateTextLesson(nextLesson)}`,
-          source: "notifs/nextLesson",
+          source: "daily/nextLesson",
         });
       }
     }
@@ -462,7 +504,7 @@ ${generateTextLesson(nextLesson)}`,
 
 ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----\n")}
 `,
-        source: "notifs/nextDay",
+        source: "daily/nextDay",
       });
     }
   }
@@ -477,7 +519,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
       sendAt: day.endTime,
       text: "На этой неделе больше ничего нет\nНа фото расписание на следующую неделю",
       image: timetable.image.data.toString("base64"),
-      source: "notifs/nextWeek",
+      source: "daily/nextWeek",
     });
   }
 
@@ -491,6 +533,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
       user: "cron/dailyNotifs",
     },
   );
+  return result;
 }
 
 export async function dailyCleanup() {
