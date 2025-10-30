@@ -82,7 +82,7 @@ export async function sendScheduledNotifications() {
 }
 
 export function invalidateDailyNotifications() {
-  return db.scheduledMessage.updateMany({where: {source: {startsWith: "daily"}}, data: {wasSentAt: new Date(0)}})
+  return db.scheduledMessage.updateMany({where: {source: {startsWith: "daily"}, wasSentAt: null}, data: {wasSentAt: new Date(0)}})
 }
 
 export async function scheduleDailyNotificationsForAll() {
