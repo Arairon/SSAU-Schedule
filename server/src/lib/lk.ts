@@ -47,15 +47,15 @@ type LkAuthCookie = {
 
 function getCookie(rawcookie: string) {
   const cookie = rawcookie.split(";")[0] + ";";
-  const decodedCookie = decodeURIComponent(
-    decodeURIComponent(cookie.slice(5, cookie.length - 1)),
-  );
-  const rawtoken = (JSON.parse(decodedCookie) as LkAuthCookie).token;
-  const token = jwt.decode(rawtoken) as jwt.JwtPayload;
-  if (!token.exp) return null;
+  // const decodedCookie = decodeURIComponent(
+  //   decodeURIComponent(cookie.slice(5, cookie.length - 1)),
+  // );
+  // const rawtoken = (JSON.parse(decodedCookie) as LkAuthCookie).token;
+  // const token = jwt.decode(rawtoken) as jwt.JwtPayload;
+  // if (!token.exp) return null;
   const update = {
     authCookie: cookie,
-    authCookieExpiresAt: new Date((token.exp - 30) * 1000), // add 30sec to avoid losing auth
+    authCookieExpiresAt: new Date(530_000), // add 30sec to avoid losing auth
     sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
   };
   return update;

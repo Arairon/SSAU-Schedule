@@ -125,12 +125,12 @@ async function initBot(bot: GrammyBot<Context>) {
     bot.catch((err) => {
       const ctx = err.ctx;
       const error = err.error;
-      log.error(`[BOT] ${JSON.stringify(error)}`, {
+      log.error(`[BOT] ${JSON.stringify(err)}\n${err.name}\n${err.stack ?? 'Stack unavailable'}`, {
         user: ctx?.from?.id ?? -1,
       });
       return ctx.api.sendMessage(
         `${env.SCHED_BOT_ADMIN_TGID}`,
-        `Бот словил еррор в диалоге ${ctx.chat?.id}:${ctx.from?.id}: ${JSON.stringify(error)}`,
+        `Бот словил еррор в диалоге ${ctx.chat?.id}:${ctx.from?.id}: ${JSON.stringify(error)}\n${err.name}\n${err.stack ?? 'Stack unavailable'}`,
       );
     });
   }
