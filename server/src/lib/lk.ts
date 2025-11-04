@@ -79,7 +79,10 @@ async function login(
   if (!loginRes.ok) {
     if (loginRes.error && loginRes.error === "refused") {
       // Credentials incorrect. Reset them
-      log.debug(`Would have reset credentials, since auth returned: ${loginRes}`, { user: user.id })
+      log.debug(
+        `Would have reset credentials, since auth returned: ${loginRes}`,
+        { user: user.id },
+      );
       // await resetAuth(user, { resetCredentials: true });
     }
     return loginRes as { ok: boolean; error?: string; message?: string };
@@ -186,9 +189,13 @@ async function updateCookie(user: User) {
       validateStatus: (s) => [307, 200].includes(s),
     });
   } catch (e) {
-    log.warn("Failed to update cookie: failed to get cookie.\n" + (e ? JSON.stringify(e) : ""), {
-      user: user.id,
-    });
+    log.warn(
+      "Failed to update cookie: failed to get cookie.\n" +
+        (e ? JSON.stringify(e) : ""),
+      {
+        user: user.id,
+      },
+    );
     return {
       ok: false,
       error: "invalid auth",
@@ -196,8 +203,11 @@ async function updateCookie(user: User) {
     };
   }
   if (!resp.headers["set-cookie"]?.length) {
-    log.debug("Cookie update returned nothing. Assuming cookie is still valid", { user: user.id })
-    return { ok: true }
+    log.debug(
+      "Cookie update returned nothing. Assuming cookie is still valid",
+      { user: user.id },
+    );
+    return { ok: true };
     // return { // Used back when ssau auth behaved normally.
     //   ok: false,
     //   error: "no cookie",
@@ -217,8 +227,10 @@ async function updateCookie(user: User) {
     };
   }
   if (cookie.includes("auth=;")) {
-    log.warn(`Empty cookie: ${cookie}. Ignoring and assuming validity`, {user: user.id})
-    return {ok: true}
+    log.warn(`Empty cookie: ${cookie}. Ignoring and assuming validity`, {
+      user: user.id,
+    });
+    return { ok: true };
   }
   const cookieUpd = getCookie(cookie);
   if (!cookieUpd) {

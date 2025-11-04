@@ -82,7 +82,10 @@ export async function sendScheduledNotifications() {
 }
 
 export function invalidateDailyNotifications() {
-  return db.scheduledMessage.updateMany({where: {source: {startsWith: "daily"}, wasSentAt: null}, data: {wasSentAt: new Date(0)}})
+  return db.scheduledMessage.updateMany({
+    where: { source: { startsWith: "daily" }, wasSentAt: null },
+    data: { wasSentAt: new Date(0) },
+  });
 }
 
 export async function scheduleDailyNotificationsForAll() {
@@ -105,11 +108,10 @@ export async function scheduleDailyNotificationsForAll() {
         });
         continue;
       }
-      const res = await scheduleDailyNotificationsForUser(user, week)
-      if (!res) continue
+      const res = await scheduleDailyNotificationsForUser(user, week);
+      if (!res) continue;
       count += res.count;
-    }
-    catch (e) {
+    } catch (e) {
       log.error(
         `Failed to schedule messages for week #${week.id}: ${e as Error}`,
         {
@@ -214,16 +216,16 @@ export async function dailyWeekUpdate() {
           );
           // TODO: Reset auth?
 
-//           await scheduleMessage(
-//             user,
-//             today,
-//             `\
-// Приветствую!
-// Произошла ошибка авторизации при попытке обновить ваше расписание.
-// На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
-// Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
-//             { source: "dailyupd/error" },
-//           );
+          //           await scheduleMessage(
+          //             user,
+          //             today,
+          //             `\
+          // Приветствую!
+          // Произошла ошибка авторизации при попытке обновить ваше расписание.
+          // На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
+          // Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
+          //             { source: "dailyupd/error" },
+          //           );
           await scheduleDailyNotificationsForUser(user, week);
           continue;
         }
@@ -232,16 +234,16 @@ export async function dailyWeekUpdate() {
           user: "cron/dailyWeekUpdate",
         });
 
-//         await scheduleMessage(
-//           user,
-//           today,
-//           `\
-// Приветствую!
-// Произошла ошибка при попытке авторизоваться и обновить ваше расписание.
-// На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
-// Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
-// { source: "dailyupd/error" },
-//         );
+        //         await scheduleMessage(
+        //           user,
+        //           today,
+        //           `\
+        // Приветствую!
+        // Произошла ошибка при попытке авторизоваться и обновить ваше расписание.
+        // На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
+        // Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
+        // { source: "dailyupd/error" },
+        //         );
         await scheduleDailyNotificationsForUser(user, week);
         continue;
       }
@@ -384,18 +386,18 @@ async function scheduleLessonChangeNotifications(
     `\
 Обнаружены изменения в расписании!
 ` +
-    (added.length > 0
-      ? `
+      (added.length > 0
+        ? `
 Добавлены занятия:
 ${added.map(formatDbLesson).join("\n")}
 `
-      : "") +
-    (removed.length > 0
-      ? `
+        : "") +
+      (removed.length > 0
+        ? `
 Удалены занятия:
 ${removed.map(formatDbLesson).join("\n")}
 `
-      : ""),
+        : ""),
     { source: "dailyupd/changes" },
   );
 }
