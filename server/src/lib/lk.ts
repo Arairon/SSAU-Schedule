@@ -79,7 +79,7 @@ async function login(
   if (!loginRes.ok) {
     if (loginRes.error && loginRes.error === "refused") {
       // Credentials incorrect. Reset them
-      log.debug(`Would have reset credentials, since auth returned: ${loginRes}`, {user: user.id})
+      log.debug(`Would have reset credentials, since auth returned: ${loginRes}`, { user: user.id })
       // await resetAuth(user, { resetCredentials: true });
     }
     return loginRes as { ok: boolean; error?: string; message?: string };
@@ -183,10 +183,10 @@ async function updateCookie(user: User) {
         Cookie: user.authCookie,
       },
       maxRedirects: 0,
-      validateStatus: (s) => s === 200,
+      validateStatus: (s) => [307, 200].includes(s),
     });
-  } catch {
-    log.warn("Failed to update cookie: failed to get cookie", {
+  } catch (e) {
+    log.warn("Failed to update cookie: failed to get cookie.\n" + (e ? JSON.stringify(e) : ""), {
       user: user.id,
     });
     return {
@@ -195,15 +195,19 @@ async function updateCookie(user: User) {
       message: "Unable to refresh session",
     };
   }
-  if (!resp.headers["set-cookie"]?.length)
-    return {
-      ok: false,
-      error: "no cookie",
-      message: "Unable to refresh session",
-    };
+  if (!resp.headers["set-cookie"]?.length) {
+    log.debug("Cookie update returned nothing. Assuming cookie is still valid", { user: user.id })
+    return { ok: true }
+    // return { // Used back when ssau auth behaved normally.
+    //   ok: false,
+    //   error: "no cookie",
+    //   message: "Unable to refresh session",
+    // };
+  }
   const cookie = resp.headers["set-cookie"].find((cookie) =>
     cookie.includes("auth="),
   );
+  // \/ leftover from normal auth
   if (!cookie) {
     log.warn("Failed to update cookie: No cookie", { user: user.id });
     return {
@@ -211,6 +215,10 @@ async function updateCookie(user: User) {
       error: "invalid auth",
       message: "Unable to refresh session",
     };
+  }
+  if (cookie.includes("auth=;")) {
+    log.warn(`Empty cookie: ${cookie}. Ignoring and assuming validity`, {user: user.id})
+    return {ok: true}
   }
   const cookieUpd = getCookie(cookie);
   if (!cookieUpd) {
