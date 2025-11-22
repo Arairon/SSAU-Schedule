@@ -179,6 +179,7 @@ async function updateCookie(user: User) {
     };
   log.debug("Updating cookie...", { user: user.id });
   let resp;
+  // TODO: Change endpoint to check auth. Maybe use get-timetable...
   try {
     resp = await axios.head("https://lk.ssau.ru/", {
       withCredentials: true,

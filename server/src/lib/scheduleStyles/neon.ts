@@ -107,7 +107,7 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMap = {
       name: "Экзамен",
       headerStyle:
         "border-2 border-white bg-black text-white rounded-lg text-lg",
-      barStyle: "bg-black text-lg",
+      barStyle: "hidden text-lg",
       cardStyle:
         "border-2 border-white bg-black text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -140,7 +140,7 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMap = {
     Window: {
       name: "Окно",
       headerStyle: "bg-white rounded-lg hidden",
-      barStyle: " text-lg",
+      barStyle: "hidden text-lg",
       cardStyle:
         "border-2 border-slate-600 bg-slate-900 text-white rounded-lg px-1 py-2",
       nameStyle: "hidden",
@@ -157,7 +157,7 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMap = {
       name: "Неизвестно",
       headerStyle:
         "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden text-lg",
-      barStyle: "bg-black",
+      barStyle: "hidden bg-black",
       cardStyle:
         "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
