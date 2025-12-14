@@ -1,25 +1,31 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { db } from "../db";
+import { getUserIcs } from "../lib/ics";
+// import log from "../logger";
+// import z from "ajv-ts";
+// import { lk } from "../lib/lk";
+// import { creds } from "../lib/credentials";
+// import { getLessonDate } from "../lib/utils";
 import { schedule } from "../lib/schedule";
 import { findGroup } from "../lib/misc";
+// import { generateTimetableImageHtml } from "../lib/scheduleImage";
 
 //options: FastifyPluginOptions
-// UNUSED
 async function routes(fastify: FastifyInstance) {
-  const userIdParamSchema = {
-    $id: "userId",
+  const userTgIdParamSchema = {
+    $id: "userTgId",
     type: "object",
     properties: {
-      userId: {
+      userTgId: {
         type: "number",
       },
     },
   };
 
   fastify.get(
-    "/api/user/:userId",
+    "/api/tg/user/:userId",
     {
-      schema: { params: userIdParamSchema }
+      schema: { params: userTgIdParamSchema }
     },
     async (
       req: FastifyRequest<{
@@ -29,7 +35,7 @@ async function routes(fastify: FastifyInstance) {
     ) => {
       const userId = req.params.userId;
       const user = await db.user.findUnique({
-        where: { id: userId },
+        where: { tgId: userId },
       });
       if (!user)
         return res.status(404).send({
@@ -41,9 +47,9 @@ async function routes(fastify: FastifyInstance) {
   )
 
   fastify.get(
-    "/api/user/:userId/ics",
+    "/api/tg/user/:userId/ics",
     {
-      schema: { params: userIdParamSchema },
+      schema: { params: userTgIdParamSchema },
     },
     async (
       req: FastifyRequest<{
@@ -59,7 +65,7 @@ async function routes(fastify: FastifyInstance) {
     ) => {
       const userId = req.params.userId;
       const user = await db.user.findUnique({
-        where: { id: userId },
+        where: { tgId: userId },
         include: { ics: true },
       });
       if (!user)
@@ -77,10 +83,10 @@ async function routes(fastify: FastifyInstance) {
   );
 
   fastify.get(
-    "/api/user/:userId/schedule",
+    "/api/tg/user/:userId/schedule",
     {
       schema: {
-        params: userIdParamSchema,
+        params: userTgIdParamSchema,
         querystring: {
           type: "object",
           properties: {
@@ -105,7 +111,7 @@ async function routes(fastify: FastifyInstance) {
       res,
     ) => {
       const userId = req.params.userId;
-      const user = await db.user.findUnique({ where: { id: userId } });
+      const user = await db.user.findUnique({ where: { tgId: userId } });
       if (!user)
         return res.status(404).send({
           error: "user not found",
@@ -124,10 +130,10 @@ async function routes(fastify: FastifyInstance) {
   );
 
   fastify.get(
-    "/api/user/:userId/schedule/image",
+    "/api/tg/user/:userId/schedule/image",
     {
       schema: {
-        params: userIdParamSchema,
+        params: userTgIdParamSchema,
         querystring: {
           type: "object",
           properties: {
@@ -152,7 +158,7 @@ async function routes(fastify: FastifyInstance) {
       res,
     ) => {
       const userId = req.params.userId;
-      const user = await db.user.findUnique({ where: { id: userId } });
+      const user = await db.user.findUnique({ where: { tgId: userId } });
       if (!user)
         return res.status(404).send({
           error: "user not found",
