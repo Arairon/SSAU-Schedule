@@ -8,7 +8,7 @@ export const UserDetailsSchema = s.object({
   secondname: s.string(),
   avatar: s.string(),
   login: s.string(),
-  permissions: s.array(s.number()),
+  permissions: s.array(s.any()), // Was number, became string. Fuck my life.
   staticPages: s.array(s.any()),
   studentLevel: s.object({
     id: s.number(),
