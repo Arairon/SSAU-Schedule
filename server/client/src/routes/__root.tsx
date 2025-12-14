@@ -8,6 +8,15 @@ import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
 import type { QueryClient } from '@tanstack/react-query'
 
+import { init } from "@tma.js/sdk-react"
+try {
+  init()
+} catch {
+  console.log("Telegram sdk failed to initialize. This is normal outside of telegram.")
+}
+
+
+
 interface MyRouterContext {
   queryClient: QueryClient
 }
