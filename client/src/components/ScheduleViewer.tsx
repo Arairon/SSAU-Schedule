@@ -75,42 +75,42 @@ export default function ScheduleViewer({ schedule, stylemap = "default" }: { sch
   console.log(columnHeight)
   return (
     <div className="flex w-full flex-col items-stretch gap-2 bg-black p-2 text-base">
-    <nav className="flex flex-row justify-between gap-2 text-center font-bold">
-    {Object.values(style.lessonTypes).map(lessonType=>(
-      <div key={lessonType.name} className={"flex-1 p-1 " + lessonType.headerStyle}>{lessonType.name}</div>
-    ))}
-    </nav>
-    <div className="grid grid-flow-col grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] gap-1" style={{ gridTemplateRows: `repeat(${columnHeight + 1}, auto)` }}>
-      <div className={"flex flex-col justify-center rounded-lg p-2 font-bold " + style.general.headers.timeLabel}>
-        Время
-      </div>
-      {
-        TimeSlotMap.slice(1, columnHeight + 1).map(timeslot => (
-          <div className={"flex flex-col justify-center rounded-lg p-2 font-bold " + style.general.headers.timeslot}>
-            {timeslot.beginTime}
-            <hr className="my-1" />
-            {timeslot.endTime}
-          </div>
-        ))
-      }
-      {
-        schedule.days.map((day, dayIndex) => {
-          const date = day.beginTime
-          return <>
-            <div key={`${dayIndex}div`} className={"rounded-lg p-2 font-bold "+style.general.headers.weekday}>
-              {WEEKDAYS[dayIndex + 1].short} {`${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}`}
+      <nav className="flex flex-row justify-between gap-2 overflow-x-auto text-center font-bold">
+        {Object.values(style.lessonTypes).map(lessonType => (
+          <div key={lessonType.name} className={"flex-1 p-1 " + lessonType.headerStyle}>{lessonType.name}</div>
+        ))}
+      </nav>
+      <div className="grid snap-x snap-mandatory grid-flow-col grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] gap-1 overflow-x-auto scroll-smooth" style={{ gridTemplateRows: `repeat(${columnHeight + 1}, auto)` }}>
+        <div className={"snap-start flex flex-col justify-center rounded-lg p-2 font-bold " + style.general.headers.timeLabel}>
+          Время
+        </div>
+        {
+          TimeSlotMap.slice(1, columnHeight + 1).map(timeslot => (
+            <div className={"flex flex-col justify-center rounded-lg p-2 font-bold " + style.general.headers.timeslot}>
+              {timeslot.beginTime}
+              <hr className="my-1" />
+              {timeslot.endTime}
             </div>
-            {
-              new Array(columnHeight).fill(0).map((_, index) => (
-                <ScheduleLesson key={`${dayIndex}.${index}`} lesson={day.lessons.find(i => i.dayTimeSlot == index + 1) ?? null} stylemap={stylemap}/>
-              ))
-            }
-          </>
-        })
-      }
+          ))
+        }
+        {
+          schedule.days.map((day, dayIndex) => {
+            const date = day.beginTime
+            return <>
+              <div key={`${dayIndex}div`} className={"snap-center min-w-80 sm:min-w-0 rounded-lg p-2 font-bold " + style.general.headers.weekday}>
+                {WEEKDAYS[dayIndex + 1].short} {`${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}`}
+              </div>
+              {
+                new Array(columnHeight).fill(0).map((_, index) => (
+                  <ScheduleLesson key={`${dayIndex}.${index}`} lesson={day.lessons.find(i => i.dayTimeSlot == index + 1) ?? null} stylemap={stylemap} />
+                ))
+              }
+            </>
+          })
+        }
 
 
-    </div>
+      </div>
     </div>
   )
 }
