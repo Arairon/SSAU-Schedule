@@ -1,3 +1,5 @@
+import postcss from "postcss";
+import tailwindcss from "tailwindcss";
 import fastify from "fastify";
 import fastifySchedule from "@fastify/schedule";
 import { env } from "./env";
