@@ -262,5 +262,10 @@ export function formatDbLesson(lesson: Lesson) {
     hour: "numeric",
     minute: "numeric",
   });
-  return `${date} / ${startTime} - ${endTime}\n${LessonTypeIcon[lesson.type]} ${lesson.discipline} ${lesson.isIet ? "[ИОТ]" : ""}`;
+  const place = lesson.isOnline
+    ? `Online (${lesson.conferenceUrl ?? "ссылка отсутствует"})`
+    : `${lesson.building} - ${lesson.room}`;
+  return `\
+${date} / ${startTime} - ${endTime}
+${LessonTypeIcon[lesson.type]} ${lesson.discipline} (${place}) ${lesson.isIet ? "[ИОТ]" : ""}`;
 }
