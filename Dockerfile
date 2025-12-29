@@ -64,7 +64,7 @@ ENV NODE_ENV=production
 ENV CHROME_PATH=/usr/bin/chromium-browser
 ENV TZ=Europe/Samara
 
-COPY --from=client_builder /app/public ./
+COPY --from=client_builder /app/dist/ /app/public
 
 EXPOSE 3000
 ENV PORT=3000
