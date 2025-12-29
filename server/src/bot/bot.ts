@@ -132,7 +132,8 @@ async function initBot(bot: GrammyBot<Context>) {
       });
     }
   }
-  void bot.api.setMyCommands(publicCommands);
+  void bot.api.setMyCommands([{command: "options", description: "Настройки"}, {command: "schedule", description: "Расписание"}], {scope: {type: "all_group_chats"}})
+  void bot.api.setMyCommands(publicCommands, {scope: {type: "all_private_chats"}})
   // Too lazy to use proper groups. Unsure how to separate them and where to switch the user between them
 
   bot.on("message:text", async (ctx) => {
