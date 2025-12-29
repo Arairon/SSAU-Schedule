@@ -81,7 +81,14 @@ export async function sendScheduledNotifications() {
   });
 }
 
-export function invalidateDailyNotifications() {
+export function invalidateDailyNotificationsForTarget(target: string) {
+  return db.scheduledMessage.updateMany({
+    where: { source: { startsWith: "daily" }, wasSentAt: null, chatId: target },
+    data: { wasSentAt: new Date(0) },
+  });
+}
+
+export function invalidateDailyNotificationsForAll() {
   return db.scheduledMessage.updateMany({
     where: { source: { startsWith: "daily" }, wasSentAt: null },
     data: { wasSentAt: new Date(0) },
@@ -402,8 +409,12 @@ ${removed.map(formatDbLesson).join("\n")}
   );
 }
 
-async function scheduleDailyNotificationsForUser(user: User, week: Week) {
-  const today = new Date(Date.now() + 6 * 3600_000); // add 6h to ensure 'today' and not 'tonight'
+export async function scheduleDailyNotificationsForUser(
+  user: User,
+  week: Week,
+) {
+  // const today = new Date(Date.now() + 6 * 3600_000); // add 6h to ensure 'today' and not 'tonight'
+  const today = new Date();
   today.setHours(7, 0); // 7 AM in Europe/Samara
   const preferences = Object.assign(
     {},

@@ -2,10 +2,9 @@ import fastify from "fastify";
 import fastifySchedule from "@fastify/schedule";
 import { env } from "./env";
 import log from "./logger";
-import userRoutes from "./api/user";
-// import init_redis from "./redis";
 import init_bot from "./bot/bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
+import { routesv0 } from "./api/v0/routes";
 
 const server = fastify({
   logger: {
@@ -22,7 +21,8 @@ const server = fastify({
 async function start() {
   // await init_redis(server);
   await init_bot(server);
-  server.register(userRoutes);
+  server.register(routesv0, { prefix: "/api/v0" });
+  // server.register(userRoutes);
   server.register(fastifySchedule);
 
   server.ready().then(() => {

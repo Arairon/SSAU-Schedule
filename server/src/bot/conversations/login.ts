@@ -29,7 +29,7 @@ async function loginConversation(
       "Вас не существует в базе данных. Пожалуйста пропишите /start",
     );
   }
-  log.debug("Starting login conversation", { user: userId });
+  log.debug("Running login conversation", { user: userId });
 
   const msg = await ctx.reply(`
 Вход в личный кабинет

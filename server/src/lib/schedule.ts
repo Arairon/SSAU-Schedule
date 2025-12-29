@@ -12,7 +12,7 @@ import {
 import { db } from "../db";
 import { lk } from "./lk";
 import log from "../logger";
-import { WeekResponseSchema } from "./scheduleSchemas";
+import { WeekResponseSchema } from "../schema/schedule";
 import {
   ensureFlowExists,
   ensureGroupExists,

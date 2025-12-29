@@ -4,6 +4,7 @@ import { type Context } from "./types";
 import { db } from "../db";
 import { findGroup, UserPreferencesDefaults } from "../lib/misc";
 import { STYLEMAPS } from "../lib/scheduleImage";
+import { CommandGroup } from "@grammyjs/commands";
 
 // config.ts refers to the /config command, not the bot configuration :]
 const config_field_names: Record<string, string> = {
@@ -13,9 +14,12 @@ const config_field_names: Record<string, string> = {
   group: "group",
 };
 
+export const configCommands = new CommandGroup<Context>();
 // init config command
 export async function initConfig(bot: Bot<Context>) {
-  bot.command("config", async (ctx) => {
+  const commands = configCommands;
+
+  commands.command("config", "Продвинутые настройки", async (ctx) => {
     if (!ctx.from || !ctx.message) return;
     if (ctx.chat.type !== "private") return;
     const args = ctx.message.text.trim().split(" ");
@@ -160,4 +164,6 @@ ${Object.entries(preferences)
       }
     }
   });
+  bot.use(commands);
+  return commands;
 }

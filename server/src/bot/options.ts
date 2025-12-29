@@ -6,7 +6,16 @@ import { db } from "../db";
 import { UserPreferencesDefaults } from "../lib/misc";
 import { STYLEMAPS } from "../lib/scheduleImage";
 import { env } from "../env";
-import { getPersonShortname } from "../lib/utils";
+import {
+  getCurrentYearId,
+  getPersonShortname,
+  getWeekFromDate,
+} from "../lib/utils";
+import {
+  invalidateDailyNotificationsForTarget,
+  scheduleDailyNotificationsForUser,
+} from "../lib/tasks";
+import { User } from "@prisma/client";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -228,8 +237,39 @@ export async function openSettings(ctx: Context, menu?: string) {
     message: 0,
     menu: menu ?? "",
     updText: null,
+    notificationsRescheduleTimeout: null,
   };
   return updateOptionsMsg(ctx);
+}
+
+function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
+  if (ctx.session.options.notificationsRescheduleTimeout) {
+    clearTimeout(ctx.session.options.notificationsRescheduleTimeout);
+  }
+  const chat = ctx.chat;
+  const from = ctx.from;
+  if (!chat || !from || !user.groupId) return;
+  ctx.session.options.notificationsRescheduleTimeout = setTimeout(async () => {
+    const now = new Date();
+    const year = getCurrentYearId();
+    const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0);
+    const week = await db.week.findUnique({
+      where: {
+        owner_groupId_year_number: {
+          owner: user.id,
+          groupId: user.groupId!,
+          year,
+          number: weekNumber,
+        },
+      },
+    });
+    if (!week) return;
+    log.debug("Rescheduling notifications after options change", {
+      user: user.tgId,
+    });
+    await invalidateDailyNotificationsForTarget(user.tgId.toString());
+    await scheduleDailyNotificationsForUser(user, week);
+  }, 30_000);
 }
 
 async function initGroupchatOptions(bot: Bot<Context>) {
@@ -400,9 +440,11 @@ async function initGroupchatOptions(bot: Bot<Context>) {
   });
 }
 
+export const optionsCommands = new CommandGroup<Context>();
+
 // Init options features
 export async function initOptions(bot: Bot<Context>) {
-  const commands = new CommandGroup<Context>();
+  const commands = optionsCommands;
 
   commands
     .command("options", "Настройки")
@@ -420,8 +462,6 @@ export async function initOptions(bot: Bot<Context>) {
       if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
       return openSettings(ctx, "groupchat");
     });
-
-  bot.use(commands);
 
   await initGroupchatOptions(bot);
 
@@ -693,6 +733,7 @@ export async function initOptions(bot: Bot<Context>) {
       else
         ctx.session.options.updText = `Уведомления перед началом занятий отключены`;
       ctx.session.options.menu = "notifications";
+      scheduleUserNotificationsUpdate(ctx, user);
       return updateOptionsMsg(ctx);
     },
   );
@@ -716,6 +757,7 @@ export async function initOptions(bot: Bot<Context>) {
     });
     ctx.session.options.updText = `Уведомления о следующей паре ${preferences.notifyAboutNextLesson ? "включены" : "отключены"}`;
     ctx.session.options.menu = "notifications";
+    scheduleUserNotificationsUpdate(ctx, user);
     return updateOptionsMsg(ctx);
   });
 
@@ -738,6 +780,7 @@ export async function initOptions(bot: Bot<Context>) {
     });
     ctx.session.options.updText = `Уведомления о следующем дне ${preferences.notifyAboutNextDay ? "включены" : "отключены"}`;
     ctx.session.options.menu = "notifications";
+    scheduleUserNotificationsUpdate(ctx, user);
     return updateOptionsMsg(ctx);
   });
 
@@ -760,6 +803,10 @@ export async function initOptions(bot: Bot<Context>) {
     });
     ctx.session.options.updText = `Уведомления о следующей неделе ${preferences.notifyAboutNextWeek ? "включены" : "отключены"}`;
     ctx.session.options.menu = "notifications";
+    scheduleUserNotificationsUpdate(ctx, user);
     return updateOptionsMsg(ctx);
   });
+
+  bot.use(commands);
+  return commands;
 }

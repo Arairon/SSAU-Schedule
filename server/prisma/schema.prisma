@@ -117,6 +117,7 @@ model User {
 
 model UserIcs {
   id         Int      @id
+  uuid       String   @default(uuid()) @unique @db.Uuid // Used to enable public access to ics without exposing internal or tg ids.
   user       User     @relation(fields: [id], references: [id], onDelete: Cascade)
   validUntil DateTime @default(value: "1970-01-01T00:00:00.000Z")
   data       String   @default("")

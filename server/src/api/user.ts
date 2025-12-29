@@ -1,16 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { db } from "../db";
-import { getUserIcs } from "../lib/ics";
-// import log from "../logger";
-// import z from "ajv-ts";
-// import { lk } from "../lib/lk";
-// import { creds } from "../lib/credentials";
-// import { getLessonDate } from "../lib/utils";
 import { schedule } from "../lib/schedule";
 import { findGroup } from "../lib/misc";
-// import { generateTimetableImageHtml } from "../lib/scheduleImage";
 
 //options: FastifyPluginOptions
+// UNUSED
 async function routes(fastify: FastifyInstance) {
   const userIdParamSchema = {
     $id: "userId",
@@ -21,42 +15,6 @@ async function routes(fastify: FastifyInstance) {
       },
     },
   };
-
-  fastify.get(
-    "/api/user/:userId/ics",
-    {
-      schema: { params: userIdParamSchema },
-    },
-    async (
-      req: FastifyRequest<{
-        Params: { userId: number };
-        Querystring: {
-          week: number;
-          group: string;
-          groupId: number;
-          ignoreCached: boolean;
-        };
-      }>,
-      res,
-    ) => {
-      const userId = req.params.userId;
-      const user = await db.user.findUnique({
-        where: { id: userId },
-        include: { ics: true },
-      });
-      if (!user)
-        return res.status(404).send({
-          error: "user not found",
-          message: "Cannot find specified user",
-        });
-      const cachedCal = user.ics && user.ics.validUntil > new Date();
-      const cal = cachedCal ? user.ics!.data : await getUserIcs(user.id);
-      return res
-        .status(200)
-        .headers({ "content-type": "text/calendar; charset=utf-8" })
-        .send(cal);
-    },
-  );
 
   fastify.get(
     "/api/user/:userId/schedule",

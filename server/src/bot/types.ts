@@ -8,6 +8,7 @@ export interface Session {
     message: number;
     menu: string;
     updText: string | null;
+    notificationsRescheduleTimeout: NodeJS.Timeout | null;
   };
   runningScheduleUpdate: boolean;
   scheduleViewer: {

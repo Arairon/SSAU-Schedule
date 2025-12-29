@@ -18,7 +18,7 @@ export async function generateUserIcs(
   });
   if (!user) {
     log.error("Attempted to generate ics for no user", { user: userId });
-    return "";
+    return null;
   }
   log.debug("Generating new ics", { user: user.id });
   const preferences = Object.assign(
@@ -84,7 +84,7 @@ export async function generateUserIcs(
     log.error(`Error generating ics ${JSON.stringify(error)}`, {
       user: user.id,
     });
-    return "";
+    return null;
   }
 
   const cal = rawcal.replace(
@@ -92,29 +92,46 @@ export async function generateUserIcs(
     "X-WR-TIMEZONE:Europe/Samara\nX-WR-CALNAME",
   ); // A hack to include timezone, since ics lib doesn't support it
 
-  await db.userIcs.upsert({
+  const dbCal = await db.userIcs.upsert({
     where: { id: user.id },
-    update: { data: cal, validUntil: new Date(Date.now() + 86400_000) }, // 1 day
+    update: { data: cal, validUntil: new Date(Date.now() + 3600_000) }, // 1 h
     create: {
       id: user.id,
       data: cal,
-      validUntil: new Date(Date.now() + 86400_000),
+      validUntil: new Date(Date.now() + 3600_000),
     },
   });
 
   await db.user.update({ where: { id: user.id }, data: { lastActive: now } });
 
-  return cal;
+  return dbCal;
 }
 
-export async function getUserIcs(userId: number) {
+export async function getUserIcsByUserId(userId: number) {
   const now = new Date();
   const existingCal = await db.userIcs.findUnique({
     where: { id: userId },
   });
   if (existingCal && existingCal.validUntil > now) {
     log.debug("Using cached ics", { user: userId });
-    return existingCal.data;
+    return existingCal;
   }
   return generateUserIcs(userId);
+}
+
+export async function getUserIcsByUUID(uuid: string) {
+  const now = new Date();
+  const cal = await db.userIcs.findUnique({
+    where: { uuid: uuid },
+    include: { user: true },
+  });
+  if (!cal) {
+    log.warn(`Requested invalid ics: ${uuid}`, { user: "?" });
+    return null;
+  }
+  if (cal.validUntil > now) {
+    log.debug("Using cached ics", { user: cal.user.id });
+    return cal;
+  }
+  return generateUserIcs(cal.user.id);
 }

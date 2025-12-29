@@ -15,6 +15,8 @@ import { handleError } from "./bot";
 import { openSettings } from "./options";
 import { lk } from "../lib/lk";
 import type { User } from "@prisma/client";
+import { CommandGroup } from "@grammyjs/commands";
+import { getUserIcsByUserId } from "../lib/ics";
 
 async function sendGroupTimetable(
   ctx: Context,
@@ -470,8 +472,12 @@ async function sendGroupSelector(
   return ctx.reply(`Найдены следующие группы:`, { reply_markup: keyboard });
 }
 
+export const scheduleCommands = new CommandGroup<Context>();
+
 export async function initSchedule(bot: Bot<Context>) {
-  bot.command("schedule", async (ctx) => {
+  const commands = scheduleCommands;
+
+  commands.command("schedule", "Расписание", async (ctx) => {
     if (!ctx.from || !ctx.message) return;
     ctx.session.scheduleViewer = {
       chatId: ctx.chat.id,
@@ -541,31 +547,35 @@ export async function initSchedule(bot: Bot<Context>) {
     return openSettings(ctx);
   });
 
-  bot.command("today", async (ctx) => {
-    if (!ctx.from || !ctx.message) return;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
-    if (!user) {
+  commands.command(
+    "today",
+    "Расписание на сегодня (с ссылками на пары)",
+    async (ctx) => {
+      if (!ctx.from || !ctx.message) return;
+      const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+      if (!user) {
+        return ctx.reply(
+          "Вы не найдены в базе данных. Пожалуйста пропишите /start",
+        );
+      }
+      const now = new Date();
+      const timetable = await schedule.getWeekTimetable(user, 0);
+      const day = timetable.days.at(now.getDay() - 1);
+      if (!day?.lessons.length || now.getDay() === 0) {
+        return ctx.reply("Сегодня занятий нет :D");
+      }
       return ctx.reply(
-        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
-      );
-    }
-    const now = new Date();
-    const timetable = await schedule.getWeekTimetable(user, 0);
-    const day = timetable.days.at(now.getDay() - 1);
-    if (!day?.lessons.length || now.getDay() === 0) {
-      return ctx.reply("Сегодня занятий нет :D");
-    }
-    return ctx.reply(
-      `\
+        `\
 Занятия сегодня:
 
 ${day.lessons.map(generateTextLesson).join("\n=====\n")}
 `,
-      { link_preview_options: { is_disabled: true } },
-    );
-  });
+        { link_preview_options: { is_disabled: true } },
+      );
+    },
+  );
 
-  bot.command("now", async (ctx) => {
+  commands.command("now", "Ближайшая пара", async (ctx) => {
     if (!ctx.from || !ctx.message) return;
     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
     if (!user) {
@@ -655,4 +665,42 @@ ${generateTextLesson(lesson)}
       /* ignore */
     });
   });
+
+  commands.command("ics", "Ссылка на календарь ics", async (ctx) => {
+    if (ctx.chat.type !== "private") return;
+    if (!ctx.from) {
+      return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
+        parse_mode: "HTML",
+      });
+    }
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(
+        "Вас не существует в базе данных. Пожалуйста пропишите /start",
+      );
+    }
+    const cal = await getUserIcsByUserId(user.id);
+    if (!cal) {
+      return ctx.reply(
+        `Произошла ошибка при попытке создать календарь.\nПожалуйста попробуйте позже или свяжитесь с администратором бота`,
+      );
+    }
+    return ctx.reply(
+      `\
+Инструкция по установке: https://l9labs.ru/stud_bot/ics.html
+(Украдено у l9 :D)
+
+Ваша ссылка:
+https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
+
+‼️Файл по этой ссылке не для скачивания‼️
+Содержимое ссылки генерируется динамически в зависимости от текущего расписания и ваших настроек.
+Добавьте её в календарь и включите синхронизацию.
+ `,
+      { link_preview_options: { is_disabled: true } },
+    );
+  });
+
+  bot.use(commands);
+  return commands;
 }
