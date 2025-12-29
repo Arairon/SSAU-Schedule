@@ -1,0 +1,11 @@
+client/node_modules
+server/node_modules
+server/prisma/dev.db
+server/db/
+**/.env
+**/Dockerfile
+**/.dockerignore
+**/npm-debug.log
+**/README.md
+**/.next
+**/.git
