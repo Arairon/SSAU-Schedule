@@ -27,7 +27,7 @@ export function getWeekFromDate(date: Date) {
   //
   const week1 = FIRST_STUDY_DAY;
   // if July or earlier use previous year
-  if (dt.getMonth() < 7) week1.setFullYear(week1.getFullYear() - 1);
+  // if (dt.getMonth() < 7) week1.setFullYear(week1.getFullYear() - 1); // Handled in FIRST_STUDY_DAY
   // Adjust to Thursday in week 1 and count number of weeks from date to week1.
   const weekNumber =
     1 +
