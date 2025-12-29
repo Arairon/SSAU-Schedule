@@ -227,5 +227,10 @@ https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
     );
   });
 
+  commands.command("app", "Переход в веб приложение", async (ctx) => {
+    ctx.deleteMessage()
+    ctx.reply("Переход в веб приложение\n(Веб приложение специально не добавлено как отдельная кнопка в боте, т.к. приоритет всё же на команды)", {reply_markup: new InlineKeyboard().webApp("Открыть", `https://${env.SCHED_BOT_DOMAIN}/`)})
+  })
+
   bot.use(commands);
 }

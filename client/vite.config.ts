@@ -14,6 +14,7 @@ export default defineConfig({
       "misc.arai.icu"
     ]
   },
+  base: "/",
   plugins: [
     devtools(),
     tanstackRouter({

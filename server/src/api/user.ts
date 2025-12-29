@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { db } from "../db";
 import { schedule } from "../lib/schedule";
 import { findGroup } from "../lib/misc";
+import { getUserIcsByUserId } from "../lib/ics";
 
 //options: FastifyPluginOptions
 // UNUSED
@@ -68,7 +69,7 @@ async function routes(fastify: FastifyInstance) {
           message: "Cannot find specified user",
         });
       const cachedCal = user.ics && user.ics.validUntil > new Date();
-      const cal = cachedCal ? user.ics!.data : await getUserIcs(user.id);
+      const cal = cachedCal ? user.ics!.data : await getUserIcsByUserId(user.id);
       return res
         .status(200)
         .headers({ "content-type": "text/calendar; charset=utf-8" })

@@ -1,15 +1,15 @@
-import postcss from "postcss";
-import tailwindcss from "tailwindcss";
 import fastify from "fastify";
 import fastifySchedule from "@fastify/schedule";
+import fastifyStatic from "@fastify/static";
 import { env } from "./env";
 import log from "./logger";
-import userRoutes from "./api/user";
-import tgUserRoutes from "./api/userTg";
 // import init_redis from "./redis";
 import init_bot from "./bot/bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
 import { routesv0 } from "./api/v0/routes";
+import { routesDebug } from "./api/debug/routes";
+import path from "node:path"
+
 
 const server = fastify({
   logger: {
@@ -26,8 +26,15 @@ const server = fastify({
 async function start() {
   // await init_redis(server);
   await init_bot(server);
-  server.register(userRoutes);
-  server.register(tgUserRoutes);
+
+  server.register(routesv0, {prefix: "/api/v0"})
+  if (env.NODE_ENV === "development")
+    server.register(routesDebug, {prefix: "/api/debug"})
+
+  server.register(fastifyStatic, {
+    root: env.NODE_ENV === "development" ? path.resolve("../client/dist/") : "/app/public"
+  })
+
   server.register(fastifySchedule);
 
   server.ready().then(() => {
