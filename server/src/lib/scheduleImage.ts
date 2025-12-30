@@ -128,7 +128,7 @@ function generateSingleLesson(
   parts.push(
     format(LESSON_START, {
       barStyle: style.barStyle,
-      cardStyle: style.cardStyle,
+      cardStyle: style.cardStyle + (lesson.customized?.hidden ? " grayscale-[50%] opacity-50" : ""),
     }),
   );
   parts.push(
@@ -143,7 +143,7 @@ function generateSingleLesson(
       subgroupStyle: style.subgroupStyle,
       ietStyle: lesson.isIet ? style.ietStyle : "hidden",
       ietLabel: style.ietLabel,
-      extra: lesson.customized ? "<span style=\"color:gold;\">*</span>" : ""
+      extra: lesson.customized ? "<span style=\"color:#6495ED;\">*</span>" : ""
     }),
   );
   if (opts?.showGrouplist) {
