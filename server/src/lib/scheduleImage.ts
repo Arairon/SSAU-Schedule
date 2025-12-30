@@ -23,6 +23,9 @@ const CSS =
     ? readFileSync("./src/template/timetable.css")
     : STATIC_CSS;
 
+
+// These variable names are terrible. God help us all
+
 const HTML_HEAD = `\
 <!DOCTYPE html>
 <html>
@@ -81,7 +84,10 @@ const LESSON_START = `\
 <div class="px-1 text-left">`;
 
 const LESSON_BODY = `\
-<p class="{nameStyle}">{name}</p>
+<p class="flex flex-row">
+  <span class="flex-1 grow {nameStyle}">{name}</span>
+  {extra}
+</p>
 <hr class="my-1">
 <p class="{teacherStyle}">{teacherName}</p>
 <p class="w-full flex flex-row items-center">
@@ -137,6 +143,7 @@ function generateSingleLesson(
       subgroupStyle: style.subgroupStyle,
       ietStyle: lesson.isIet ? style.ietStyle : "hidden",
       ietLabel: style.ietLabel,
+      extra: lesson.customized ? "<span style=\"color:gold;\">*</span>" : ""
     }),
   );
   if (opts?.showGrouplist) {

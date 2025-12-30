@@ -1,6 +1,6 @@
 # CLIENT
 # Client Deps
-FROM oven/bun:1.3.1-alpine AS client_deps
+FROM oven/bun:1.3.5-alpine AS client_deps
 #RUN apk add --no-cache libc6-compat openssl;
 
 WORKDIR /app
@@ -11,7 +11,7 @@ RUN bun install;
 
 # Client Builder
 #FROM node:25-alpine AS client_builder 
-FROM oven/bun:1.3.1-alpine AS client_builder
+FROM oven/bun:1.3.5-alpine AS client_builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN bun run build;
 
 # SERVER
 # Server Deps
-FROM oven/bun:1.3.1-alpine AS server_deps
+FROM oven/bun:1.3.5-alpine AS server_deps
 #RUN apk add --no-cache libc6-compat openssl;
 
 WORKDIR /app
@@ -40,7 +40,7 @@ COPY server/package.json server/bun.lock ./
 RUN bun install;
 
 # Server Cached Chrome
-FROM oven/bun:1.3.1-alpine AS chrome
+FROM oven/bun:1.3.5-alpine AS chrome
 
 RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init;
 
