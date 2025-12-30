@@ -561,6 +561,11 @@ export async function initSchedule(bot: Bot<Context>) {
       const now = new Date();
       const timetable = await schedule.getWeekTimetable(user, 0);
       const day = timetable.days.at(now.getDay() - 1);
+
+      if (ctx.message.text.split(" ")[1] === "admin" && ctx.from.id === env.SCHED_BOT_ADMIN_TGID) {
+        return ctx.reply(JSON.stringify(day, undefined, 2), {link_preview_options: {is_disabled: true}})
+      }
+
       if (!day?.lessons.length || now.getDay() === 0) {
         return ctx.reply("Сегодня занятий нет :D");
       }
