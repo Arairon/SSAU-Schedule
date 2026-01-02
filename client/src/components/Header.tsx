@@ -6,7 +6,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="flex items-center bg-slate-900 p-4 text-white shadow-lg">
+      <header className="flex items-center justify-center bg-slate-900 p-2 text-white shadow-lg sm:justify-start sm:p-4">
         {/*
         <button
           onClick={() => setIsOpen(true)}
@@ -16,12 +16,12 @@ export default function Header() {
           <Menu size={24} />
         </button>
         */}
-        <h1 className="ml-4 flex items-center gap-2 text-4xl font-semibold text-[#36f3ff]">
+        <h1 className="flex items-center gap-2 text-3xl font-semibold text-[#36f3ff] sm:ml-4 sm:text-4xl">
           <Link to="/" className='flex items-center gap-2'>
             <img
               src="/ssau-sched-textless.png"
               alt="SSAU-Schedule Logo"
-              className="h-10"
+              className="h-8 sm:h-10"
             />
             <span>Schedule</span>
           </Link>
