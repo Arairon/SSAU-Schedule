@@ -3,7 +3,8 @@ import type { Context } from "./types";
 
 import log from "../logger";
 import { db } from "../db";
-import { formatBigInt, getWeekFromDate } from "../lib/utils";
+import { formatBigInt } from "../lib/utils";
+import { getWeekFromDate } from "@shared/date";
 import { env } from "../env";
 import { schedule } from "../lib/schedule";
 import {
@@ -98,7 +99,7 @@ async function sendTimetable(
         .catch(() => {
           /*ignore*/
         });
-    } catch {}
+    } catch { }
   }, 150);
 
   let timetable;
@@ -357,7 +358,7 @@ export async function updateTimetable(
           .catch(() => {
             /*ignore*/
           });
-      } catch {}
+      } catch { }
     }, 150);
 
     let timetable;
@@ -372,7 +373,6 @@ export async function updateTimetable(
       log.error(`Failed to get timetable ${String(e)}`, { user: userId });
       return ctx.reply(`
 Произошла неизвестная ошибка при обновлении.
-Попробуйте позже или повторно войдите в аккаунт через /login
 Для подробностей свяжитесь с администратором бота.
         `);
     }
@@ -564,7 +564,7 @@ export async function initSchedule(bot: Bot<Context>) {
       const day = timetable.days.at(now.getDay() - 1);
 
       if (ctx.message.text.split(" ")[1] === "admin" && ctx.from.id === env.SCHED_BOT_ADMIN_TGID) {
-        return ctx.reply(JSON.stringify(day, undefined, 2), {link_preview_options: {is_disabled: true}})
+        return ctx.reply(JSON.stringify(day, undefined, 2), { link_preview_options: { is_disabled: true } })
       }
 
       if (!day?.lessons.length || now.getDay() === 0) {

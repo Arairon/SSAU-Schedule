@@ -1,9 +1,10 @@
-import { useLaunchParams } from "@tma.js/sdk-react";
+import { useLaunchParams, useRawInitData } from "@tma.js/sdk-react";
 
 export function useTg() {
   try {
-    return useLaunchParams();
+    return {parsed: useLaunchParams(), raw: useRawInitData()};
   } catch {
-    return false;
+    return {parsed: null, raw: null};
   }
 }
+

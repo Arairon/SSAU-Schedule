@@ -12,7 +12,14 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: [
       "misc.arai.icu"
-    ]
+    ],
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
   base: "/",
   plugins: [

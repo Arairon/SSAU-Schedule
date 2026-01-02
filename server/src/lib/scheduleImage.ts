@@ -6,7 +6,8 @@ import {
   type TimetableLesson,
   type WeekTimetable,
 } from "./schedule";
-import { formatBigInt, getLessonDate, getPersonShortname } from "./utils";
+import { formatBigInt, getPersonShortname } from "./utils";
+import { getLessonDate } from "@shared/date"
 import log from "../logger";
 import { env } from "../env";
 import { type StyleMap } from "@shared/themes/types";
@@ -131,6 +132,17 @@ function generateSingleLesson(
       cardStyle: style.cardStyle + (lesson.customized?.hidden ? " grayscale-[50%] opacity-50" : ""),
     }),
   );
+
+  function getCustomizationIndicator(lesson: TimetableLesson) {
+    if (!lesson.customized) return "";        // Not customized
+    if (!lesson.original?.id) return "+";     // Adds a new one
+    if (lesson.customized.hidden) return "-"; // Overwrites and removes original
+    return "*";                               // Overwrites original
+  }
+
+  const customizationIndicator = getCustomizationIndicator(lesson);
+
+
   parts.push(
     format(LESSON_BODY, {
       name: lesson.discipline,
@@ -143,7 +155,7 @@ function generateSingleLesson(
       subgroupStyle: style.subgroupStyle,
       ietStyle: lesson.isIet ? style.ietStyle : "hidden",
       ietLabel: style.ietLabel,
-      extra: lesson.customized ? "<span style=\"color:#6495ED;\">*</span>" : ""
+      extra: customizationIndicator ? `<span style="color:#6495ED;">${customizationIndicator}</span>` : ""
     }),
   );
   if (opts?.showGrouplist) {
@@ -216,7 +228,7 @@ function generateLesson(
 
 function format(string: string, values: Record<string, string>) {
   //console.debug(values);
-  return string.replace(/\{(\w+)\}/g, function (x) {
+  return string.replace(/\{(\w+)\}/g, function(x) {
     //console.debug(x, values[x.slice(1, x.length - 1)]);
     return values[x.slice(1, x.length - 1)] ?? x;
   });

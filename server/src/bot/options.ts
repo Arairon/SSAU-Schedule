@@ -8,9 +8,11 @@ import { STYLEMAPS } from "../lib/scheduleImage";
 import { env } from "../env";
 import {
   getCurrentYearId,
-  getPersonShortname,
   getWeekFromDate,
-} from "../lib/utils";
+} from "@shared/date";
+import {
+  getPersonShortname,
+} from "../lib/utils"
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,

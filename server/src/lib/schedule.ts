@@ -3,12 +3,14 @@ import { LessonType } from "@prisma/client";
 import axios from "axios";
 import {
   formatSentence,
-  getLessonDate,
-  getWeekFromDate,
-  getCurrentYearId,
   md5,
   formatBigInt,
 } from "./utils";
+import {
+  getLessonDate,
+  getWeekFromDate,
+  getCurrentYearId,
+} from "@shared/date"
 import { db } from "../db";
 import { lk } from "./lk";
 import log from "../logger";
@@ -66,20 +68,20 @@ async function getWeekLessons(
     include: { groups: true, teacher: true },
   });
 
-  const lessonIds = lessons.map(i=>i.id)
+  const lessonIds = lessons.map(i => i.id)
 
   const customLessons = await db.customLesson.findMany({
     where: {
       OR: [{
         weekNumber: week
       }, {
-        lessonId: {in: lessonIds}
+        lessonId: { in: lessonIds }
       }],
       userId: user.id,
       // type: militaryFilter, // breaks on null
       isEnabled: true, // TODO: Allow viewing disabled customizations or figure out a better way
     },
-    include: {groups: true, teacher: true, user: true, flows:true}
+    include: { groups: true, teacher: true, user: true, flows: true }
   })
 
   if (ignoreIet) return { lessons, ietLessons: [], customLessons, all: lessons };
@@ -221,13 +223,13 @@ async function getTimetableWithImage(
   const timetable = usingCachedTimetable
     ? week.timetable!
     : await getWeekTimetable(user, week.number, {
-        groupId: opts?.groupId,
-        year: week.year,
-        ignoreCached: opts?.ignoreCached,
-        forceUpdate: opts?.forceUpdate,
-        ignoreUpdate: opts?.ignoreUpdate,
-        ignoreIet: opts?.ignoreIet,
-      });
+      groupId: opts?.groupId,
+      year: week.year,
+      ignoreCached: opts?.ignoreCached,
+      forceUpdate: opts?.forceUpdate,
+      ignoreUpdate: opts?.ignoreUpdate,
+      ignoreIet: opts?.ignoreIet,
+    });
 
   const timetableHash =
     usingCachedTimetable && week.timetableHash
@@ -402,7 +404,7 @@ async function getWeekTimetable(
 
   const customLessons = lessons.customLessons;
   console.log(customLessons)
-  
+
 
   function applyCustomization(lesson: TimetableLesson, customLesson: typeof customLessons[number]) {
     // DateTime customization is applied beforehand.
@@ -418,11 +420,11 @@ async function getWeekTimetable(
       "discipline", "type", "isOnline", "isIet", "building", "room", "conferenceUrl", "subgroup",
       "dayTimeSlot", "beginTime", "endTime",
     ]
-    const changes: Partial<CustomLesson> = Object.fromEntries(Object.entries(customLesson).filter(([k,v])=>v&&(propsToCopy as string[]).includes(k)))
+    const changes: Partial<CustomLesson> = Object.fromEntries(Object.entries(customLesson).filter(([k, v]) => v && (propsToCopy as string[]).includes(k)))
     Object.assign(lesson, changes)
-    if (customLesson.teacher) lesson.teacher  = customLesson.teacher.name;
+    if (customLesson.teacher) lesson.teacher = customLesson.teacher.name;
     if (customLesson.groups) lesson.groups = customLesson.groups.map((g) => g.name);
-    if (customLesson.flows) lesson.flows = customLesson.flows.map((f) => f.name); 
+    if (customLesson.flows) lesson.flows = customLesson.flows.map((f) => f.name);
     lesson.id = customLesson.id;
   }
 
@@ -450,7 +452,7 @@ async function getWeekTimetable(
     if ("groups" in lesson) ttLesson.groups = lesson.groups.map((g) => g.name);
     if ("flows" in lesson) ttLesson.flows = lesson.flows.map((f) => f.name);
 
-    const customLesson = customLessons.find(i=>i.lessonId === lesson.id)
+    const customLesson = customLessons.find(i => i.lessonId === lesson.id)
     if (customLesson) applyCustomization(ttLesson, customLesson)
 
     const day = timetable.days[lesson.weekday - 1];
@@ -463,10 +465,10 @@ async function getWeekTimetable(
       (l) => l.dayTimeSlot === lesson.dayTimeSlot,
     );
     if (alts.length > 0) {
-     alts.forEach((alt) => {
+      alts.forEach((alt) => {
         ttLesson.alts.push(alt, ...alt.alts);
         alt.alts = []
-      }); 
+      });
       day.lessons = day.lessons.filter((l) => !alts.includes(l));
     } else {
       day.lessonCount += 1;
@@ -474,7 +476,7 @@ async function getWeekTimetable(
     day.lessons.push(ttLesson);
   }
 
-  customLessons.filter(i=>i.lessonId === null).forEach(i=>{
+  customLessons.filter(i => i.lessonId === null).forEach(i => {
     const lesson: TimetableLesson = {
       id: i.id,
       type: i.type ?? LessonType.Unknown,
@@ -520,7 +522,7 @@ async function getWeekTimetable(
       day.lessonCount += 1;
     }
     day.lessons.push(lesson);
-    
+
   })
 
 
@@ -750,12 +752,12 @@ async function updateWeekForUser(
   // Process week
   const knownLessons = someoneElsesGroup
     ? await getWeekLessons(user, weekNumber, opts.groupId, {
-        ignoreIet: true,
-        ignorePreferences: true,
-      })
+      ignoreIet: true,
+      ignorePreferences: true,
+    })
     : await getWeekLessons(user, weekNumber, undefined, {
-        ignorePreferences: true,
-      });
+      ignorePreferences: true,
+    });
   const updatedTeachers: number[] = [];
   const updatedGroups: number[] = [];
   const updatedFlows: number[] = [];
@@ -841,23 +843,23 @@ async function updateWeekForUser(
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
             ? {
-                connectOrCreate: {
-                  where: {
-                    owner_groupId_year_number: {
-                      owner: week.owner,
-                      groupId: week.groupId,
-                      year: week.year,
-                      number: lessonInfo.week,
-                    },
-                  },
-                  create: {
+              connectOrCreate: {
+                where: {
+                  owner_groupId_year_number: {
                     owner: week.owner,
                     groupId: week.groupId,
                     year: week.year,
                     number: lessonInfo.week,
                   },
                 },
-              }
+                create: {
+                  owner: week.owner,
+                  groupId: week.groupId,
+                  year: week.year,
+                  number: lessonInfo.week,
+                },
+              },
+            }
             : undefined, // Current week is handled separately with lessonsInThisWeek
       };
       const lesson = Object.assign({}, weekInfo, info);
@@ -956,23 +958,23 @@ async function updateWeekForUser(
           week:
             lessonInfo.week !== week.number // Create placeholder for other weeks
               ? {
-                  connectOrCreate: {
-                    where: {
-                      owner_groupId_year_number: {
-                        owner: week.owner,
-                        groupId: week.groupId,
-                        year: week.year,
-                        number: lessonInfo.week,
-                      },
-                    },
-                    create: {
+                connectOrCreate: {
+                  where: {
+                    owner_groupId_year_number: {
                       owner: week.owner,
                       groupId: week.groupId,
                       year: week.year,
                       number: lessonInfo.week,
                     },
                   },
-                }
+                  create: {
+                    owner: week.owner,
+                    groupId: week.groupId,
+                    year: week.year,
+                    number: lessonInfo.week,
+                  },
+                },
+              }
               : undefined, // Current week is handled separately with lessonsInThisWeek
         };
         const lesson = Object.assign({}, individualInfo, info);

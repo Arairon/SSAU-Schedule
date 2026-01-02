@@ -3,7 +3,7 @@ import { AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "../db";
 import { bot } from "../bot/bot";
 import log from "../logger";
-import { getCurrentYearId, getWeekFromDate } from "./utils";
+import { getCurrentYearId, getWeekFromDate } from "@shared/date";
 import { schedule, TimeSlotMap } from "./schedule";
 import {
   DayString,
