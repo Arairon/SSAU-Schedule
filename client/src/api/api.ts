@@ -13,7 +13,7 @@ export async function getSchedule({ rawTgInfo, week, group, groupId, ignoreCache
       authorization: "tma " + rawTgInfo
     },
   })
-  if (!res.ok) throw new Error(`Failed to fetch schedule: ${await res.text()}`)
+  if (!res.ok) throw new Error(`(${res.status}) Failed to fetch schedule: ${await res.text() || "No additional info"}`)
   const data = ScheduleSchema.parse(await res.json())
   console.log(res, data)
   return data

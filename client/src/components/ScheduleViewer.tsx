@@ -1,5 +1,5 @@
 import { TimeSlotMap, type ScheduleLessonType, type ScheduleType } from "@/lib/types";
-import { useState, } from "react";
+import { useEffect, useState, } from "react";
 import { getWeekFromDate } from "@shared/date";
 import type { LessonType } from "@shared/themes/types";
 
@@ -185,7 +185,7 @@ export function ScheduleLesson({ lesson, }: { lesson: ScheduleLessonType | null,
           <div className={"rounded-xl p-1 " + s.barStyle}></div>
           <div className="px-1 text-left">
             <p className={s.nameStyle}>{lesson.discipline}</p>
-            <hr className="my-1" />
+            <hr className="my-1 border-white" />
             <p className={s.teacherStyle}>{lesson.teacher}</p>
             <p className="flex w-full flex-row items-center">
               <a className={"flex-1 grow " + s.placeStyle}>{lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}</a>
@@ -219,23 +219,53 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
     return a > t ? a : t
   }, 0)
 
-  const today = new Date();
-  let initialColumn = 0;
-  if (getWeekFromDate(today) === schedule.week) {
-    initialColumn = today.getDay() - 1;
-    if (initialColumn === 5) initialColumn = 0; // Handle sunday
-  }
+  useEffect(() => {
+    const today = new Date();
+    let initialColumn = 0;
+    if (getWeekFromDate(today) === schedule.week) {
+      initialColumn = today.getDay() - 1;
+      if (initialColumn === 5) initialColumn = 0; // Handle sunday
+    } else {
+      initialColumn = schedule.days.findIndex(i => i.lessonCount > 0)
+      if (initialColumn < 0) initialColumn = 0;
+    }
+    setCurrentDay(initialColumn)
+  }, [schedule])
 
-  const [currentDay, setCurrentDay] = useState(initialColumn);
+  const [currentDay, setCurrentDay] = useState(0);
 
   const isMobile = window.innerWidth <= 640;
 
-  function renderDay(day: typeof schedule.days[number], dayIndex: number) {
+
+
+  const boldnessLevels = [
+    'font-thin',
+    'font-extralight',
+    // 'font-light',
+    'font-normal',
+    // 'font-medium',
+    // 'font-semibold',
+    'font-bold',
+    'font-extrabold',
+  ]
+
+  function getBoldness(count: number) {
+    let level = Math.min(count, boldnessLevels.length - 1);
+    return " " + boldnessLevels[level]
+
+  }
+
+  function dayHeader(day: typeof schedule.days[number], dayIndex: number) {
     const date = day.beginTime
+    return <div key={`${dayIndex}div${date}`} className="snap-end rounded-lg border-2 border-cyan-600 bg-cyan-900 p-2 font-bold text-white sm:min-w-0">
+      {WEEKDAYS[dayIndex + 1].short} {`${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}`}
+    </div>
+
+  }
+
+  function renderDay(day: typeof schedule.days[number], dayIndex: number) {
     return <>
-      <div key={`${dayIndex}div`} className="min-w-80 snap-end rounded-lg border-2 border-cyan-600 bg-cyan-900 p-2 font-bold text-white sm:min-w-0">
-        {WEEKDAYS[dayIndex + 1].short} {`${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}`}
-      </div>
+      {dayHeader(day, dayIndex)}
       {
         new Array(columnHeight).fill(0).map((_, index) => (
           <ScheduleLesson key={`lesson_${dayIndex}.${index}`} lesson={day.lessons.find(i => i.dayTimeSlot == index + 1) ?? null} />
@@ -245,46 +275,113 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
   }
 
 
+  function daySelector() {
+    return <nav className="flex flex-row items-stretch justify-center gap-2">
+      {
+        schedule.days.map((day, dayIndex) => {
+          return <>
+            <button onClick={() => setCurrentDay(dayIndex)} key={`${dayIndex}navdiv`}
+              className={"flex-1 rounded-lg py-1 px-2 font-bold border-2 border-cyan-600 bg-cyan-900 text-white" +
+                (dayIndex === currentDay ? " border-yellow-50" : "") +
+                getBoldness(day.lessonCount) +
+                (day.lessonCount === 0 ? " line-through" : "")
+              }>
+              {WEEKDAYS[dayIndex + 1].short}
+            </button>
+          </>
+        })
+      }
+    </nav>
+  }
+
+  function timeSlots() {
+    if (columnHeight === 0) {
+      // Пар нет
+      return (
+        <div
+          className={"sticky left-0 flex flex-col justify-center rounded-lg p-2 font-bold min-w-16 sm:min-w-0 border-2 border-cyan-600 bg-cyan-900 text-white"}>
+          {TimeSlotMap[0].beginTime}
+          <hr className="my-1 border-white" />
+          {TimeSlotMap.at(-1)!.endTime}
+        </div>
+      )
+    }
+
+    return <>
+      {
+        TimeSlotMap.slice(1, columnHeight + 1).map((timeslot) => (
+          <div key={`timeslot${timeslot.name}`}
+            className={"sticky left-0 flex flex-col justify-center rounded-lg p-2 font-bold min-w-16 sm:min-w-0 border-2 border-cyan-600 bg-cyan-900 text-white"}>
+            {timeslot.beginTime}
+            <hr className="my-1 border-white" />
+            {timeslot.endTime}
+          </div>
+        ))
+      }
+    </>
+  }
+
+  function timetable() {
+    if (columnHeight === 0) {
+      // Пар нет
+      const s = lessonStyles.Window
+      if (isMobile) {
+        const start = schedule.days[0].beginTime
+        const end = schedule.days[5].beginTime
+        return <>
+          <div className="min-w-80 snap-end rounded-lg border-2 border-cyan-600 bg-cyan-900 p-2 font-bold text-white sm:min-w-0">
+            {`${start.getDate().toString().padStart(2, "0")}.${(start.getMonth() + 1).toString().padStart(2, "0")}`}
+            &nbsp;-&nbsp;
+            {`${end.getDate().toString().padStart(2, "0")}.${(end.getMonth() + 1).toString().padStart(2, "0")}`}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <div className={"flex-1 py-20 " + s.cardStyle}>
+              <div className={"rounded-xl p-1 " + s.barStyle}></div>
+              <div className="flex h-full flex-col justify-center px-1 text-left">
+                <p className="block text-center text-4xl font-bold">Пар нет :D</p>
+              </div>
+            </div>
+          </div>
+        </>
+      }
+      return <>
+        {dayHeader(schedule.days[0], 0)}
+        <div className="col-span-6 flex flex-col gap-1">
+          <div className={"flex-1 py-20 " + s.cardStyle}>
+            <div className={"rounded-xl p-1 " + s.barStyle}></div>
+            <div className="flex h-full flex-col justify-center px-1 text-left">
+              <p className="block text-center text-4xl font-bold">Пар нет :D</p>
+            </div>
+          </div>
+        </div>
+        {schedule.days.slice(1).map((day, index) => dayHeader(day, index + 1))}
+      </>
+    }
+    if (isMobile) return renderDay(schedule.days[currentDay], currentDay) // Рендерим всего один день
+    return <>{schedule.days.map(renderDay)}</>
+
+  }
+
+
   return (
     <div className="relative flex w-full flex-col items-stretch gap-2 p-2 text-base">
-      {/* <nav className="flex flex-row justify-between gap-2 overflow-x-auto text-center font-bold"> */}
-      {/*   {Object.values(style.lessonTypes).map(lessonType => ( */}
-      {/*     <div key={lessonType.name} className={"flex-1 p-1 " + lessonType.headerStyle}>{lessonType.name}</div> */}
-      {/*   ))} */}
-      {/* </nav> */}
-      {isMobile &&
-        <nav className="flex flex-row items-stretch justify-center gap-2">
-          {
-            schedule.days.map((_day, dayIndex) => {
-              return <>
-                <button onClick={() => setCurrentDay(dayIndex)} key={`${dayIndex}navdiv`}
-                  className={"flex-1 rounded-lg py-1 px-2 font-bold border-2 border-cyan-600 bg-cyan-900 text-white" + (dayIndex === currentDay ? " border-yellow-50" : "")}>
-                  {WEEKDAYS[dayIndex + 1].short}
-                </button>
-              </>
-            })
-          }
-        </nav>
-      }
-      <div className="grid touch-pan-y snap-x snap-proximity grid-flow-col grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr] gap-1 overflow-x-auto scroll-smooth" style={{ gridTemplateRows: `repeat(${columnHeight + 1}, auto)` }}>
+      {/*
+      <nav className="flex flex-row justify-between gap-2 overflow-x-auto text-center font-bold">
+         {Object.values(style.lessonTypes).map(lessonType => (
+           <div key={lessonType.name} className={"flex-1 p-1 " + lessonType.headerStyle}>{lessonType.name}</div>
+         ))} 
+      </nav>
+      */}
+      {isMobile && daySelector()}
+      <div className={"grid snap-x snap-proximity grid-flow-col  gap-1 overflow-x-auto scroll-smooth " +
+        (!isMobile ? "grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr]" : "grid-cols-[auto_1fr]")}
+        style={{ gridTemplateRows: `repeat(${(columnHeight || 1) + 1}, auto)` }}>
         <div className={"sticky left-0 snap-start flex flex-col justify-center rounded-lg p-2 font-bold border-2 border-cyan-600 bg-cyan-900 text-white"}>
           Время
         </div>
-        {
-          TimeSlotMap.slice(1, columnHeight + 1).map((timeslot) => (
-            <div key={`timeslot${timeslot.name}`} className={"sticky left-0 flex flex-col justify-center rounded-lg p-2 font-bold min-w-16 sm:min-w-0 border-2 border-cyan-600 bg-cyan-900 text-white"}>
-              {timeslot.beginTime}
-              <hr className="my-1 bg-white" />
-              {timeslot.endTime}
-            </div>
-          ))
-        }
-        {/* Render a single day for mobile and the whole week for desktop */}
-        {
-          isMobile ? renderDay(schedule.days[currentDay], currentDay) : schedule.days.map(renderDay)
-        }
-
-
+        {timeSlots()}
+        {timetable()}
       </div>
     </div >
   )
