@@ -69,7 +69,7 @@ function App() {
           <Button onClick={() => setWeekNumber(weekNumber + 1)}>Next</Button>
 
         </div>
-        <ScheduleViewer schedule={data} stylemap='neon' />
+        <ScheduleViewer schedule={data} />
       </main>
     </div>
   )
