@@ -11,6 +11,7 @@ export type LessonDateTime = {
 
 export const ScheduleSingleLessonSchema = z.object({
   id: z.number(),
+  infoId: z.number(),
   type: z.string(),
   discipline: z.string(),
   teacher: z.string(),
@@ -30,7 +31,7 @@ export const ScheduleSingleLessonSchema = z.object({
     customizedBy: z.number(),
   }).nullable(),
 })
-export const ScheduleLessonSchema = ScheduleSingleLessonSchema.and(z.object({ alts: z.array(ScheduleSingleLessonSchema), original: ScheduleSingleLessonSchema.nullable() }))
+export const ScheduleLessonSchema = ScheduleSingleLessonSchema.and(z.object({ alts: z.array(ScheduleSingleLessonSchema.and(z.object({ original: ScheduleSingleLessonSchema.nullable() }))), original: ScheduleSingleLessonSchema.nullable() }))
 export type ScheduleLessonType = z.infer<typeof ScheduleLessonSchema>;
 
 export const ScheduleDaySchema = z.object({

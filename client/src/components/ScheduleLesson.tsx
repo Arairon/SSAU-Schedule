@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTrigger, DialogTitle, Dialog
 import { Button } from "./ui/button";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
-export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?: boolean, time?: LessonDateTime|null }) {
+export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?: boolean, time?: LessonDateTime | null }) {
   const s = lessonStyles.Window;
 
   const isMobile = useIsMobile()
@@ -43,8 +43,17 @@ export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?
 }
 
 export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLessonType | null; hasMenu?: boolean }) {
-  const style = lessonStyles;
+  if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
+  return (
+    <div className="flex flex-col gap-1">
+      {[lesson, ...lesson.alts].map((lesson) =>
+        <ScheduleSingleLesson key={lesson.id} lesson={lesson} hasMenu={hasMenu} />
+      )}
+    </div>)
 
+}
+
+export function ScheduleSingleLesson({ lesson, hasMenu = true }: { lesson: Omit<ScheduleLessonType, "alts"> | null; hasMenu?: boolean }) {
   if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
 
   let customized: "added" | "removed" | "modified" | null = null;
@@ -81,12 +90,34 @@ export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLes
     console.log("Reset", lesson)
   }
 
+  const style = lessonStyles;
   const s = style[lesson.type as LessonType] ?? style.Unknown;
   if (!hasMenu)
     return (
-      <div className="flex flex-col gap-1">
-        {[lesson, ...lesson.alts].map((lesson) =>
-          <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50 opacity-50" : "")}>
+      <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50 opacity-50" : "")}>
+        <div className={"rounded-xl p-1 " + s.barStyle}></div>
+        <div className="px-1 text-left">
+          <p className="flex flex-row">
+            <a className={"flex-1 " + s.nameStyle}>{lesson.discipline}</a>
+            {customized && customizationIndicator(customized)}
+          </p>
+          <hr className="my-1 border-white" />
+          <p className={"text-sm " + s.teacherStyle}>{lesson.teacher}</p>
+          <p className="flex w-full flex-row items-center">
+            <a className={"flex-1 grow " + s.placeStyle}>{lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}</a>
+            {lesson.subgroup &&
+              <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>}
+            {lesson.isIet &&
+              <a className={s.ietStyle}>ИОТ</a>}
+          </p>
+        </div>
+      </div>
+    )
+  return (
+    <Dialog>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div key={lesson.id} className={"flex-1 " + s.cardStyle + (lesson.customized?.hidden ? " grayscale-50 opacity-50" : "") + (hasMenu ? " cursor-pointer" : "")}>
             <div className={"rounded-xl p-1 " + s.barStyle}></div>
             <div className="px-1 text-left">
               <p className="flex flex-row">
@@ -94,7 +125,7 @@ export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLes
                 {customized && customizationIndicator(customized)}
               </p>
               <hr className="my-1 border-white" />
-              <p className={s.teacherStyle}>{lesson.teacher}</p>
+              <p className={"text-sm " + s.teacherStyle}>{lesson.teacher}</p>
               <p className="flex w-full flex-row items-center">
                 <a className={"flex-1 grow " + s.placeStyle}>{lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}</a>
                 {lesson.subgroup &&
@@ -104,37 +135,8 @@ export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLes
               </p>
             </div>
           </div>
-        )}
-      </div>
-    )
-  return (
-
-    <Dialog>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div className={"flex flex-col gap-1 " + (hasMenu ? "cursor-pointer" : "")}>
-            {[lesson, ...lesson.alts].map((lesson) =>
-              <div key={lesson.id} className={"flex-1 " + s.cardStyle + (lesson.customized?.hidden ? " grayscale-50 opacity-50" : "")}>
-                <div className={"rounded-xl p-1 " + s.barStyle}></div>
-                <div className="px-1 text-left">
-                  <p className="flex flex-row">
-                    <a className={"flex-1 " + s.nameStyle}>{lesson.discipline}</a>
-                    {customized && customizationIndicator(customized)}
-                  </p>
-                  <hr className="my-1 border-white" />
-                  <p className={s.teacherStyle}>{lesson.teacher}</p>
-                  <p className="flex w-full flex-row items-center">
-                    <a className={"flex-1 grow " + s.placeStyle}>{lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}</a>
-                    {lesson.subgroup &&
-                      <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>}
-                    {lesson.isIet &&
-                      <a className={s.ietStyle}>ИОТ</a>}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
         </DropdownMenuTrigger>
+
         <DropdownMenuContent>
           <DropdownMenuItem onClick={toggleLessonHidden}>
             {lesson.customized?.hidden ? <><BellOffIcon /> Восстановить</> : <><BellIcon /> Игнорировать</>}
@@ -170,6 +172,6 @@ export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLes
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
   )
 }
-

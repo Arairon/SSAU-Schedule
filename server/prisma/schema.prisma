@@ -68,8 +68,9 @@ model CustomLesson {
   id            Int         @id @default(autoincrement())
   lesson        Lesson?     @relation(fields: [lessonId], references: [id])
   lessonId      Int? // Lesson to override (Otherwise adds new)
+  lessonInfoId  Int? // LessonID to override (for group overriding)
   isEnabled     Boolean     @default(true) // is custom lesson enabled
-  markDisabled  Boolean     @default(false) // Marks lesson as disabled (For overriding existing)
+  // markDisabled  Boolean     @default(false) // Marks lesson as disabled (For overriding existing)
   hideLesson    Boolean     @default(false) // (For overriding existing)
   type          LessonType?
   discipline    String?

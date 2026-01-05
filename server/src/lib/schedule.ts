@@ -101,6 +101,7 @@ async function getWeekLessons(
 
 export type TimetableLesson = {
   id: number;
+  infoId: number;
   type: $Enums.LessonType;
   discipline: string;
   teacher: string;
@@ -431,6 +432,7 @@ async function getWeekTimetable(
   for (const lesson of lessons.all) {
     const ttLesson: TimetableLesson = {
       id: lesson.id,
+      infoId: lesson.infoId,
       type: lesson.type,
       discipline: formatSentence(lesson.discipline),
       teacher: lesson.teacher.name,
@@ -479,6 +481,7 @@ async function getWeekTimetable(
   customLessons.filter(i => i.lessonId === null).forEach(i => {
     const lesson: TimetableLesson = {
       id: i.id,
+      infoId: -1,
       type: i.type ?? LessonType.Unknown,
       discipline: formatSentence(i.discipline ?? "Неизвестный предмет"),
       teacher: i.teacher?.name ?? "Неизвестный Преподаватель",
@@ -528,6 +531,11 @@ async function getWeekTimetable(
 
   for (const day of timetable.days) {
     day.lessons.sort((a, b) => a.dayTimeSlot - b.dayTimeSlot);
+    if (day.lessonCount === 0) {
+      const t = day.beginTime;
+      day.beginTime = day.endTime;
+      day.endTime = t;
+    }
   }
 
   if (!opts?.dontCache) {
@@ -636,7 +644,7 @@ export const TimeSlotMap = [
     beginDelta: 73500_000,
     endDelta: 78900_000,
   },
-];
+] as const;
 
 async function getDbWeek(
   user: User,

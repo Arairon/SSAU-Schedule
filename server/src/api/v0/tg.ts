@@ -7,6 +7,7 @@ import { env } from '../../env';
 import { findGroup } from '../../lib/misc';
 import { schedule } from '../../lib/schedule';
 import log from '../../logger';
+import { addCustomLesson, CustomizationDataSchemaPartial, deleteCustomLesson, editCustomLesson } from '../../lib/customLesson';
 
 
 type AuthData = ReturnType<typeof tgParse> | null
@@ -100,7 +101,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
         groupName: req.query.group,
       });
       const timetable = await schedule.getWeekTimetable(user, req.query.week, {
-        ignoreCached: req.query.ignoreCached,
+        ignoreCached: true, // req.query.ignoreCached,
         groupId: (group?.id ?? 0) || undefined,
       });
       return res
@@ -108,4 +109,76 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
         .headers({ "content-type": "application/json" })
         .send(timetable);
     })
+
+  const lessonIdParamSchema = {
+    $id: "lessonId",
+    type: "object",
+    properties: {
+      userId: {
+        type: "number",
+      },
+    },
+  };
+  fastify.post("/customLesson", {},
+    async (req: FastifyRequest<{ Body: unknown }>, res) => {
+      const tgData = req.getDecorator("authData") as AuthData
+      if (!tgData) return res.status(403).send("No initData found")
+      if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
+      const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
+      if (!user)
+        return res.status(404).send({
+          error: "not found",
+          message: "Could not find such User",
+        });
+      const { data, error } = CustomizationDataSchemaPartial.omit("id").strict().safeParse(req.body)
+      if (error || !data) {
+        return res.status(400).send(`${error?.name}: ${error?.message}`)
+      }
+      const result = await addCustomLesson(user, data)
+      res.status(200).send(result)
+
+    })
+
+  fastify.delete("/customLesson/:lessonId", { schema: { params: lessonIdParamSchema } },
+    async (req: FastifyRequest<{ Params: { lessonId: number } }>, res) => {
+      const tgData = req.getDecorator("authData") as AuthData
+      if (!tgData) return res.status(403).send("No initData found")
+      if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
+      const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
+      if (!user)
+        return res.status(404).send({
+          error: "not found",
+          message: "Could not find such User",
+        });
+      const id = Number(req.params.lessonId)
+      if (!await db.customLesson.findUnique({ where: { id, userId: user.id } })) {
+        return res.status(404).send("CustomLesson with such id belonging to you not found")
+      }
+      const result = await deleteCustomLesson(user, id)
+      res.status(200).send(result)
+    })
+
+  fastify.put("/customLesson", {},
+    async (req: FastifyRequest<{ Body: unknown }>, res) => {
+      const tgData = req.getDecorator("authData") as AuthData
+      if (!tgData) return res.status(403).send("No initData found")
+      if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
+      const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
+      if (!user)
+        return res.status(404).send({
+          error: "not found",
+          message: "Could not find such User",
+        });
+      const { data, error } = CustomizationDataSchemaPartial.requiredFor("id").strict().safeParse(req.body)
+      if (error || !data) {
+        return res.status(400).send(`${error?.name}: ${error?.message}`)
+      }
+      if (!await db.customLesson.findUnique({where: {id: data.id, userId: user.id}})) {
+        return res.status(404).send("CustomLesson with such id belonging to you not found")
+      }
+      const result = await editCustomLesson(user, data)
+      res.status(200).send(result)
+
+    })
+
 }
