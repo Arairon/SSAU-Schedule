@@ -20,6 +20,8 @@ function App() {
   const today = new Date()
   const [weekNumber, setWeekNumber] = useState(getWeekFromDate(today));
 
+  const queryClient = useQueryClient();
+
   const { isLoading, data, error } = useQuery({
     queryKey: ["schedule", weekNumber],
     queryFn: () => getSchedule({ rawTgInfo: rawTgInfo!, week: weekNumber }),
@@ -28,17 +30,16 @@ function App() {
     // enabled: !!rawTgInfo // TODO: Reenable in prod, since usage outside tg is only handled in dev right now.
   })
 
-  const queryClient = useQueryClient();
   if (weekNumber < 52 && !error)
     queryClient.prefetchQuery({
-      queryKey: ["schedule", weekNumber],
+      queryKey: ["schedule", weekNumber + 1],
       queryFn: () => getSchedule({ rawTgInfo: rawTgInfo!, week: weekNumber + 1 }),
       staleTime: 300_000,
       retry: 1,
     })
   if (weekNumber > 1 && !error)
     queryClient.prefetchQuery({
-      queryKey: ["schedule", weekNumber],
+      queryKey: ["schedule", weekNumber - 1],
       queryFn: () => getSchedule({ rawTgInfo: rawTgInfo!, week: weekNumber - 1 }),
       staleTime: 300_000,
       retry: 1,
@@ -70,35 +71,33 @@ function App() {
   }
 
   return (
-    <div className="text-center">
-      <main className="flex min-h-screen flex-col items-center justify-stretch bg-slate-800 py-2 text-[calc(10px+2vmin)] text-white">
-        <div className='flex flex-row items-center justify-between gap-4 self-stretch px-4 sm:justify-evenly'>
-          <div className='flex flex-1 flex-row justify-start gap-1'>
-            <Button variant={"outline"} className='min-w-16 grow border-2 dark:border-slate-600 dark:bg-slate-900'
-              onClick={() => setWeekNumber(weekNumber - 1)}>
-              <ArrowLeftIcon /> <span className='hidden truncate sm:block'>Предыдущая</span>
-            </Button>
-            <Button variant={"outline"} className='border-2 dark:border-slate-600 dark:bg-slate-900'
-              onClick={() => toast("Not implemented yet")}>
-              <SearchIcon />
-            </Button>
-          </div>
-
-          <a className=''>Неделя: {weekNumber}</a>
-
-          <div className='flex flex-1 flex-row justify-end gap-1'>
-            <Button variant={"outline"} className='border-2 dark:border-slate-600 dark:bg-slate-900'
-              onClick={() => toast("Not implemented yet")}>
-              <SlidersHorizontalIcon />
-            </Button>
-            <Button variant={"outline"} className='min-w-16 grow border-2 dark:border-slate-600 dark:bg-slate-900'
-              onClick={() => setWeekNumber(weekNumber + 1)}>
-              <span className='hidden truncate sm:block'>Следующая</span><ArrowRightIcon />
-            </Button>
-          </div>
+    <main className="flex flex-1 flex-col items-center justify-stretch bg-slate-800 py-2 text-center text-xl text-white sm:px-2 sm:text-2xl">
+      <div className='flex flex-row items-center justify-between gap-4 self-stretch px-2 sm:justify-evenly'>
+        <div className='flex flex-1 flex-row justify-start gap-1'>
+          <Button className='min-w-16 grow'
+            onClick={() => setWeekNumber(weekNumber - 1)}>
+            <ArrowLeftIcon /> <span className='hidden truncate sm:block'>Предыдущая</span>
+          </Button>
+          <Button  className='border-2'
+            onClick={() => toast("Not implemented yet")}>
+            <SearchIcon />
+          </Button>
         </div>
-        {getViewer()}
-      </main>
-    </div>
+
+        <a className='px-2'>Неделя: {weekNumber}</a>
+
+        <div className='flex flex-1 flex-row justify-end gap-1'>
+          <Button  className='border-2'
+            onClick={() => toast("Not implemented yet")}>
+            <SlidersHorizontalIcon />
+          </Button>
+          <Button  className='min-w-16 grow'
+            onClick={() => setWeekNumber(weekNumber + 1)}>
+            <span className='hidden truncate sm:block'>Следующая</span><ArrowRightIcon />
+          </Button>
+        </div>
+      </div>
+      {getViewer()}
+    </main>
   )
 }

@@ -227,8 +227,8 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
       if (initialColumn === 5) initialColumn = 0; // Handle sunday
     } else {
       initialColumn = schedule.days.findIndex(i => i.lessonCount > 0)
-      if (initialColumn < 0) initialColumn = 0;
     }
+    if (initialColumn < 0) initialColumn = 0;
     setCurrentDay(initialColumn)
   }, [schedule])
 
@@ -280,7 +280,7 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
       {
         schedule.days.map((day, dayIndex) => {
           return <>
-            <button onClick={() => setCurrentDay(dayIndex)} key={`${dayIndex}navdiv`}
+            <button onClick={() => setCurrentDay(dayIndex)} key={`${day.week}.${day.weekday}navdiv`}
               className={"flex-1 rounded-lg py-1 px-2 font-bold border-2 border-cyan-600 bg-cyan-900 text-white" +
                 (dayIndex === currentDay ? " border-yellow-50" : "") +
                 getBoldness(day.lessonCount) +
@@ -299,6 +299,7 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
       // Пар нет
       return (
         <div
+          key="timeSlotNoLessons"
           className={"sticky left-0 flex flex-col justify-center rounded-lg p-2 font-bold min-w-16 sm:min-w-0 border-2 border-cyan-600 bg-cyan-900 text-white"}>
           {TimeSlotMap[0].beginTime}
           <hr className="my-1 border-white" />
@@ -310,7 +311,7 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
     return <>
       {
         TimeSlotMap.slice(1, columnHeight + 1).map((timeslot) => (
-          <div key={`timeslot${timeslot.name}`}
+          <div key={`timeslot-${timeslot.name}`}
             className={"sticky left-0 flex flex-col justify-center rounded-lg p-2 font-bold min-w-16 sm:min-w-0 border-2 border-cyan-600 bg-cyan-900 text-white"}>
             {timeslot.beginTime}
             <hr className="my-1 border-white" />
@@ -329,13 +330,13 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
         const start = schedule.days[0].beginTime
         const end = schedule.days[5].beginTime
         return <>
-          <div className="min-w-80 snap-end rounded-lg border-2 border-cyan-600 bg-cyan-900 p-2 font-bold text-white sm:min-w-0">
+          <div key="dayLabelNoLessons" className="min-w-80 snap-end rounded-lg border-2 border-cyan-600 bg-cyan-900 p-2 font-bold text-white sm:min-w-0">
             {`${start.getDate().toString().padStart(2, "0")}.${(start.getMonth() + 1).toString().padStart(2, "0")}`}
             &nbsp;-&nbsp;
             {`${end.getDate().toString().padStart(2, "0")}.${(end.getMonth() + 1).toString().padStart(2, "0")}`}
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div key="noLessonsCard" className="flex flex-col gap-1">
             <div className={"flex-1 py-20 " + s.cardStyle}>
               <div className={"rounded-xl p-1 " + s.barStyle}></div>
               <div className="flex h-full flex-col justify-center px-1 text-left">
@@ -345,9 +346,10 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
           </div>
         </>
       }
+      // Desktop version
       return <>
         {dayHeader(schedule.days[0], 0)}
-        <div className="col-span-6 flex flex-col gap-1">
+        <div key="noLessonsCard" className="col-span-6 flex flex-col gap-1">
           <div className={"flex-1 py-20 " + s.cardStyle}>
             <div className={"rounded-xl p-1 " + s.barStyle}></div>
             <div className="flex h-full flex-col justify-center px-1 text-left">
@@ -377,7 +379,7 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
       <div className={"grid snap-x snap-proximity grid-flow-col  gap-1 overflow-x-auto scroll-smooth " +
         (!isMobile ? "grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_1fr]" : "grid-cols-[auto_1fr]")}
         style={{ gridTemplateRows: `repeat(${(columnHeight || 1) + 1}, auto)` }}>
-        <div className={"sticky left-0 snap-start flex flex-col justify-center rounded-lg p-2 font-bold border-2 border-cyan-600 bg-cyan-900 text-white"}>
+        <div key="timeLabel" className={"sticky left-0 snap-start flex flex-col justify-center rounded-lg p-2 font-bold border-2 border-cyan-600 bg-cyan-900 text-white"}>
           Время
         </div>
         {timeSlots()}

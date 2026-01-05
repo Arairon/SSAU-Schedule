@@ -54,7 +54,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
         error: "not found",
         message: "Could not find such User",
       });
-    Object.assign(user, { tgId: user.tgId.toString(), password: "redacted", authCookie: !!user.authCookie })
+    Object.assign(user, { tgId: user.tgId.toString(), password: user.password ? "redacted" : null, authCookie: !!user.authCookie })
     return res
       .status(200)
       .headers({ "content-type": "application/json" })
@@ -108,28 +108,4 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
         .headers({ "content-type": "application/json" })
         .send(timetable);
     })
-
-  fastify.get(
-    "/debug/:tgId",
-    {},
-    async (
-      req: FastifyRequest<{
-        Params: { tgId: bigint };
-      }>,
-      res,
-    ) => {
-      const tgId = req.params.tgId;
-      const user = await db.user.findUnique({ where: { tgId: tgId } })
-      if (!user)
-        return res.status(404).send({
-          error: "not found",
-          message: "Could not find such User",
-        });
-      Object.assign(user, { tgId: user.tgId.toString(), password: "redacted", authCookie: !!user.authCookie })
-      return res
-        .status(200)
-        .headers({ "content-type": "application/json" })
-        .send(user);
-    },
-  );
 }
