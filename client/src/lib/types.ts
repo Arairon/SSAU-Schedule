@@ -1,6 +1,14 @@
 import { z } from 'zod';
 
 
+export type LessonDateTime = {
+  week: number;
+  timeSlot: number;
+  weekday: number;
+  // timeSlotStart?: number;
+  // timeSlotEnd?: number;
+}
+
 export const ScheduleSingleLessonSchema = z.object({
   id: z.number(),
   type: z.string(),
@@ -13,9 +21,16 @@ export const ScheduleSingleLessonSchema = z.object({
   dayTimeSlot: z.number(),
   beginTime: z.coerce.date(),
   endTime: z.coerce.date(),
-  subgroup: z.number().nullable()
+  subgroup: z.number().nullable(),
+  conferenceUrl: z.string().nullable(),
+  customized: z.object({
+    hidden: z.boolean(),
+    disabled: z.boolean(),
+    comment: z.string(),
+    customizedBy: z.number(),
+  }).nullable(),
 })
-export const ScheduleLessonSchema = ScheduleSingleLessonSchema.and(z.object({ alts: z.array(ScheduleSingleLessonSchema) }))
+export const ScheduleLessonSchema = ScheduleSingleLessonSchema.and(z.object({ alts: z.array(ScheduleSingleLessonSchema), original: ScheduleSingleLessonSchema.nullable() }))
 export type ScheduleLessonType = z.infer<typeof ScheduleLessonSchema>;
 
 export const ScheduleDaySchema = z.object({

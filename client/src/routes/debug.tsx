@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button'
 import { createFileRoute } from '@tanstack/react-router'
-import { ArrowLeftIcon, SearchIcon } from 'lucide-react'
 import { useState } from 'react'
 
 export const Route = createFileRoute('/debug')({
