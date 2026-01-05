@@ -146,7 +146,7 @@ function generateSingleLesson(
   parts.push(
     format(LESSON_BODY, {
       name: lesson.discipline,
-      teacherName: lesson.teacher ? getPersonShortname(lesson.teacher) : "",
+      teacherName: lesson.teacher ? getPersonShortname(lesson.teacher.name) : "",
       place: lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`,
       subgroup: lesson.subgroup ? `Подгруппа: ${lesson.subgroup}` : "",
       nameStyle: style.nameStyle,

@@ -1,6 +1,6 @@
 import { TimeSlotMap, type ScheduleType } from "@/lib/types";
 import { useEffect, useState, } from "react";
-import { getWeekFromDate } from "@shared/date";
+import { getWeekFromDate, isSameDay } from "@shared/date";
 import { ScheduleLesson, ScheduleLessonWindow } from "./ScheduleLesson";
 import { SCHEDULE_STYLEMAP_NEON } from "@shared/themes/neon"
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -18,7 +18,7 @@ const WEEKDAYS = [
   { short: "Вс", long: "Воскресенье" },
 ];
 
-export default function ScheduleViewer({ schedule }: { schedule: ScheduleType }) {
+export default function ScheduleViewer({ schedule, editingEnabled = false }: { schedule: ScheduleType; editingEnabled?: boolean }) {
   const columnHeight = schedule.days.reduce((a, day) => {
     const t = day.lessons.reduce((b, lesson) => b > lesson.dayTimeSlot ? b : lesson.dayTimeSlot, 0)
     return a > t ? a : t
@@ -35,7 +35,7 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
     }
     if (initialColumn < 0) initialColumn = 0;
     setCurrentDay(initialColumn)
-  }, [schedule])
+  }, [schedule.week])
 
   const [currentDay, setCurrentDay] = useState(0);
 
@@ -74,8 +74,8 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
       {
         new Array(columnHeight).fill(0).map((_, index) => {
           const lesson = day.lessons.find(i => i.dayTimeSlot == index + 1) ?? null
-          if (!lesson) return <ScheduleLessonWindow key={`lesson_${dayIndex}.${index}`} time={{week: day.week, weekday: day.weekday, timeSlot: index+1}}/>
-          return <ScheduleLesson key={`lesson_${dayIndex}.${index}`} lesson={lesson} />
+          if (!lesson) return <ScheduleLessonWindow key={`lesson_${dayIndex}.${index}`} time={{ week: day.week, weekday: day.weekday, timeSlot: index + 1 }} hasMenu={editingEnabled} />
+          return <ScheduleLesson key={`lesson_${dayIndex}.${index}`} lesson={lesson} hasMenu={editingEnabled} />
         })
       }
     </>
@@ -86,10 +86,16 @@ export default function ScheduleViewer({ schedule }: { schedule: ScheduleType })
     return <nav className="flex flex-row items-stretch justify-center gap-2">
       {
         schedule.days.map((day, dayIndex) => {
+          let borderColor = "border-cyan-600"
+          const isToday = isSameDay(day.beginTime, new Date());
+          if (isToday) borderColor = "border-purple-200"
+          if (dayIndex === currentDay) {
+            borderColor = "border-green-200"
+            if (isToday) borderColor = "border-yellow-300"
+          }
           return <>
             <button onClick={() => setCurrentDay(dayIndex)} key={`${day.week}.${day.weekday}navdiv`}
-              className={"flex-1 rounded-lg py-1 px-2 font-bold border-2 border-cyan-600 bg-cyan-900 text-white" +
-                (dayIndex === currentDay ? " border-yellow-50" : "") +
+              className={`flex-1 rounded-lg py-1 px-2 font-bold border-2 ${borderColor} bg-cyan-900 text-white` +
                 getBoldness(day.lessonCount) +
                 (day.lessonCount === 0 ? " line-through" : "")
               }>

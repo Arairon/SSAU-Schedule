@@ -104,7 +104,10 @@ export type TimetableLesson = {
   infoId: number;
   type: $Enums.LessonType;
   discipline: string;
-  teacher: string;
+  teacher: {
+    name: string;
+    id: number | null;
+  };
   isOnline: boolean;
   building: string | null;
   room: string | null;
@@ -404,7 +407,6 @@ async function getWeekTimetable(
   }
 
   const customLessons = lessons.customLessons;
-  console.log(customLessons)
 
 
   function applyCustomization(lesson: TimetableLesson, customLesson: typeof customLessons[number]) {
@@ -423,7 +425,7 @@ async function getWeekTimetable(
     ]
     const changes: Partial<CustomLesson> = Object.fromEntries(Object.entries(customLesson).filter(([k, v]) => v && (propsToCopy as string[]).includes(k)))
     Object.assign(lesson, changes)
-    if (customLesson.teacher) lesson.teacher = customLesson.teacher.name;
+    if (customLesson.teacher) lesson.teacher = {name: customLesson.teacher.name, id: customLesson.teacherId};
     if (customLesson.groups) lesson.groups = customLesson.groups.map((g) => g.name);
     if (customLesson.flows) lesson.flows = customLesson.flows.map((f) => f.name);
     lesson.id = customLesson.id;
@@ -435,7 +437,10 @@ async function getWeekTimetable(
       infoId: lesson.infoId,
       type: lesson.type,
       discipline: formatSentence(lesson.discipline),
-      teacher: lesson.teacher.name,
+      teacher: {
+        name: lesson.teacher.name,
+        id: lesson.teacherId,
+      },
       isOnline: lesson.isOnline,
       isIet: lesson.isIet,
       building: lesson.building,
@@ -484,7 +489,10 @@ async function getWeekTimetable(
       infoId: -1,
       type: i.type ?? LessonType.Unknown,
       discipline: formatSentence(i.discipline ?? "Неизвестный предмет"),
-      teacher: i.teacher?.name ?? "Неизвестный Преподаватель",
+      teacher: {
+        name: i.teacher?.name ?? "Неизвестный Преподаватель",
+        id: i.teacherId
+      },
       isOnline: i.isOnline ?? false,
       isIet: i.isIet ?? false,
       building: i.building ?? "?",

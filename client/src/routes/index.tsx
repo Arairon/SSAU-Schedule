@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTg } from '@/hooks/useTg';
-import ScheduleViewer from '@/components/ScheduleViewer';
 import { useQuery, useQueryClient, } from '@tanstack/react-query';
 import { getSchedule } from '@/api/api';
 import { getWeekFromDate } from '@shared/date';
@@ -8,6 +7,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeftIcon, ArrowRightIcon, LoaderCircleIcon, SearchIcon, SlidersHorizontalIcon, TriangleAlertIcon } from "lucide-react"
 import { toast } from 'sonner';
+import ScheduleViewerWithEditor from '@/components/ScheduleViewerWithEditor';
 
 export const Route = createFileRoute('/')({
   component: App,
@@ -67,7 +67,8 @@ function App() {
         </div>
       )
     }
-    return <ScheduleViewer schedule={data} />
+    return <ScheduleViewerWithEditor schedule={data}/>
+    //return <ScheduleViewer schedule={data} />
   }
 
   return (

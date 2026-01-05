@@ -132,7 +132,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
         });
       const { data, error } = CustomizationDataSchemaPartial.omit("id").strict().safeParse(req.body)
       if (error || !data) {
-        return res.status(400).send(`${error?.name}: ${error?.message}`)
+        return res.status(400).send(`${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`)
       }
       const result = await addCustomLesson(user, data)
       res.status(200).send(result)
@@ -171,7 +171,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
         });
       const { data, error } = CustomizationDataSchemaPartial.requiredFor("id").strict().safeParse(req.body)
       if (error || !data) {
-        return res.status(400).send(`${error?.name}: ${error?.message}`)
+        return res.status(400).send(`${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`)
       }
       if (!await db.customLesson.findUnique({where: {id: data.id, userId: user.id}})) {
         return res.status(404).send("CustomLesson with such id belonging to you not found")

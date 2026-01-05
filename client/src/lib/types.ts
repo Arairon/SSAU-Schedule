@@ -14,7 +14,10 @@ export const ScheduleSingleLessonSchema = z.object({
   infoId: z.number(),
   type: z.string(),
   discipline: z.string(),
-  teacher: z.string(),
+  teacher: z.object({
+    name: z.string(),
+    id: z.number().nullable()
+  }),
   isOnline: z.boolean(),
   isIet: z.boolean(),
   building: z.string().nullable(),
@@ -120,3 +123,24 @@ export const TimeSlotMap = [
   },
 ];
 
+export type CustomizationData = {
+  id: number;
+  type: string;
+  lessonId: number;
+  lessonInfoId: number;
+  isEnabled: boolean;
+  hideLesson: boolean;
+  discipline: string;
+  building: string | null;
+  room: string | null;
+  conferenceUrl: string | null;
+  subgroup: number | null;
+  teacherId: number | null;
+  isIet: boolean;
+  isOnline: boolean;
+  dayTimeSlot: number;
+  weekNumber: number;
+  weekday: number;
+  comment: string;
+  userId: number;
+}

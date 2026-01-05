@@ -2,6 +2,7 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 import { TriangleAlertIcon } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { Button } from "./ui/button";
 
 export function ErrorComponent({error, info, reset}: ErrorComponentProps) {
   useEffect(()=>{
@@ -11,6 +12,7 @@ export function ErrorComponent({error, info, reset}: ErrorComponentProps) {
     <TriangleAlertIcon className="text-red-400" size={64}/>
     <a>Произошла ошибка</a>
     <a className="text-sm">{error.name}: {error.message}</a>
+    <Button variant={"destructive"} onClick={()=>window.location.reload()}>Reload</Button>
     <p className="w-[90vw] text-left">{error.stack}</p>
 
   </div>
