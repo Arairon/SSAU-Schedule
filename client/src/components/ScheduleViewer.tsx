@@ -75,7 +75,7 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
       {
         new Array(columnHeight).fill(0).map((_, index) => {
           const lesson = day.lessons.find(i => i.dayTimeSlot == index + 1) ?? null
-          if (!lesson) return <ScheduleLessonWindow key={`lesson_${dayIndex}.${index}`} time={{ week: day.week, weekday: day.weekday, timeSlot: index + 1 }} hasMenu={editingEnabled} />
+          if (!lesson) return <ScheduleLessonWindow key={`lesson_${dayIndex}.${index}`} time={{ weekNumber: day.week, weekday: day.weekday, dayTimeSlot: index + 1 }} hasMenu={editingEnabled} />
           return <ScheduleLesson key={`lesson_${dayIndex}.${index}`} lesson={lesson} hasMenu={editingEnabled} />
         })
       }

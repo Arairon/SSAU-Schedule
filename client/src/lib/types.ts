@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 
 export type LessonDateTime = {
-  week: number;
-  timeSlot: number;
+  weekNumber: number;
+  dayTimeSlot: number;
   weekday: number;
   // timeSlotStart?: number;
   // timeSlotEnd?: number;

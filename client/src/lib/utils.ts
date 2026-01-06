@@ -24,6 +24,7 @@ export function getLessonCustomization(lesson: Omit<ScheduleLessonType, "alts">)
 
   if (!lesson.customized) return data
 
+  data.id = lesson.id
 
   const basicProps = [
     "type", "discipline", "building", "room", "conferenceUrl", "subgroup", "isIet", "isOnline",
@@ -39,8 +40,6 @@ export function getLessonCustomization(lesson: Omit<ScheduleLessonType, "alts">)
     data.teacherId = lesson.teacher.id
   }
 
-  data.id = lesson.id
-
   return data
 }
 
@@ -49,10 +48,10 @@ export function applyCustomization(originalLesson: Omit<ScheduleLessonType, "alt
 
   lesson.original = Object.assign({}, lesson);
   lesson.customized = {
-    hidden: lesson.customized?.hidden ?? !!custom.hideLesson,
-    disabled: lesson.customized?.disabled ?? !custom.isEnabled,
-    customizedBy: lesson.customized?.customizedBy ?? custom.userId ?? -1,
-    comment: lesson.customized?.comment ?? (custom.comment || "")
+    hidden: custom.hideLesson ?? lesson.customized?.hidden ?? false,
+    disabled: !(custom.isEnabled ?? (!lesson.customized?.disabled)),
+    customizedBy: custom.userId ?? lesson.customized?.customizedBy ?? -1,
+    comment: custom.comment ?? lesson.customized?.comment ?? ""
   }
 
   const propsToCopy: Array<keyof typeof lesson & keyof CustomizationData> = [

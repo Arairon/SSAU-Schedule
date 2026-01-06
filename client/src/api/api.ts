@@ -11,7 +11,7 @@ export async function getSchedule({ week, group, groupId, ignoreCached }: { week
   console.log(params)
   const res = await fetch("/api/v0/schedule?" + params.toString(), {
     headers: {
-      authorization: window.localStorage.getItem("tma-token") || ""
+      authorization: window.localStorage.getItem("auth-token") || ""
     },
     credentials: "include"
   })
@@ -24,7 +24,7 @@ export async function getSchedule({ week, group, groupId, ignoreCached }: { week
 export async function getCurrentUser() {
   const req = await fetch("/api/v0/whoami", {
     headers: {
-      authorization: window.localStorage.getItem("tma-token") || "",
+      authorization: window.localStorage.getItem("auth-token") || "",
     },
     credentials: "include"
   })
@@ -36,7 +36,7 @@ export async function addCustomLesson({ customizationData }: { customizationData
   const req = await fetch("/api/v0/customLesson", {
     method: "post",
     headers: {
-      authorization: window.localStorage.getItem("tma-token") || "",
+      authorization: window.localStorage.getItem("auth-token") || "",
       "content-type": "application/json"
     },
     credentials: "include",
@@ -49,7 +49,7 @@ export async function editCustomLesson({ customizationData }: { customizationDat
   const req = await fetch("/api/v0/customLesson", {
     method: "put",
     headers: {
-      authorization: window.localStorage.getItem("tma-token") || "",
+      authorization: window.localStorage.getItem("auth-token") || "",
       "content-type": "application/json"
     },
     credentials: "include",
@@ -62,7 +62,7 @@ export async function deleteCustomLesson({ id }: { id: number }) {
   const req = await fetch("/api/v0/customLesson/" + id, {
     method: "delete",
     headers: {
-      authorization: window.localStorage.getItem("tma-token") || "",
+      authorization: window.localStorage.getItem("auth-token") || "",
     },
     credentials: "include"
   })

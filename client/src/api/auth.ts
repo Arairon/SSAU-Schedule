@@ -20,7 +20,11 @@ export async function loginUsingTg(rawTgInfo: string) {
     credentials: "include"
   })
   const data = await req.json()
-  return AuthInfoSchema.parse(data)
+  const auth = AuthInfoSchema.parse(data)
+  if (auth.authorized) {
+    window.localStorage.setItem("auth-token", "tma " + rawTgInfo)
+  }
+  return auth
 }
 
 export async function loginUsingToken(token: string) {
@@ -31,5 +35,9 @@ export async function loginUsingToken(token: string) {
     credentials: "include"
   })
   const data = await req.json()
-  return AuthInfoSchema.parse(data)
+  const auth = AuthInfoSchema.parse(data)
+  if (auth.authorized) {
+    window.localStorage.setItem("auth-token", "Bearer " + token)
+  }
+  return auth
 }

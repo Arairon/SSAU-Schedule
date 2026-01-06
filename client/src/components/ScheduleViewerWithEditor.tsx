@@ -5,14 +5,14 @@ import ScheduleViewer from "./ScheduleViewer";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import ScheduleLessonEditor from "./ScheduleLessonEditor";
-import type { ScheduleType } from "@/lib/types";
+import type { CustomizationData, ScheduleType } from "@/lib/types";
 import useEditorState from "@/hooks/useEditorState";
-import { deleteCustomLesson } from "@/api/api";
+import { addCustomLesson, deleteCustomLesson, editCustomLesson } from "@/api/api";
 
 
 
 export default function ScheduleViewerWithEditor({ schedule }: { schedule: ScheduleType; }) {
-  const { isDeleteDialogOpen, isEditDialogOpen, close, lesson, time: lessonTimeslot } = useEditorState()
+  const { isDeleteDialogOpen, isEditDialogOpen, close, lesson, time: lessonTimeslot, customizationData } = useEditorState()
   const queryClient = useQueryClient()
 
   const resetCustomization = useMutation({
@@ -24,13 +24,73 @@ export default function ScheduleViewerWithEditor({ schedule }: { schedule: Sched
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Изменения сброшены" })
       return promise
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedule"] })
+    onSuccess: (data: unknown) => {
+      if (Array.isArray(data)) {
+        const numbers = data.map(i => i?.weekNumber || 0)
+        numbers.push(schedule.week)
+        return queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "schedule" && numbers.includes(q.queryKey[1]) })
+      }
+      const week = (data as any)?.weekNumber || 0
+      if (week) {
+        queryClient.invalidateQueries({ queryKey: ["schedule", week] })
+        queryClient.invalidateQueries({ queryKey: ["schedule", schedule.week] })
+      }
+      else
+        queryClient.invalidateQueries({ queryKey: ["schedule"] })
+    }
+  })
+
+  const addCustomization = useMutation({
+    mutationKey: ["customLesson", "add"],
+    mutationFn: (data: Partial<CustomizationData>) => {
+      const promise = addCustomLesson({ customizationData: data })
+      toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара добавлена" })
+      return promise
+    },
+    onSuccess: (data: unknown) => {
+      if (Array.isArray(data)) {
+        const numbers = data.map(i => i?.weekNumber || 0)
+        numbers.push(schedule.week)
+        return queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "schedule" && numbers.includes(q.queryKey[1]) })
+      }
+      const week = (data as any)?.weekNumber || 0
+      if (week) {
+        queryClient.invalidateQueries({ queryKey: ["schedule", week] })
+        queryClient.invalidateQueries({ queryKey: ["schedule", schedule.week] })
+      } else
+        queryClient.invalidateQueries({ queryKey: ["schedule"] })
+    }
+  })
+
+  const editCustomization = useMutation({
+    mutationKey: ["customLesson", "add"],
+    mutationFn: (data: Partial<CustomizationData>) => {
+      const promise = editCustomLesson({ customizationData: data })
+      toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара изменена" })
+      return promise
+    },
+    onSuccess: (data: unknown) => {
+      if (Array.isArray(data)) {
+        const numbers = data.map(i => i?.weekNumber || 0)
+        return queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "schedule" && numbers.includes(q.queryKey[1]) })
+      }
+      const week = (data as any)?.weekNumber || 0
+      if (week)
+        queryClient.invalidateQueries({ queryKey: ["schedule", week] })
+      else
+        queryClient.invalidateQueries({ queryKey: ["schedule"] })
     }
   })
 
   function confirmEditCustomization() {
-    console.log("Confirm edit", lesson)
+    console.log("Confirm edit", lesson, customizationData, lessonTimeslot)
+    const custom = Object.assign({}, lessonTimeslot, customizationData)
+    console.log("Final: ", custom)
+    if (custom.id) {
+      editCustomization.mutate(custom)
+    } else {
+      addCustomization.mutate(custom)
+    }
   }
 
   return (

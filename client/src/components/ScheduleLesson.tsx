@@ -111,7 +111,7 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
   const { openEditDialog, openDeleteDialog } = useEditorState()
   const queryClient = useQueryClient()
   const toggleHidden = useMutation({
-    mutationKey: [lesson?.id, lesson?.customized?.hidden],
+    mutationKey: ["customLesson", "ignore", lesson?.id, lesson?.customized?.hidden],
     mutationFn: () => {
       if (!lesson) throw new Error("Attempt to modify a null lesson")
 
@@ -128,8 +128,19 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара обновлена" })
       return promise
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedule"] })
+    onSuccess: (data: unknown) => {
+      if (Array.isArray(data)) {
+        const numbers = data.map(i => i?.weekNumber || 0)
+        return queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "schedule" && numbers.includes(q.queryKey[1]) })
+      }
+      const week = (data as any)?.weekNumber || 0
+      if (week) {
+        queryClient.invalidateQueries({ queryKey: ["schedule", week] })
+        if (lesson)
+          queryClient.invalidateQueries({ queryKey: ["schedule", getWeekFromDate(lesson.beginTime)] })
+      }
+      else
+        queryClient.invalidateQueries({ queryKey: ["schedule"] })
     }
   })
 
@@ -212,7 +223,7 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
         <DropdownMenuItem onClick={toggleLessonHidden}>
           {lesson.customized?.hidden ? <><BellOffIcon /> Восстановить</> : <><BellIcon /> Игнорировать</>}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => openEditDialog({ lesson, time: { week: getWeekFromDate(lesson.beginTime), weekday: lesson.beginTime.getDay(), timeSlot: lesson.dayTimeSlot } })}>
+        <DropdownMenuItem onClick={() => openEditDialog({ lesson, time: { weekNumber: getWeekFromDate(lesson.beginTime), weekday: lesson.beginTime.getDay(), dayTimeSlot: lesson.dayTimeSlot } })}>
           <PenIcon /> Редактировать
         </DropdownMenuItem>
         {customized &&
