@@ -16,7 +16,6 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import useEditorState from "@/hooks/useEditorState";
 import { addCustomLesson, editCustomLesson } from "@/api/api";
 import { getLessonCustomization } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
 
 export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?: boolean, time?: LessonDateTime | null }) {
   const { openEditDialog } = useEditorState();
@@ -110,12 +109,10 @@ export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonTy
 
 export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { lesson: Omit<ScheduleLessonType, "alts"> | null; hasMenu?: boolean }) {
   const { openEditDialog, openDeleteDialog } = useEditorState()
-  const { token } = useAuth()
   const queryClient = useQueryClient()
   const toggleHidden = useMutation({
     mutationKey: [lesson?.id, lesson?.customized?.hidden],
     mutationFn: () => {
-      if (!token) throw new Error("Unable to edit outside of telegram")
       if (!lesson) throw new Error("Attempt to modify a null lesson")
 
       const customizationData = getLessonCustomization(lesson)
@@ -124,9 +121,9 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
 
       let promise: Promise<any>;
       if (lesson.customized) {
-        promise = editCustomLesson({ token, customizationData })
+        promise = editCustomLesson({ customizationData })
       } else {
-        promise = addCustomLesson({ token, customizationData })
+        promise = addCustomLesson({ customizationData })
       }
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара обновлена" })
       return promise

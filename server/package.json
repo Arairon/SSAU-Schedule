@@ -22,6 +22,8 @@
   "license": "GPL-3.0-only",
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.2.0",
     "@fastify/middie": "^9.0.3",
     "@fastify/schedule": "^6.0.0",
     "@fastify/static": "^9.0.0",

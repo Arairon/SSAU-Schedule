@@ -13,7 +13,8 @@ export const env = createEnv({
     // SCHED_REDIS_URL: z.url(),
     SCHED_CREDENTIALS_KEY: z
       .string()
-      .min(64, "The credentials key must be at least 64 characters long."),
+      .min(64, "The credentials key must be at least 64 characters long"),
+    SCHED_JWT_SECRET: z.string().min(64, "The JWT secret must be at least 64 characters long"), // Also used as cookie secret
     SCHED_PORT: z.coerce.number().int().default(3000),
     SCHED_HOST: z.string().default("0.0.0.0"),
     CHROME_PATH: z.string().optional(),

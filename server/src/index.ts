@@ -1,6 +1,7 @@
 import fastify from "fastify";
 import fastifySchedule from "@fastify/schedule";
 import fastifyStatic from "@fastify/static";
+import cors from '@fastify/cors'
 import { env } from "./env";
 import log from "./logger";
 // import init_redis from "./redis";
@@ -26,6 +27,11 @@ const server = fastify({
 async function start() {
   // await init_redis(server);
   await init_bot(server);
+
+  await server.register(cors, {
+    origin: env.SCHED_HOST,
+    credentials: true
+  })
 
   server.register(routesv0, {prefix: "/api/v0"})
   if (env.NODE_ENV === "development")

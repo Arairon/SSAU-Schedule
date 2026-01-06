@@ -8,22 +8,19 @@ import ScheduleLessonEditor from "./ScheduleLessonEditor";
 import type { ScheduleType } from "@/lib/types";
 import useEditorState from "@/hooks/useEditorState";
 import { deleteCustomLesson } from "@/api/api";
-import { useAuth } from "@/hooks/useAuth";
 
 
 
 export default function ScheduleViewerWithEditor({ schedule }: { schedule: ScheduleType; }) {
   const { isDeleteDialogOpen, isEditDialogOpen, close, lesson, time: lessonTimeslot } = useEditorState()
   const queryClient = useQueryClient()
-  const { token } = useAuth()
 
   const resetCustomization = useMutation({
     mutationKey: ["customLesson", "reset"],
     mutationFn: () => {
-      if (!token) throw new Error("Unable to edit lessons outside of telegram")
       if (!lesson) throw new Error("Attempted to edit a null lesson")
 
-      const promise = deleteCustomLesson({ token, id: lesson.id })
+      const promise = deleteCustomLesson({ id: lesson.id })
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Изменения сброшены" })
       return promise
     },
