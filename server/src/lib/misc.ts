@@ -238,7 +238,7 @@ export function generateTextLesson(lesson: TimetableLesson): string {
 📖 ${lesson.discipline}
 ${LessonTypeIcon[lesson.type]} ${LessonTypeName[lesson.type]} ${lesson.isIet ? "[ИОТ]" : ""}
 🏢 ${place}
-👤 ${lesson.teacher}
+👤 ${lesson.teacher.name}
 ${subgroupStr}`
       .replace("\n\n", "\n")
       .trim(),

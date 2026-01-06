@@ -1,4 +1,4 @@
-import { CustomLesson, LessonType, User } from "@prisma/client";
+import { type CustomLesson, type LessonType, type User } from "@prisma/client";
 import s from "ajv-ts";
 import log from "../logger";
 import { db } from "../db";
@@ -66,7 +66,7 @@ export async function addCustomLesson(user: User, customData: CustomizationDataP
   }
 
   if (data.lessonId) {
-    if (!await db.lesson.findUnique({where: {id: data.lessonId}})) data.lessonId = undefined
+    if (!await db.lesson.findUnique({ where: { id: data.lessonId } })) data.lessonId = undefined
   }
 
   return await db.customLesson.create({
@@ -95,12 +95,12 @@ export async function editCustomLesson(user: User, customData: CustomizationData
   data.id = customData.id;
   data.userId = user.id;
 
-  const target = await db.customLesson.findUnique({where: {id: data.id, userId: user.id}})
+  const target = await db.customLesson.findUnique({ where: { id: data.id, userId: user.id } })
   if (!target) return null;
 
   if (target.lessonInfoId) {
     const lessonsToOverride = await db.customLesson.findMany({ where: { lessonInfoId: target.lessonInfoId } })
-    const lessons = [] as any[]
+    const lessons = [] as unknown[]
     for (const lesson of lessonsToOverride) {
       const custom = normalizeCustomLessonData(Object.assign({}, customData, {
         id: lesson.id,
@@ -111,17 +111,17 @@ export async function editCustomLesson(user: User, customData: CustomizationData
         weekday: lesson.weekday,
         userId: user.id,
       })) as CustomLesson
-      lessons.push(await db.customLesson.update({where: {id: lesson.id}, data: custom}))
+      lessons.push(await db.customLesson.update({ where: { id: lesson.id }, data: custom }))
     }
     return lessons
   }
 
   if (data.lessonId) {
-    if (!await db.lesson.findUnique({where: {id: data.lessonId}})) data.lessonId = undefined
+    if (!await db.lesson.findUnique({ where: { id: data.lessonId } })) data.lessonId = undefined
   }
 
   return await db.customLesson.update({
-    where: {id: data.id},
+    where: { id: data.id },
     data: Object.assign({}, data, { id: undefined, type: customData.type ? customData.type as LessonType : undefined, userId: user.id })
   })
 }

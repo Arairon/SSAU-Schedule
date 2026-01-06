@@ -1,6 +1,6 @@
 
 import { validate, parse as tgParse, ExpiredError } from '@tma.js/init-data-node';
-import { FastifyInstance, FastifyRequest } from "fastify";
+import { type FastifyInstance, type FastifyRequest } from "fastify";
 import FastifyMiddie from "@fastify/middie";
 import { db } from "../../db";
 import { env } from '../../env';
@@ -17,7 +17,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
   fastify.decorateRequest("authData", null as AuthData)
 
   fastify.addHook("onRequest", async (req, res) => {
-    const [authType, authData = ''] = (req.headers['authorization'] || '').split(' ');
+    const [authType, authData = ''] = (req.headers.authorization ?? '').split(' ');
     console.log(authType, authData)
 
     if ((!authData || authData === "null") && env.NODE_ENV === "development") {
@@ -46,7 +46,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
   })
 
   fastify.get("/whoami", {}, async (req, res) => {
-    const tgData = req.getDecorator("authData") as AuthData
+    const tgData: AuthData = req.getDecorator("authData")
     if (!tgData) return res.status(403).send("No initData found")
     if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
     const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
@@ -87,7 +87,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
       }>,
       res,
     ) => {
-      const tgData = req.getDecorator("authData") as AuthData
+      const tgData: AuthData = req.getDecorator("authData")
       if (!tgData) return res.status(403).send("No initData found")
       if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
       const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
@@ -121,7 +121,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
   };
   fastify.post("/customLesson", {},
     async (req: FastifyRequest<{ Body: unknown }>, res) => {
-      const tgData = req.getDecorator("authData") as AuthData
+      const tgData: AuthData = req.getDecorator("authData")
       if (!tgData) return res.status(403).send("No initData found")
       if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
       const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
@@ -141,7 +141,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
 
   fastify.delete("/customLesson/:lessonId", { schema: { params: lessonIdParamSchema } },
     async (req: FastifyRequest<{ Params: { lessonId: number } }>, res) => {
-      const tgData = req.getDecorator("authData") as AuthData
+      const tgData: AuthData = req.getDecorator("authData")
       if (!tgData) return res.status(403).send("No initData found")
       if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
       const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
@@ -160,7 +160,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
 
   fastify.put("/customLesson", {},
     async (req: FastifyRequest<{ Body: unknown }>, res) => {
-      const tgData = req.getDecorator("authData") as AuthData
+      const tgData: AuthData = req.getDecorator("authData")
       if (!tgData) return res.status(403).send("No initData found")
       if (!tgData.user?.id) return res.status(400).send("No valid userId was found")
       const user = await db.user.findUnique({ where: { tgId: tgData.user.id } })
@@ -173,7 +173,7 @@ export async function routesTelegramUser(fastify: FastifyInstance) {
       if (error || !data) {
         return res.status(400).send(`${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`)
       }
-      if (!await db.customLesson.findUnique({where: {id: data.id, userId: user.id}})) {
+      if (!await db.customLesson.findUnique({ where: { id: data.id, userId: user.id } })) {
         return res.status(404).send("CustomLesson with such id belonging to you not found")
       }
       const result = await editCustomLesson(user, data)

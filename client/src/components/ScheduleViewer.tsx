@@ -1,8 +1,9 @@
-import { TimeSlotMap, type ScheduleType } from "@/lib/types";
 import { useEffect, useState, } from "react";
 import { getWeekFromDate, isSameDay } from "@shared/date";
-import { ScheduleLesson, ScheduleLessonWindow } from "./ScheduleLesson";
 import { SCHEDULE_STYLEMAP_NEON } from "@shared/themes/neon"
+import { ScheduleLesson, ScheduleLessonWindow } from "./ScheduleLesson";
+import type { ScheduleType } from "@/lib/types";
+import { TimeSlotMap } from "@/lib/types";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 export const lessonStyles = SCHEDULE_STYLEMAP_NEON.lessonTypes
@@ -55,7 +56,7 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
   ]
 
   function getBoldness(count: number) {
-    let level = Math.min(count, boldnessLevels.length - 1);
+    const level = Math.min(count, boldnessLevels.length - 1);
     return " " + boldnessLevels[level]
 
   }

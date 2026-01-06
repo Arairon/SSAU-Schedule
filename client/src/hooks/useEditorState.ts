@@ -1,5 +1,5 @@
-import type { LessonDateTime, ScheduleLessonType } from "@/lib/types";
 import { create } from "zustand"
+import type { LessonDateTime, ScheduleLessonType } from "@/lib/types";
 
 interface EditorState {
   isEditDialogOpen: boolean;

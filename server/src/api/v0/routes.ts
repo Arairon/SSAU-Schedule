@@ -1,4 +1,4 @@
-import { FastifyInstance } from "fastify";
+import { type FastifyInstance } from "fastify";
 import { routesIcs } from "./ics";
 import { routesTelegramUser } from "./tg";
 

@@ -544,7 +544,7 @@ export async function initSchedule(bot: Bot<Context>) {
     if (ctx.chat?.type !== "private") {
       return ctx.reply("Настройки доступны только в личном чате");
     }
-    ctx.answerCallbackQuery()
+    void ctx.answerCallbackQuery()
     return openSettings(ctx);
   });
 

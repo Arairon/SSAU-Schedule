@@ -1,9 +1,10 @@
-import { clsx, type ClassValue } from 'clsx'
+import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import type { CustomizationData, ScheduleLessonType } from './types'
 import { getWeekFromDate } from '@shared/date'
+import type { ClassValue } from 'clsx';
+import type { CustomizationData, ScheduleLessonType } from './types'
 
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs))
 }
 
@@ -38,7 +39,7 @@ export function getLessonCustomization(lesson: Omit<ScheduleLessonType, "alts">)
     data.teacherId = lesson.teacher.id
   }
 
-  if (lesson.customized) data.id = lesson.id
+  data.id = lesson.id
 
   return data
 }
@@ -54,10 +55,10 @@ export function applyCustomization(originalLesson: Omit<ScheduleLessonType, "alt
     comment: lesson.customized?.comment ?? (custom.comment || "")
   }
 
-  const propsToCopy: (keyof typeof lesson & keyof CustomizationData)[] = [
+  const propsToCopy: Array<keyof typeof lesson & keyof CustomizationData> = [
     "discipline", "type", "isOnline", "isIet", "building", "room", "conferenceUrl", "subgroup", "dayTimeSlot"
   ]
-  const changes: Partial<CustomizationData> = Object.fromEntries(Object.entries(custom).filter(([k, v]) => v && (propsToCopy as string[]).includes(k)))
+  const changes: Partial<CustomizationData> = Object.fromEntries(Object.entries(custom).filter(([k, v]) => v && (propsToCopy as Array<string>).includes(k)))
   Object.assign(lesson, changes)
   if ("teacherId" in custom) lesson.teacher = {
     name: "???",

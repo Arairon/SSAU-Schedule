@@ -1,22 +1,22 @@
-import type { ScheduleLessonType, LessonDateTime } from "@/lib/types";
-import type { LessonType } from "@shared/themes/types";
+import { BellIcon, BellOffIcon, PenIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { getWeekFromDate } from "@shared/date";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { lessonStyles } from "./ScheduleViewer";
+import { Button } from "./ui/button";
+import type { LessonDateTime, ScheduleLessonType } from "@/lib/types";
+import type { LessonType } from "@shared/themes/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { BellIcon, BellOffIcon, PenIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { Button } from "./ui/button";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import useEditorState from "@/hooks/useEditorState";
-import { getWeekFromDate } from "@shared/date";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addCustomLesson, editCustomLesson } from "@/api/api";
-import { useTg } from "@/hooks/useTg";
 import { getLessonCustomization } from "@/lib/utils";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?: boolean, time?: LessonDateTime | null }) {
   const { openEditDialog } = useEditorState();
@@ -50,11 +50,11 @@ export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLes
   if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
   return (
     <div className="flex flex-col gap-1">
-      {[lesson, ...lesson.alts].map((lesson) =>
+      {[lesson, ...lesson.alts].map((l) =>
         hasMenu ?
-          <ScheduleSingleLessonInteractive key={lesson.id} lesson={lesson} />
+          <ScheduleSingleLessonInteractive key={l.id} lesson={l} />
           :
-          <ScheduleSingleLesson lesson={lesson} />
+          <ScheduleSingleLesson lesson={l} />
       )}
     </div>)
 
@@ -110,12 +110,12 @@ export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonTy
 
 export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { lesson: Omit<ScheduleLessonType, "alts"> | null; hasMenu?: boolean }) {
   const { openEditDialog, openDeleteDialog } = useEditorState()
-  const { raw: rawTgInfo } = useTg()
+  const { token } = useAuth()
   const queryClient = useQueryClient()
   const toggleHidden = useMutation({
     mutationKey: [lesson?.id, lesson?.customized?.hidden],
     mutationFn: () => {
-      if (!rawTgInfo) throw new Error("Unable to edit outside of telegram")
+      if (!token) throw new Error("Unable to edit outside of telegram")
       if (!lesson) throw new Error("Attempt to modify a null lesson")
 
       const customizationData = getLessonCustomization(lesson)
@@ -123,10 +123,10 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
       if (lesson.original || !lesson.customized) customizationData.lessonId = lesson.original?.id || lesson.id
 
       let promise: Promise<any>;
-      if (lesson?.customized) {
-        promise = editCustomLesson({ rawTgInfo, customizationData })
+      if (lesson.customized) {
+        promise = editCustomLesson({ token, customizationData })
       } else {
-        promise = addCustomLesson({ rawTgInfo, customizationData })
+        promise = addCustomLesson({ token, customizationData })
       }
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара обновлена" })
       return promise
@@ -191,7 +191,7 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div key={lesson.id} className={"flex-1 " + s.cardStyle + (lesson.customized?.hidden ? " grayscale-50 opacity-50" : "") + (hasMenu ? " cursor-pointer" : "")}>
+        <div key={lesson.id} className={"flex-1 cursor-pointer " + s.cardStyle + (lesson.customized?.hidden ? " grayscale-50 opacity-50" : "")}>
           <div className={"rounded-xl p-1 " + s.barStyle}></div>
           <div className="px-1 text-left">
             <p className="flex flex-row">

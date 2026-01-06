@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 
+import { scan } from "react-scan"
 import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx'
 
 // Import the generated route tree
@@ -10,9 +11,9 @@ import { routeTree } from './routeTree.gen'
 import './styles.css'
 import reportWebVitals from './reportWebVitals.ts'
 
-import { scan } from "react-scan"
 import { ErrorComponent } from './components/errorComponent.tsx'
-scan({enabled:true})
+
+scan({ enabled: true })
 
 // Create a new router instance
 

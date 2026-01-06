@@ -1,8 +1,8 @@
-import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
-import { applyCustomization, getLessonCustomization } from "@/lib/utils";
 import { useState } from "react";
 import { lessonStyles } from "./ScheduleViewer";
+import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
 import type { LessonType } from "@shared/themes/types";
+import { applyCustomization, getLessonCustomization } from "@/lib/utils";
 
 function EditableLesson({ base, time, customizationData, setData }: { base: Omit<ScheduleLessonType, "alts"> | null, time: LessonDateTime, customizationData: Partial<CustomizationData>, setData: () => void }) {
   const defaultBase: Omit<ScheduleLessonType, "alts"> = {
@@ -78,7 +78,7 @@ export default function ScheduleLessonEditor({ lesson = null, time }: { lesson?:
 
   return (
     <div className="flex flex-col items-stretch">
-      <EditableLesson base={lesson} time={time} customizationData={data} setData={setData as (()=>void)} />
+      <EditableLesson base={lesson} time={time} customizationData={data} setData={setData as (() => void)} />
       <div>
         {lesson && JSON.stringify(getLessonCustomization(lesson), undefined, 2)}
       </div>

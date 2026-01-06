@@ -1,34 +1,34 @@
-import { type ScheduleType } from "@/lib/types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import ScheduleViewer from "./ScheduleViewer";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from "./ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
-import useEditorState from "@/hooks/useEditorState";
 import ScheduleLessonEditor from "./ScheduleLessonEditor";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTg } from "@/hooks/useTg";
+import type { ScheduleType } from "@/lib/types";
+import useEditorState from "@/hooks/useEditorState";
 import { deleteCustomLesson } from "@/api/api";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 
 
 export default function ScheduleViewerWithEditor({ schedule }: { schedule: ScheduleType; }) {
   const { isDeleteDialogOpen, isEditDialogOpen, close, lesson, time: lessonTimeslot } = useEditorState()
   const queryClient = useQueryClient()
-  const {raw: rawTgInfo} = useTg()
+  const { token } = useAuth()
 
   const resetCustomization = useMutation({
     mutationKey: ["customLesson", "reset"],
-    mutationFn: ()=>{
-      if (!rawTgInfo) throw new Error("Unable to edit lessons outside of telegram")
-      if(!lesson) throw new Error("Attempted to edit a null lesson")
+    mutationFn: () => {
+      if (!token) throw new Error("Unable to edit lessons outside of telegram")
+      if (!lesson) throw new Error("Attempted to edit a null lesson")
 
-      const promise = deleteCustomLesson({rawTgInfo, id: lesson.id})
-      toast.promise(promise, {loading: "Обновляем...", error: "Произошла ошибка", success: "Изменения сброшены"})
+      const promise = deleteCustomLesson({ token, id: lesson.id })
+      toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Изменения сброшены" })
       return promise
     },
-    onSuccess: ()=>{
-      queryClient.invalidateQueries({queryKey: ["schedule"]})
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule"] })
     }
   })
 

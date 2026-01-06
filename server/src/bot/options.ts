@@ -17,7 +17,7 @@ import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
 } from "../lib/tasks";
-import { User } from "@prisma/client";
+import { type User } from "@prisma/client";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -251,6 +251,7 @@ function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
   const chat = ctx.chat;
   const from = ctx.from;
   if (!chat || !from || !user.groupId) return;
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   ctx.session.options.notificationsRescheduleTimeout = setTimeout(async () => {
     const now = new Date();
     const year = getCurrentYearId();

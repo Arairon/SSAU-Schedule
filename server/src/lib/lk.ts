@@ -81,7 +81,7 @@ async function login(
     if (loginRes.error && loginRes.error === "refused") {
       // Credentials incorrect. Reset them
       log.debug(
-        `Would have reset credentials, since auth returned: ${loginRes}`,
+        `Would have reset credentials, since auth returned: ${JSON.stringify(loginRes)}`,
         { user: user.id },
       );
       // await resetAuth(user, { resetCredentials: true });
@@ -193,7 +193,7 @@ async function updateCookie(user: User) {
   } catch (e) {
     log.warn(
       "Failed to update cookie: failed to get cookie.\n" +
-        (e ? JSON.stringify(e) : ""),
+      (e ? JSON.stringify(e) : ""),
       {
         user: user.id,
       },

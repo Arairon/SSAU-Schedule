@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from "fastify";
+import { type FastifyInstance, type FastifyRequest } from "fastify";
 import { getUserIcsByUUID } from "../../lib/ics";
 
 export async function routesIcs(fastify: FastifyInstance) {
