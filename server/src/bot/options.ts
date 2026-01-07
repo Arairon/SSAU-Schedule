@@ -271,7 +271,7 @@ function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
       user: user.tgId,
     });
     await invalidateDailyNotificationsForTarget(user.tgId.toString());
-    await scheduleDailyNotificationsForUser(user, week);
+    await scheduleDailyNotificationsForUser(user, week.number);
   }, 30_000);
 }
 

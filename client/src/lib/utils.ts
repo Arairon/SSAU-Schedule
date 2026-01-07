@@ -22,7 +22,10 @@ export function getLessonCustomization(lesson: Omit<ScheduleLessonType, "alts">)
     lessonId: lesson.original?.id ?? undefined,
   };
 
-  if (!lesson.customized) return data
+  if (!lesson.customized) {
+    data.lessonId = lesson.id
+    return data
+  }
 
   data.id = lesson.id
 

@@ -63,6 +63,7 @@ export async function registerAuth(fastify: FastifyInstance) {
       } as AuthData as object,
         env.SCHED_JWT_SECRET, { expiresIn: "5m" }
       ), { path: "/api/v0" })
+      req.setDecorator("authData", {userId: 1, tgId: env.SCHED_BOT_ADMIN_TGID.toString()})
       return
     }
 

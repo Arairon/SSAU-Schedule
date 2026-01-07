@@ -84,7 +84,18 @@ async function getWeekLessons(
     include: { groups: true, teacher: true, user: true, flows: true }
   })
 
+  const customLessonTargetIds = customLessons.map(i=>i.lessonId).filter(i=>i!==null)
+  const replacedLessons = await db.lesson.findMany({
+    where: {
+      id: {in: customLessonTargetIds}
+    },
+    include: { groups: true, teacher: true },
+  })
+  lessons.push(...replacedLessons.filter(i=>!lessonIds.includes(i.id)))
+
   if (ignoreIet) return { lessons, ietLessons: [], customLessons, all: lessons };
+
+  // TODO: Add customLesson support to iets
 
   const ietLessons = await db.lesson.findMany({
     where: {
@@ -425,7 +436,7 @@ async function getWeekTimetable(
     ]
     const changes: Partial<CustomLesson> = Object.fromEntries(Object.entries(customLesson).filter(([k, v]) => v && (propsToCopy as string[]).includes(k)))
     Object.assign(lesson, changes)
-    if (customLesson.teacher) lesson.teacher = {name: customLesson.teacher.name, id: customLesson.teacherId};
+    if (customLesson.teacher) lesson.teacher = { name: customLesson.teacher.name, id: customLesson.teacherId };
     if (customLesson.groups) lesson.groups = customLesson.groups.map((g) => g.name);
     if (customLesson.flows) lesson.flows = customLesson.flows.map((f) => f.name);
     lesson.id = customLesson.id;
@@ -460,6 +471,10 @@ async function getWeekTimetable(
     if ("flows" in lesson) ttLesson.flows = lesson.flows.map((f) => f.name);
 
     const customLesson = customLessons.find(i => i.lessonId === lesson.id)
+    if (customLesson && customLesson.weekNumber !== timetable.week) 
+      continue // Lesson was moved to another week
+    if (!customLesson && lesson.weekNumber !== timetable.week)
+      continue // Lesson is from another week and was not moved to current by CustomLesson
     if (customLesson) applyCustomization(ttLesson, customLesson)
 
     const day = timetable.days[lesson.weekday - 1];

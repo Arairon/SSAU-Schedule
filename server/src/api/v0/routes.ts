@@ -3,9 +3,8 @@ import { routesIcs } from "./ics";
 import { routesCustomLesson } from "./customLesson";
 import { registerAuth, } from "./auth";
 import { routesSchedule } from "./schedule";
+import { routesNotifications } from "./notifications";
 
-
-//ReturnType<typeof tgParse> | null
 
 export async function routesv0(fastify: FastifyInstance) {
   await registerAuth(fastify)
@@ -13,4 +12,5 @@ export async function routesv0(fastify: FastifyInstance) {
   fastify.register(routesIcs, { prefix: "/ics" });
   fastify.register(routesSchedule, { prefix: "/schedule" });
   fastify.register(routesCustomLesson, { prefix: "/customLesson" });
+  fastify.register(routesNotifications, { prefix: "/notifications" });
 }
