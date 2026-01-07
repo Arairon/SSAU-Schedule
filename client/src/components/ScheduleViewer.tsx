@@ -69,7 +69,8 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
 
   }
 
-  function renderDay(day: typeof schedule.days[number], dayIndex: number) {
+  function ScheduleDay({ day }: { day: typeof schedule.days[number] }) {
+    const dayIndex = day.weekday
     return <>
       {dayHeader(day, dayIndex)}
       {
@@ -174,8 +175,8 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
         {schedule.days.slice(1).map((day, index) => dayHeader(day, index + 1))}
       </>
     }
-    if (isMobile) return renderDay(schedule.days[currentDay], currentDay) // Рендерим всего один день
-    return <>{schedule.days.map(renderDay)}</>
+    if (isMobile) return <ScheduleDay day={schedule.days[currentDay]} />
+    return <>{schedule.days.map(day => <ScheduleDay key={day.beginTime.toString()} day={day} />)}</>
 
   }
 

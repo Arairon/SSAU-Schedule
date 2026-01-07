@@ -9,7 +9,7 @@ import { getUserIcsByUserId } from "../lib/ics";
 import { lk } from "../lib/lk";
 import { getDefaultSession } from "./bot";
 
-async function reset(ctx: Context, userId: number) {
+async function reset(_ctx: Context, userId: number) {
   await db.user.delete({ where: { tgId: userId } });
 }
 
