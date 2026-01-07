@@ -32,8 +32,7 @@ export async function routesSchedule(fastify: FastifyInstance) {
       res,
     ) => {
       const auth: AuthData = req.getDecorator("authData")
-      if (!auth) return res.status(403).send("No initData found")
-      if (!auth.userId) return res.status(400).send("No valid userId was found")
+      if (!auth) return res.status(403).send("Unauthorized")
       const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
       const group = await findGroup({
         groupId: req.query.groupId,

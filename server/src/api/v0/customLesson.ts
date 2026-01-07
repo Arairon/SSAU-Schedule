@@ -17,8 +17,7 @@ export async function routesCustomLesson(fastify: FastifyInstance) {
   fastify.post("/", {},
     async (req: FastifyRequest<{ Body: unknown }>, res) => {
       const auth: AuthData = req.getDecorator("authData")
-      if (!auth) return res.status(403).send("No initData found")
-      if (!auth.userId) return res.status(400).send("No valid userId was found")
+      if (!auth) return res.status(403).send("Unauthorized")
       const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
       const { data, error } = CustomizationDataSchemaPartial.omit("id").strict().safeParse(req.body)
       if (error || !data) {
@@ -32,8 +31,7 @@ export async function routesCustomLesson(fastify: FastifyInstance) {
   fastify.delete("/:lessonId", { schema: { params: lessonIdParamSchema } },
     async (req: FastifyRequest<{ Params: { lessonId: number } }>, res) => {
       const auth: AuthData = req.getDecorator("authData")
-      if (!auth) return res.status(403).send("No initData found")
-      if (!auth.userId) return res.status(400).send("No valid userId was found")
+      if (!auth) return res.status(403).send("Unauthorized")
       const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
       const id = Number(req.params.lessonId)
       if (!await db.customLesson.findUnique({ where: { id, userId: user.id } })) {
@@ -46,8 +44,7 @@ export async function routesCustomLesson(fastify: FastifyInstance) {
   fastify.put("/", {},
     async (req: FastifyRequest<{ Body: unknown }>, res) => {
       const auth: AuthData = req.getDecorator("authData")
-      if (!auth) return res.status(403).send("No initData found")
-      if (!auth.userId) return res.status(400).send("No valid userId was found" + JSON.stringify(auth))
+      if (!auth) return res.status(403).send("Unauthorized")
       const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
       const { data, error } = CustomizationDataSchemaPartial.requiredFor("id").strict().safeParse(req.body)
       if (error || !data) {
