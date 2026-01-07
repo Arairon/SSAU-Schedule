@@ -61,10 +61,11 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
 
   }
 
-  function dayHeader(day: typeof schedule.days[number], dayIndex: number) {
+  function dayHeader(day: typeof schedule.days[number]) {
     const date = day.beginTime
+    const dayIndex = day.weekday
     return <div key={`${dayIndex}div${date}`} className="snap-end rounded-lg border-2 border-cyan-600 bg-cyan-900 p-2 font-bold text-white sm:min-w-0">
-      {WEEKDAYS[dayIndex + 1].short} {`${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}`}
+      {WEEKDAYS[dayIndex].short} {`${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}`}
     </div>
 
   }
@@ -72,7 +73,7 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
   function ScheduleDay({ day }: { day: typeof schedule.days[number] }) {
     const dayIndex = day.weekday
     return <>
-      {dayHeader(day, dayIndex)}
+      {dayHeader(day)}
       {
         new Array(columnHeight).fill(0).map((_, index) => {
           const lesson = day.lessons.find(i => i.dayTimeSlot == index + 1) ?? null
@@ -138,8 +139,8 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
   }
 
   function timetable() {
+    // Пар нет
     if (columnHeight === 0) {
-      // Пар нет
       const s = lessonStyles.Window
       if (isMobile) {
         const start = schedule.days[0].beginTime
@@ -163,7 +164,7 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
       }
       // Desktop version
       return <>
-        {dayHeader(schedule.days[0], 0)}
+        {dayHeader(schedule.days[0])}
         <div key="noLessonsCard" className="col-span-6 flex flex-col gap-1">
           <div className={"flex-1 py-20 " + s.cardStyle}>
             <div className={"rounded-xl p-1 " + s.barStyle}></div>
@@ -172,9 +173,10 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
             </div>
           </div>
         </div>
-        {schedule.days.slice(1).map((day, index) => dayHeader(day, index + 1))}
+        {schedule.days.slice(1).map((day) => dayHeader(day))}
       </>
     }
+    // Пары есть
     if (isMobile) return <ScheduleDay day={schedule.days[currentDay]} />
     return <>{schedule.days.map(day => <ScheduleDay key={day.beginTime.toString()} day={day} />)}</>
 

@@ -11,6 +11,7 @@ import { routesv0 } from "./api/v0/routes";
 import { routesDebug } from "./api/debug/routes";
 import path from "node:path"
 
+// TODO: Automatic notifications rescheduling
 
 const server = fastify({
   logger: {

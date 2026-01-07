@@ -56,7 +56,6 @@ function Schedule() {
     queryFn: () => getSchedule({ week: weekNumber }),
     staleTime: 300_000,
     retry: false,
-    // enabled: !!token // TODO: Reenable in prod, since usage outside tg is only handled in dev right now.
   })
 
   if (weekNumber < 52 && !error)
