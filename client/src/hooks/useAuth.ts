@@ -1,8 +1,39 @@
 import { useRawInitData } from "@tma.js/sdk-react";
 import { useQuery } from "@tanstack/react-query";
-import { loginUsingTg, loginUsingToken } from "@/api/auth";
 
-function useAuth({ tg = false, token = undefined, creds = undefined }: { tg?: boolean, token?: string, creds?: { login: string, password: string } }) {
+import { create } from "zustand"
+import type { UserInfo } from "@/api/auth";
+import { loginUsingCookie, loginUsingTg, loginUsingToken } from "@/api/auth";
+
+
+interface AuthData {
+  isAuthorized: boolean;
+  user: UserInfo | null;
+  token: string;
+  error: string;
+
+  setUserInfo: (userInfo: UserInfo | null) => void;
+  setToken: (token: string) => void;
+  setIsAuthorized: (value: boolean) => void;
+  setError: (error: string) => void;
+  reset: () => void;
+}
+
+
+export const useAuthState = create<AuthData>((set) => ({
+  isAuthorized: false,
+  user: null,
+  token: "",
+  error: "",
+
+  setUserInfo: (userInfo) => set({ user: userInfo }),
+  setToken: (token) => set({ token }),
+  setIsAuthorized: (value) => set({ isAuthorized: value }),
+  setError: (error) => set({ error }),
+  reset: () => set({ user: null, token: "", isAuthorized: false })
+}))
+
+function useAuth({ tg = false, token = undefined, creds = undefined, cookie = false }: { tg?: boolean, token?: string, creds?: { login: string, password: string }, cookie?: boolean }) {
   let tgInitData = "";
   try {
     tgInitData = useRawInitData() || ""
@@ -24,11 +55,20 @@ function useAuth({ tg = false, token = undefined, creds = undefined }: { tg?: bo
     retry: false
   })
 
+  const cookieAuth = useQuery({
+    queryKey: ["auth", "cookie"],
+    queryFn: () => loginUsingCookie(),
+    enabled: cookie,
+    staleTime: 3600_000,
+    retry: false
+  })
+
   console.log(tg, token, creds)
 
   if (tgAuth.isEnabled) return tgAuth
   if (tokenAuth.isEnabled) return tokenAuth
-
+  // creds Auth
+  if (cookieAuth.isEnabled) return cookieAuth
 
   return null
 }

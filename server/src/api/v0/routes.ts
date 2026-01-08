@@ -4,6 +4,7 @@ import { routesCustomLesson } from "./customLesson";
 import { registerAuth } from "./auth";
 import { routesSchedule } from "./schedule";
 import { routesNotifications } from "./notifications";
+import { routesLk } from "./lk";
 
 export async function routesv0(fastify: FastifyInstance) {
   await registerAuth(fastify);
@@ -12,4 +13,5 @@ export async function routesv0(fastify: FastifyInstance) {
   fastify.register(routesSchedule, { prefix: "/schedule" });
   fastify.register(routesCustomLesson, { prefix: "/customLesson" });
   fastify.register(routesNotifications, { prefix: "/notifications" });
+  fastify.register(routesLk, {prefix: "/lk"})
 }

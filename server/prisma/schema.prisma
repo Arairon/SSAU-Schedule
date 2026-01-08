@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client"
-  output = "../src/generated/prisma/client"
+  output   = "../src/generated/prisma/client"
 }
 
 datasource db {
@@ -66,7 +66,7 @@ enum LessonType {
 
 model CustomLesson {
   id            Int         @id @default(autoincrement())
-  lesson        Lesson?     @relation(fields: [lessonId], references: [id])
+  lesson        Lesson?     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   lessonId      Int? // Lesson to override (Otherwise adds new)
   lessonInfoId  Int? // LessonID to override (for group overriding)
   isEnabled     Boolean     @default(true) // is custom lesson enabled
@@ -80,7 +80,7 @@ model CustomLesson {
   subgroup      Int?
   groups        Group[]
   flows         Flow[]
-  teacher       Teacher?    @relation(fields: [teacherId], references: [id])
+  teacher       Teacher?    @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   teacherId     Int?
   isOnline      Boolean?
   isIet         Boolean?
@@ -92,7 +92,7 @@ model CustomLesson {
   weekNumber    Int
   weekday       Int
 
-  user    User   @relation(fields: [userId], references: [id])
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId  Int
   comment String @default("")
 

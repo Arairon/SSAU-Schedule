@@ -9,10 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TgWaitRouteImport } from './routes/tg-wait'
+import { Route as ScheduleRouteImport } from './routes/schedule'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as DebugRouteImport } from './routes/debug'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LkLoginRouteImport } from './routes/lk.login'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 
+const TgWaitRoute = TgWaitRouteImport.update({
+  id: '/tg-wait',
+  path: '/tg-wait',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScheduleRoute = ScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DebugRoute = DebugRouteImport.update({
   id: '/debug',
   path: '/debug',
@@ -21,6 +40,11 @@ const DebugRoute = DebugRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LkLoginRoute = LkLoginRouteImport.update({
+  id: '/lk/login',
+  path: '/lk/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
@@ -32,35 +56,94 @@ const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/debug': typeof DebugRoute
+  '/login': typeof LoginRoute
+  '/schedule': typeof ScheduleRoute
+  '/tg-wait': typeof TgWaitRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/lk/login': typeof LkLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/debug': typeof DebugRoute
+  '/login': typeof LoginRoute
+  '/schedule': typeof ScheduleRoute
+  '/tg-wait': typeof TgWaitRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/lk/login': typeof LkLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/debug': typeof DebugRoute
+  '/login': typeof LoginRoute
+  '/schedule': typeof ScheduleRoute
+  '/tg-wait': typeof TgWaitRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/lk/login': typeof LkLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/debug' | '/demo/tanstack-query'
+  fullPaths:
+    | '/'
+    | '/debug'
+    | '/login'
+    | '/schedule'
+    | '/tg-wait'
+    | '/demo/tanstack-query'
+    | '/lk/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/debug' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/debug' | '/demo/tanstack-query'
+  to:
+    | '/'
+    | '/debug'
+    | '/login'
+    | '/schedule'
+    | '/tg-wait'
+    | '/demo/tanstack-query'
+    | '/lk/login'
+  id:
+    | '__root__'
+    | '/'
+    | '/debug'
+    | '/login'
+    | '/schedule'
+    | '/tg-wait'
+    | '/demo/tanstack-query'
+    | '/lk/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DebugRoute: typeof DebugRoute
+  LoginRoute: typeof LoginRoute
+  ScheduleRoute: typeof ScheduleRoute
+  TgWaitRoute: typeof TgWaitRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  LkLoginRoute: typeof LkLoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tg-wait': {
+      id: '/tg-wait'
+      path: '/tg-wait'
+      fullPath: '/tg-wait'
+      preLoaderRoute: typeof TgWaitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schedule': {
+      id: '/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof ScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/debug': {
       id: '/debug'
       path: '/debug'
@@ -73,6 +156,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lk/login': {
+      id: '/lk/login'
+      path: '/lk/login'
+      fullPath: '/lk/login'
+      preLoaderRoute: typeof LkLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/tanstack-query': {
@@ -88,7 +178,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DebugRoute: DebugRoute,
+  LoginRoute: LoginRoute,
+  ScheduleRoute: ScheduleRoute,
+  TgWaitRoute: TgWaitRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  LkLoginRoute: LkLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

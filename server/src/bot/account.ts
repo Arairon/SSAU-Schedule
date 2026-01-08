@@ -234,7 +234,7 @@ https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
       {
         reply_markup: new InlineKeyboard().webApp(
           "Открыть",
-          `https://${env.SCHED_BOT_DOMAIN}/`,
+          `https://${env.SCHED_BOT_DOMAIN}/tg-wait`,
         ),
       },
     );

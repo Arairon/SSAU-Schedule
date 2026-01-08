@@ -20,7 +20,7 @@ const WEEKDAYS = [
 ];
 
 export default function ScheduleViewer({ schedule, editingEnabled = false }: { schedule: ScheduleType; editingEnabled?: boolean }) {
-  const columnHeight = schedule.days.reduce((a, day) => {
+  let columnHeight = schedule.days.reduce((a, day) => {
     const t = day.lessons.reduce((b, lesson) => b > lesson.dayTimeSlot ? b : lesson.dayTimeSlot, 0)
     return a > t ? a : t
   }, 0)
@@ -41,6 +41,8 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
   const [currentDay, setCurrentDay] = useState(0);
 
   const isMobile = useIsMobile();
+  // Add an empty row
+  if (isMobile && columnHeight > 0) columnHeight = Math.max(columnHeight, 3) + 1
 
 
 

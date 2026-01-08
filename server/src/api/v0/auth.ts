@@ -17,7 +17,7 @@ export type AuthData = {
 
 const CredentialsSchema = s
   .object({
-    login: s.string().min(1),
+    username: s.string().min(1),
     password: s.string().min(1),
   })
   .strict()
@@ -98,13 +98,11 @@ export async function registerAuth(fastify: FastifyInstance) {
           if (!data.user) {
             throw new Error("Attempt to authorize 'tma' without user.id");
           }
-          const user = await db.user.findUnique({
+          let user = await db.user.findUnique({
             where: { tgId: data.user.id },
           });
-          if (!user) {
-            // TODO: Create user on demand?
-            return res.status(403).send("Unable to find user");
-          }
+          // Create user if one does not exist
+          user ??= await db.user.create({ data: { tgId: data.user.id } })
           const auth = {
             userId: user.id,
             tgId: user.tgId.toString(),
@@ -175,8 +173,7 @@ export async function registerAuth(fastify: FastifyInstance) {
 
   fastify.get("/whoami", {}, async (req, res) => {
     const auth: AuthData = req.getDecorator("authData");
-    if (!auth) return res.status(403).send("No initData found");
-    if (!auth.userId) return res.status(400).send("No valid userId was found");
+    if (!auth) return res.status(403).send("Unauthorized");
     const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
     Object.assign(user, {
       tgId: user.tgId.toString(),

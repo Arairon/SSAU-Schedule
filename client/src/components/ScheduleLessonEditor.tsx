@@ -178,7 +178,7 @@ export default function ScheduleLessonEditor({ lesson = null, time }: { lesson?:
         <Collapsible className="flex flex-col items-stretch justify-stretch rounded-lg border-2 p-1" open={isDateSelectorOpen}>
           <CollapsibleTrigger className="flex flex-col" asChild>
             <Toggle className="flex-1 p-1 hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent" pressed={isDateSelectorOpen} onPressedChange={setDateSelectorOpen}>
-              Выбор дат
+              Выбор даты / времени
             </Toggle>
           </CollapsibleTrigger>
           <CollapsibleContent className="flex flex-row items-stretch justify-evenly gap-1 sm:gap-2">
