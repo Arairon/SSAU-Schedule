@@ -9,6 +9,7 @@ import { env } from "../../env";
 import jwt from "jsonwebtoken";
 import { db } from "../../db";
 import s from "ajv-ts";
+import { validateApiKey } from "../../lib/apiKey";
 
 export type AuthData = {
   userId: number;
@@ -66,7 +67,7 @@ export async function registerAuth(fastify: FastifyInstance) {
     );
     // console.log("onRequest-v0-auth", req.url, authType, authData)
 
-    if ((authData === "null") && env.NODE_ENV === "development") {
+    if (authData === "null" && env.NODE_ENV === "development") {
       //req.setDecorator("authData", tgParse("query_id=AAEwEU4tAAAAADARTi2N1Ojc&user=%7B%22id%22%3A760090928%2C%22first_name%22%3A%22Arairon%22%2C%22last_name%22%3A%22%22%2C%22username%22%3A%22arairon%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%2C%22photo_url%22%3A%22https%3A%5C%2F%5C%2Ft.me%5C%2Fi%5C%2Fuserpic%5C%2F320%5C%2FxQtPJZWudbTdIhgDbD4ArUKDPqA5jKU3I8A1hUKLvak.svg%22%7D&auth_date=1767380093&signature=D5HHSMC-qwQVBqQa6WnOHEPVHO0XcoEHuRdhgTF6spZaeTJhn0Ecv2nKUYfIUFTHWuvGMwLCaEOT3sAw734TDQ&hash=d344d401789f4916bef87051e1d6c7fcf7a667848b501fe15957d1383f6b8de3"))
       res.header("authorization-info", "Bypassed for dev");
       res.setCookie(
@@ -102,7 +103,7 @@ export async function registerAuth(fastify: FastifyInstance) {
             where: { tgId: data.user.id },
           });
           // Create user if one does not exist
-          user ??= await db.user.create({ data: { tgId: data.user.id } })
+          user ??= await db.user.create({ data: { tgId: data.user.id } });
           const auth = {
             userId: user.id,
             tgId: user.tgId.toString(),
@@ -123,8 +124,26 @@ export async function registerAuth(fastify: FastifyInstance) {
         break;
       }
       case "Bearer": {
-        // TODO: Handle api keys
-        // break;
+        const apiKey = await validateApiKey({
+          key: authData,
+          includeUser: true,
+        });
+        if (!apiKey) {
+          res.header("authorization-error", "invalid token");
+          break;
+        }
+        const auth = {
+          userId: apiKey.user.id,
+          tgId: apiKey.user.tgId.toString(),
+        } as AuthData;
+        res.setCookie(
+          "accessToken",
+          jwt.sign(auth as object, env.SCHED_JWT_SECRET, { expiresIn: "1h" }),
+          { path: "/api/v0" },
+        );
+        // Not using refreshTokens for token auth
+        req.setDecorator("authData", auth);
+        break;
       }
       default: {
         res.header("authorization-error", "Invalid method: " + authType);

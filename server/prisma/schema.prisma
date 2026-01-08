@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma/client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -138,7 +138,7 @@ model User {
   tgId                BigInt         @unique
   staffId             Int? // LK id
   fullname            String?
-  group               Group?         @relation(fields: [groupId], references: [id])
+  group               Group?         @relation(fields: [groupId], references: [id], onDelete: SetNull)
   groupId             Int?
   flows               Flow[]
   authCookie          String?
@@ -154,12 +154,31 @@ model User {
   ics                 UserIcs?
   groupChats          GroupChat[]
   customLessons       CustomLesson[]
+  apiKeys             UserApiKey[]
   //weeks               Week[] // Disabled, since weeks can have '0' as their owner
 
   lastActive DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
+}
+
+model UserApiKey {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  name       String    @default("")
+  publicPart String    @unique
+  keyHash    String    @unique
+  expiresAt  DateTime?
+  revoked    Boolean   @default(false)
+
+  lastUsed  DateTime @default(value: "1970-01-01T00:00:00.000Z")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+
+  @@index([userId])
 }
 
 model UserIcs {

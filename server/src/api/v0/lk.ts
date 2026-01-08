@@ -4,19 +4,16 @@ import { lk } from "../../lib/lk";
 import { db } from "../../db";
 import { type AuthData } from "./auth";
 
-
 const CredentialsSchema = s
   .object({
     username: s.string().min(1),
     password: s.string().min(1),
-    saveCredentials: s.boolean().default(false)
+    saveCredentials: s.boolean().default(false),
   })
   .strict()
   .required();
 
-
 export async function routesLk(fastify: FastifyInstance) {
-
   fastify.post(
     "/login",
     {},
@@ -33,13 +30,17 @@ export async function routesLk(fastify: FastifyInstance) {
       const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
       // const {login,password} = data;
       // TODO: Implement login & password auth
-      const result = await lk.login(user, data)
+      const result = await lk.login(user, data);
       if (result.ok) {
-        await lk.updateUserInfo(user)
-        return res.status(200).send({ success: true, error: null })
-      }
-      else
-        return res.status(400).send({ success: false, error: `${result.error}: ${result.message}` })
+        await lk.updateUserInfo(user);
+        return res.status(200).send({ success: true, error: null });
+      } else
+        return res
+          .status(400)
+          .send({
+            success: false,
+            error: `${result.error}: ${result.message}`,
+          });
     },
   );
 }
