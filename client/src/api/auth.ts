@@ -60,7 +60,7 @@ export async function loginUsingTg(rawTgInfo: string) {
 export async function loginUsingToken(token: string) {
   const req = await fetch("/api/v0/auth", {
     headers: {
-      authorization: "Bearer " + token,
+      authorization: token,
     },
     credentials: "include"
   })
@@ -72,7 +72,7 @@ export async function loginUsingToken(token: string) {
     return null
   }
   if (auth.authorized) {
-    window.localStorage.setItem("auth-token", "Bearer " + token)
+    window.localStorage.setItem("auth-token", token)
   }
   useAuthState.setState({
     isAuthorized: auth.authorized,

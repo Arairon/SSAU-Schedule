@@ -4,7 +4,7 @@ import useAuth from '@/hooks/useAuth'
 
 export default function Header() {
   // const [isOpen, setIsOpen] = useState(false)
-  useAuth({ tg: true, token: window.localStorage.getItem("sched-token") || "" })
+  useAuth({ tg: true, token: window.localStorage.getItem("sched-token") || "", cookie: true })
   // const { user } = useAuthState()
 
   return (

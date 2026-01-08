@@ -12,6 +12,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { loginIntoSSAU } from '@/api/lk'
 import { useAuthState } from '@/hooks/useAuth'
+import { loginUsingCookie } from '@/api/auth'
 
 export const Route = createFileRoute('/lk/login')({
   component: RouteComponent,
@@ -44,7 +45,8 @@ function RouteComponent() {
       })
       return promise
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await loginUsingCookie()
       navigate({ to: "/schedule" })
     }
 
