@@ -1,6 +1,6 @@
 import axios, { type AxiosError } from "axios";
 // import jwt from "jsonwebtoken";
-import { type User } from "@prisma/client";
+import { type User } from "../generated/prisma/client";
 import { creds } from "./credentials";
 import { db } from "../db";
 import { UserDetailsSchema, UserGroupsSchema } from "../schema/lk";
@@ -193,7 +193,7 @@ async function updateCookie(user: User) {
   } catch (e) {
     log.warn(
       "Failed to update cookie: failed to get cookie.\n" +
-      (e ? JSON.stringify(e) : ""),
+        (e ? JSON.stringify(e) : ""),
       {
         user: user.id,
       },

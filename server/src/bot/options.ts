@@ -6,18 +6,13 @@ import { db } from "../db";
 import { UserPreferencesDefaults } from "../lib/misc";
 import { STYLEMAPS } from "../lib/scheduleImage";
 import { env } from "../env";
-import {
-  getCurrentYearId,
-  getWeekFromDate,
-} from "@shared/date";
-import {
-  getPersonShortname,
-} from "../lib/utils"
+import { getCurrentYearId, getWeekFromDate } from "@shared/date";
+import { getPersonShortname } from "../lib/utils";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
 } from "../lib/tasks";
-import { type User } from "@prisma/client";
+import { type User } from "../generated/prisma/client";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(

@@ -18,7 +18,7 @@ export async function routesDebug(fastify: FastifyInstance) {
   fastify.get(
     "/user/:userId",
     {
-      schema: { params: userIdParamSchema }
+      schema: { params: userIdParamSchema },
     },
     async (
       req: FastifyRequest<{
@@ -35,9 +35,13 @@ export async function routesDebug(fastify: FastifyInstance) {
           error: "user not found",
           message: "Cannot find specified user",
         });
-      return Object.assign({}, user, { tgId: user.tgId.toString(), password: "redacted", authCookie: !!user.authCookie })
-    }
-  )
+      return Object.assign({}, user, {
+        tgId: user.tgId.toString(),
+        password: "redacted",
+        authCookie: !!user.authCookie,
+      });
+    },
+  );
 
   fastify.get(
     "/user/:userId/ics",
@@ -67,7 +71,9 @@ export async function routesDebug(fastify: FastifyInstance) {
           message: "Cannot find specified user",
         });
       const cachedCal = user.ics && user.ics.validUntil > new Date();
-      const cal = cachedCal ? user.ics!.data : await getUserIcsByUserId(user.id);
+      const cal = cachedCal
+        ? user.ics!.data
+        : await getUserIcsByUserId(user.id);
       return res
         .status(200)
         .headers({ "content-type": "text/calendar; charset=utf-8" })
@@ -168,7 +174,7 @@ export async function routesDebug(fastify: FastifyInstance) {
         {
           ignoreCached: req.query.ignoreCached,
           groupId: (group?.id ?? 0) || undefined,
-          stylemap: req.query.theme
+          stylemap: req.query.theme,
         },
       );
       return res
@@ -222,13 +228,12 @@ export async function routesDebug(fastify: FastifyInstance) {
         ignoreCached: req.query.ignoreCached,
         groupId: (group?.id ?? 0) || undefined,
       });
-      const html = await generateTimetableImageHtml(timetable, { stylemap: req.query.theme })
-      return res
-        .status(200)
-        .header("content-type", "text/html")
-        .send(html);
+      const html = await generateTimetableImageHtml(timetable, {
+        stylemap: req.query.theme,
+      });
+      return res.status(200).header("content-type", "text/html").send(html);
     },
-  )
+  );
 
   // fastify.post(
   //   "/user/new",
@@ -501,4 +506,3 @@ export async function routesDebug(fastify: FastifyInstance) {
   //   },
   // );
 }
-

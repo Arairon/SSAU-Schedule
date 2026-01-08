@@ -12,7 +12,7 @@ import {
   scheduleMessage,
   UserPreferencesDefaults,
 } from "./misc";
-import type { Lesson, User } from "@prisma/client";
+import type { Lesson, User } from "../generated/prisma/client";
 import { lk } from "./lk";
 
 function sleep(ms: number) {
@@ -393,44 +393,44 @@ async function scheduleLessonChangeNotifications(
     `\
 Обнаружены изменения в расписании!
 ` +
-    (added.length > 0
-      ? `
+      (added.length > 0
+        ? `
 Добавлены занятия:
 ${added.map(formatDbLesson).join("\n")}
 `
-      : "") +
-    (removed.length > 0
-      ? `
+        : "") +
+      (removed.length > 0
+        ? `
 Удалены занятия:
 ${removed.map(formatDbLesson).join("\n")}
 `
-      : ""),
+        : ""),
     { source: "dailyupd/changes" },
   );
 }
 
 export async function scheduleDailyNotificationsForUser(
   user: User,
-  week?: number
+  week?: number,
 ) {
   // const today = new Date(Date.now() + 6 * 3600_000); // add 6h to ensure 'today' and not 'tonight'
   const today = new Date();
   today.setHours(7, 0); // 7 AM in TZ (Europe/Samara)
-  const weekNumber = week ?? getWeekFromDate(today)
+  const weekNumber = week ?? getWeekFromDate(today);
   const preferences = Object.assign(
     {},
     UserPreferencesDefaults,
     user.preferences,
   );
   const timetable = await schedule.getWeekTimetable(user, weekNumber);
-  timetable.days.map(d =>
-    d.lessons = d.lessons.filter(i => !i.customized?.hidden)
-  )
+  timetable.days.map(
+    (d) => (d.lessons = d.lessons.filter((i) => !i.customized?.hidden)),
+  );
   const day = timetable.days[today.getDay() - 1];
 
   if (!day || day.lessons.length === 0) {
     // sunday or no lessons
-    return {count: 0};
+    return { count: 0 };
   }
 
   const notifications: ScheduledMessage[] = [];

@@ -1,12 +1,18 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "./generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 import { env } from "./env";
 import log from "./logger";
+
+const adapter = new PrismaPg({
+  connectionString: env.SCHED_DATABASE_URL,
+});
 
 const createPrismaClient = () =>
   new PrismaClient({
     log: env.PRISMA_LOGS ? ["query", "error", "warn"] : ["error"],
     errorFormat: "pretty",
+    adapter,
   });
 
 const globalForPrisma = globalThis as unknown as {

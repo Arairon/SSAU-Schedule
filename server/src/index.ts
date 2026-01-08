@@ -1,7 +1,7 @@
 import fastify from "fastify";
 import fastifySchedule from "@fastify/schedule";
 import fastifyStatic from "@fastify/static";
-import cors from '@fastify/cors'
+import cors from "@fastify/cors";
 import { env } from "./env";
 import log from "./logger";
 // import init_redis from "./redis";
@@ -9,7 +9,7 @@ import init_bot from "./bot/bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
 import { routesv0 } from "./api/v0/routes";
 import { routesDebug } from "./api/debug/routes";
-import path from "node:path"
+import path from "node:path";
 
 // TODO: Automatic notifications rescheduling
 
@@ -31,16 +31,19 @@ async function start() {
 
   await server.register(cors, {
     origin: env.SCHED_HOST,
-    credentials: true
-  })
+    credentials: true,
+  });
 
-  server.register(routesv0, {prefix: "/api/v0"})
+  server.register(routesv0, { prefix: "/api/v0" });
   if (env.NODE_ENV === "development")
-    server.register(routesDebug, {prefix: "/api/debug"})
+    server.register(routesDebug, { prefix: "/api/debug" });
 
   server.register(fastifyStatic, {
-    root: env.NODE_ENV === "development" ? path.resolve("../client/dist/") : "/app/public"
-  })
+    root:
+      env.NODE_ENV === "development"
+        ? path.resolve("../client/dist/")
+        : "/app/public",
+  });
 
   server.register(fastifySchedule);
 

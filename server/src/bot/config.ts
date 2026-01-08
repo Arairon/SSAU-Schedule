@@ -42,9 +42,9 @@ export async function initConfig(bot: Bot<Context>) {
       return ctx.reply(`\
 Текущие параметры:
 ${Object.entries(preferences)
-          .filter(([k]) => k in config_field_names)
-          .map(([k, v]) => `${config_field_names[k]}: ${v}`)
-          .join("\n")}
+  .filter(([k]) => k in config_field_names)
+  .map(([k, v]) => `${config_field_names[k]}: ${v}`)
+  .join("\n")}
 
 Параметры используются для продвинутых настроек. Для обычных функций используйте /options.
 `);

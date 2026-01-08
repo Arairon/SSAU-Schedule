@@ -15,7 +15,7 @@ import {
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 import { lk } from "../lib/lk";
-import type { User } from "@prisma/client";
+import type { User } from "../generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
 import { getUserIcsByUserId } from "../lib/ics";
 
@@ -99,7 +99,7 @@ async function sendTimetable(
         .catch(() => {
           /*ignore*/
         });
-    } catch { }
+    } catch {}
   }, 150);
 
   let timetable;
@@ -358,7 +358,7 @@ export async function updateTimetable(
           .catch(() => {
             /*ignore*/
           });
-      } catch { }
+      } catch {}
     }, 150);
 
     let timetable;
@@ -544,7 +544,7 @@ export async function initSchedule(bot: Bot<Context>) {
     if (ctx.chat?.type !== "private") {
       return ctx.reply("Настройки доступны только в личном чате");
     }
-    void ctx.answerCallbackQuery()
+    void ctx.answerCallbackQuery();
     return openSettings(ctx);
   });
 
@@ -563,8 +563,13 @@ export async function initSchedule(bot: Bot<Context>) {
       const timetable = await schedule.getWeekTimetable(user, 0);
       const day = timetable.days.at(now.getDay() - 1);
 
-      if (ctx.message.text.split(" ")[1] === "admin" && ctx.from.id === env.SCHED_BOT_ADMIN_TGID) {
-        return ctx.reply(JSON.stringify(day, undefined, 2), { link_preview_options: { is_disabled: true } })
+      if (
+        ctx.message.text.split(" ")[1] === "admin" &&
+        ctx.from.id === env.SCHED_BOT_ADMIN_TGID
+      ) {
+        return ctx.reply(JSON.stringify(day, undefined, 2), {
+          link_preview_options: { is_disabled: true },
+        });
       }
 
       if (!day?.lessons.length || now.getDay() === 0) {

@@ -7,7 +7,7 @@ import {
   type WeekTimetable,
 } from "./schedule";
 import { formatBigInt, getPersonShortname } from "./utils";
-import { getLessonDate } from "@shared/date"
+import { getLessonDate } from "@shared/date";
 import log from "../logger";
 import { env } from "../env";
 import { type StyleMap } from "@shared/themes/types";
@@ -23,7 +23,6 @@ const CSS =
   env.NODE_ENV === "development"
     ? readFileSync("./src/template/timetable.css")
     : STATIC_CSS;
-
 
 // These variable names are terrible. God help us all
 
@@ -129,24 +128,27 @@ function generateSingleLesson(
   parts.push(
     format(LESSON_START, {
       barStyle: style.barStyle,
-      cardStyle: style.cardStyle + (lesson.customized?.hidden ? " grayscale-[50%] opacity-50" : ""),
+      cardStyle:
+        style.cardStyle +
+        (lesson.customized?.hidden ? " grayscale-[50%] opacity-50" : ""),
     }),
   );
 
   function getCustomizationIndicator(lesson: TimetableLesson) {
-    if (!lesson.customized) return "";        // Not customized
-    if (!lesson.original?.id) return "+";     // Adds a new one
+    if (!lesson.customized) return ""; // Not customized
+    if (!lesson.original?.id) return "+"; // Adds a new one
     if (lesson.customized.hidden) return "-"; // Overwrites and removes original
-    return "*";                               // Overwrites original
+    return "*"; // Overwrites original
   }
 
   const customizationIndicator = getCustomizationIndicator(lesson);
 
-
   parts.push(
     format(LESSON_BODY, {
       name: lesson.discipline,
-      teacherName: lesson.teacher ? getPersonShortname(lesson.teacher.name) : "",
+      teacherName: lesson.teacher
+        ? getPersonShortname(lesson.teacher.name)
+        : "",
       place: lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`,
       subgroup: lesson.subgroup ? `Подгруппа: ${lesson.subgroup}` : "",
       nameStyle: style.nameStyle,
@@ -155,7 +157,9 @@ function generateSingleLesson(
       subgroupStyle: style.subgroupStyle,
       ietStyle: lesson.isIet ? style.ietStyle : "hidden",
       ietLabel: style.ietLabel,
-      extra: customizationIndicator ? `<span style="color:#6495ED;">${customizationIndicator}</span>` : ""
+      extra: customizationIndicator
+        ? `<span style="color:#6495ED;">${customizationIndicator}</span>`
+        : "",
     }),
   );
   if (opts?.showGrouplist) {
@@ -228,7 +232,7 @@ function generateLesson(
 
 function format(string: string, values: Record<string, string>) {
   //console.debug(values);
-  return string.replace(/\{(\w+)\}/g, function(x) {
+  return string.replace(/\{(\w+)\}/g, function (x) {
     //console.debug(x, values[x.slice(1, x.length - 1)]);
     return values[x.slice(1, x.length - 1)] ?? x;
   });

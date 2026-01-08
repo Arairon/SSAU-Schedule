@@ -53,12 +53,13 @@ COPY --from=server_deps /app/node_modules ./node_modules
 COPY server/ ./
 COPY shared /shared
 
+# Temporarily set env to silence prisma
+ENV SCHED_DATABASE_URL=localhost
+
 RUN bun run db:generate && SKIP_ENV_VALIDATION=1 bun run build; 
 
 # Server Runner
 FROM server_builder AS server_runner
-
-ARG DATABASE_URL
 
 ENV NODE_ENV=production
 ENV CHROME_PATH=/usr/bin/chromium-browser
