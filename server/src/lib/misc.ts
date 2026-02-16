@@ -18,7 +18,7 @@ export type UserPreferences = {
 };
 
 export const UserPreferencesDefaults: UserPreferences = {
-  theme: "default",
+  theme: "neon",
   showIet: true,
   showMilitary: false,
   notifyBeforeLessons: 0,

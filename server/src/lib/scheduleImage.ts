@@ -11,7 +11,7 @@ import { getLessonDate } from "@shared/date";
 import log from "../logger";
 import { env } from "../env";
 import { type StyleMap } from "@shared/themes/types";
-import { SCHEDULE_STYLEMAP_DEFAULT } from "@shared/themes/default";
+import { SCHEDULE_STYLEMAP_LIGHT } from "@shared/themes/light";
 import { SCHEDULE_STYLEMAP_NEON } from "@shared/themes/neon";
 import { SCHEDULE_STYLEMAP_DARK } from "@shared/themes/dark";
 
@@ -111,9 +111,10 @@ const EMPTY_WEEK_NOTICE = `
 `;
 
 export const STYLEMAPS: Record<string, StyleMap> = {
-  default: SCHEDULE_STYLEMAP_DEFAULT,
+  light: SCHEDULE_STYLEMAP_LIGHT,
   dark: SCHEDULE_STYLEMAP_DARK,
   neon: SCHEDULE_STYLEMAP_NEON,
+  default: SCHEDULE_STYLEMAP_NEON
 };
 
 function generateSingleLesson(
