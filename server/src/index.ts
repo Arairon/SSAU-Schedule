@@ -45,6 +45,13 @@ async function start() {
         : "/app/public",
   });
 
+  server.setNotFoundHandler((req, reply) => {
+    if (req.url.startsWith('/api')) {
+      return reply.code(404).send({ message: 'Not Found' });
+    }
+    reply.sendFile('index.html');
+  });
+
   server.register(fastifySchedule);
 
   server.ready().then(() => {
