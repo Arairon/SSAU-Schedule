@@ -38,13 +38,12 @@ async function start() {
   if (env.NODE_ENV === "development")
     server.register(routesDebug, { prefix: "/api/debug" });
 
-  if (env.NODE_ENV === "development") // TODO: Reenable when /app is released
-    server.register(fastifyStatic, {
-      root:
-        env.NODE_ENV === "development"
-          ? path.resolve("../client/dist/")
-          : "/app/public",
-    });
+  server.register(fastifyStatic, {
+    root:
+      env.NODE_ENV === "development"
+        ? path.resolve("../client/dist/")
+        : "/app/public",
+  });
 
   server.register(fastifySchedule);
 
