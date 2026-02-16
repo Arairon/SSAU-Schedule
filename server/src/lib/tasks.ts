@@ -3,7 +3,7 @@ import { AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "../db";
 import { bot } from "../bot/bot";
 import log from "../logger";
-import { getCurrentYearId, getWeekFromDate } from "./utils";
+import { getCurrentYearId, getWeekFromDate } from "@shared/date";
 import { schedule, TimeSlotMap } from "./schedule";
 import {
   DayString,
@@ -12,7 +12,7 @@ import {
   scheduleMessage,
   UserPreferencesDefaults,
 } from "./misc";
-import type { Lesson, User, Week } from "@prisma/client";
+import type { Lesson, User } from "../generated/prisma/client";
 import { lk } from "./lk";
 
 function sleep(ms: number) {
@@ -115,7 +115,7 @@ export async function scheduleDailyNotificationsForAll() {
         });
         continue;
       }
-      const res = await scheduleDailyNotificationsForUser(user, week);
+      const res = await scheduleDailyNotificationsForUser(user, week.number);
       if (!res) continue;
       count += res.count;
     } catch (e) {
@@ -233,7 +233,7 @@ export async function dailyWeekUpdate() {
           // Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
           //             { source: "dailyupd/error" },
           //           );
-          await scheduleDailyNotificationsForUser(user, week);
+          await scheduleDailyNotificationsForUser(user, week.number);
           continue;
         }
       } catch (e) {
@@ -251,7 +251,7 @@ export async function dailyWeekUpdate() {
         // Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
         // { source: "dailyupd/error" },
         //         );
-        await scheduleDailyNotificationsForUser(user, week);
+        await scheduleDailyNotificationsForUser(user, week.number);
         continue;
       }
 
@@ -286,7 +286,7 @@ export async function dailyWeekUpdate() {
         }
       }
 
-      await scheduleDailyNotificationsForUser(user, week);
+      await scheduleDailyNotificationsForUser(user, week.number);
 
       await sleep(3000); // To prevent any fun stuff on ssau's end
     } catch (e) {
@@ -411,22 +411,26 @@ ${removed.map(formatDbLesson).join("\n")}
 
 export async function scheduleDailyNotificationsForUser(
   user: User,
-  week: Week,
+  week?: number,
 ) {
   // const today = new Date(Date.now() + 6 * 3600_000); // add 6h to ensure 'today' and not 'tonight'
   const today = new Date();
-  today.setHours(7, 0); // 7 AM in Europe/Samara
+  today.setHours(7, 0); // 7 AM in TZ (Europe/Samara)
+  const weekNumber = week ?? getWeekFromDate(today);
   const preferences = Object.assign(
     {},
     UserPreferencesDefaults,
     user.preferences,
   );
-  const timetable = await schedule.getWeekTimetable(user, week.number);
+  const timetable = await schedule.getWeekTimetable(user, weekNumber);
+  timetable.days.map(
+    (d) => (d.lessons = d.lessons.filter((i) => !i.customized?.hidden)),
+  );
   const day = timetable.days[today.getDay() - 1];
 
   if (!day || day.lessons.length === 0) {
     // sunday or no lessons
-    return;
+    return { count: 0 };
   }
 
   const notifications: ScheduledMessage[] = [];
@@ -525,7 +529,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
   if (preferences.notifyAboutNextWeek && !nextStudyDay) {
     const timetable = await schedule.getTimetableWithImage(
       user,
-      week.number + 1,
+      weekNumber + 1,
     );
     notifications.push({
       chatId: `${user.tgId}`,
@@ -609,7 +613,7 @@ export const cronjobs = [
     },
   ),
   new CronJob(
-    { cronExpression: "0 0 * * *" }, // 4 am
+    { cronExpression: "0 0 * * *" }, // 0 am
     new AsyncTask("Daily cleanup", dailyCleanup),
     {
       preventOverrun: true,

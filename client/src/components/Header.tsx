@@ -1,0 +1,85 @@
+import { Link } from '@tanstack/react-router'
+import useAuth from '@/hooks/useAuth'
+
+
+export default function Header() {
+  // const [isOpen, setIsOpen] = useState(false)
+  const isTg = !!(window as any).Telegram?.WebApp
+  useAuth({ tg: isTg, token: window.localStorage.getItem("auth-token") || "", cookie: !isTg })
+  // const { user } = useAuthState()
+
+  return (
+    <>
+      <header className="flex flex-row items-center justify-center bg-slate-900 p-2 text-white shadow-lg sm:justify-start sm:p-4">
+        {/*
+        <button
+          onClick={() => setIsOpen(true)}
+          className="rounded-lg p-2 transition-colors hover:bg-gray-700"
+          aria-label="Open menu"
+        >
+          <Menu size={24} />
+        </button>
+        */}
+        <h1 className="flex items-center gap-2 text-3xl font-semibold text-[#36f3ff] sm:ml-4 sm:text-4xl">
+          <Link to="/schedule" className='flex items-center gap-2'>
+            <img
+              src="/ssau-sched-textless.png"
+              alt="SSAU-Schedule Logo"
+              className="h-8 sm:h-10"
+            />
+            <span>Schedule</span>
+          </Link>
+        </h1>
+
+      </header>
+
+      {/**
+      <aside
+        className={`fixed top-0 left-0 z-50 flex h-full w-80 transform flex-col bg-gray-900 text-white shadow-2xl transition-transform duration-300 ease-in-out
+${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <iv className="flex items-center justify-between border-b border-gray-700 p-4">
+          <h2 className="text-xl font-bold">Navigation</h2>
+          <button
+            onClick={() => setIsOpen(false)}
+            className="rounded-lg p-2 transition-colors hover:bg-gray-800"
+            aria-label="Close menu"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto p-4">
+          <Link
+            to="/"
+            onClick={() => setIsOpen(false)}
+            className="mb-2 flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-800"
+            activeProps={{
+              className:
+                'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
+            }}
+          >
+            <Home size={20} />
+            <span className="font-medium">Home</span>
+          </Link>
+
+
+          <Link
+            to="/demo/tanstack-query"
+            onClick={() => setIsOpen(false)}
+            className="mb-2 flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-800"
+            activeProps={{
+              className:
+                'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
+            }}
+          >
+            <Network size={20} />
+            <span className="font-medium">TanStack Query</span>
+          </Link>
+
+        </nav>
+      </aside>
+      */}
+    </>
+  )
+}

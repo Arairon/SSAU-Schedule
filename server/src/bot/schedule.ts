@@ -3,7 +3,8 @@ import type { Context } from "./types";
 
 import log from "../logger";
 import { db } from "../db";
-import { formatBigInt, getWeekFromDate } from "../lib/utils";
+import { formatBigInt } from "../lib/utils";
+import { getWeekFromDate } from "@shared/date";
 import { env } from "../env";
 import { schedule } from "../lib/schedule";
 import {
@@ -14,7 +15,7 @@ import {
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 import { lk } from "../lib/lk";
-import type { User } from "@prisma/client";
+import type { User } from "../generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
 import { getUserIcsByUserId } from "../lib/ics";
 
@@ -372,7 +373,6 @@ export async function updateTimetable(
       log.error(`Failed to get timetable ${String(e)}`, { user: userId });
       return ctx.reply(`
 Произошла неизвестная ошибка при обновлении.
-Попробуйте позже или повторно войдите в аккаунт через /login
 Для подробностей свяжитесь с администратором бота.
         `);
     }
@@ -544,6 +544,7 @@ export async function initSchedule(bot: Bot<Context>) {
     if (ctx.chat?.type !== "private") {
       return ctx.reply("Настройки доступны только в личном чате");
     }
+    void ctx.answerCallbackQuery();
     return openSettings(ctx);
   });
 
@@ -561,6 +562,16 @@ export async function initSchedule(bot: Bot<Context>) {
       const now = new Date();
       const timetable = await schedule.getWeekTimetable(user, 0);
       const day = timetable.days.at(now.getDay() - 1);
+
+      if (
+        ctx.message.text.split(" ")[1] === "admin" &&
+        ctx.from.id === env.SCHED_BOT_ADMIN_TGID
+      ) {
+        return ctx.reply(JSON.stringify(day, undefined, 2), {
+          link_preview_options: { is_disabled: true },
+        });
+      }
+
       if (!day?.lessons.length || now.getDay() === 0) {
         return ctx.reply("Сегодня занятий нет :D");
       }

@@ -6,7 +6,7 @@ import {
   LessonTypeName,
   UserPreferencesDefaults,
 } from "./misc";
-import { LessonType } from "@prisma/client";
+import { LessonType } from "../generated/prisma/client";
 
 export async function generateUserIcs(
   userId: number,

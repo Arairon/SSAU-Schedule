@@ -1,10 +1,17 @@
 import fastify from "fastify";
 import fastifySchedule from "@fastify/schedule";
+import fastifyStatic from "@fastify/static";
+import cors from "@fastify/cors";
 import { env } from "./env";
 import log from "./logger";
+// import init_redis from "./redis";
 import init_bot from "./bot/bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
 import { routesv0 } from "./api/v0/routes";
+import { routesDebug } from "./api/debug/routes";
+import path from "node:path";
+
+// TODO: Automatic notifications rescheduling
 
 const server = fastify({
   logger: {
@@ -21,8 +28,24 @@ const server = fastify({
 async function start() {
   // await init_redis(server);
   await init_bot(server);
+
+  await server.register(cors, {
+    origin: env.SCHED_HOST,
+    credentials: true,
+  });
+
   server.register(routesv0, { prefix: "/api/v0" });
-  // server.register(userRoutes);
+  if (env.NODE_ENV === "development")
+    server.register(routesDebug, { prefix: "/api/debug" });
+
+  if (env.NODE_ENV === "development") // TODO: Reenable when /app is released
+    server.register(fastifyStatic, {
+      root:
+        env.NODE_ENV === "development"
+          ? path.resolve("../client/dist/")
+          : "/app/public",
+    });
+
   server.register(fastifySchedule);
 
   server.ready().then(() => {

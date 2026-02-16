@@ -1,6 +1,6 @@
 import axios, { type AxiosError } from "axios";
 // import jwt from "jsonwebtoken";
-import { type User } from "@prisma/client";
+import { type User } from "../generated/prisma/client";
 import { creds } from "./credentials";
 import { db } from "../db";
 import { UserDetailsSchema, UserGroupsSchema } from "../schema/lk";
@@ -81,7 +81,7 @@ async function login(
     if (loginRes.error && loginRes.error === "refused") {
       // Credentials incorrect. Reset them
       log.debug(
-        `Would have reset credentials, since auth returned: ${loginRes}`,
+        `Would have reset credentials, since auth returned: ${JSON.stringify(loginRes)}`,
         { user: user.id },
       );
       // await resetAuth(user, { resetCredentials: true });

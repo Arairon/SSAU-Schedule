@@ -3,9 +3,9 @@
 [![botlink](https://badgen.net/badge/icon/@arai_ssau_bot?icon=telegram&label&color=red)](https://t.me/arai_ssau_bot)
 [![author](https://badgen.net/badge/icon/Автор?icon=telegram&label)](https://t.me/arairon)
 
-[![release](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-release.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-release.yml)
-[![preview](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-main.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-main.yml)
-[![dev](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-dev.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/server-container-dev.yml)
+[![release](https://github.com/Arairon/ssau-schedule/actions/workflows/release.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/release.yml)
+[![preview](https://github.com/Arairon/ssau-schedule/actions/workflows/main.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/main.yml)
+[![dev](https://github.com/Arairon/ssau-schedule/actions/workflows/dev.yml/badge.svg)](https://github.com/Arairon/ssau-schedule/actions/workflows/dev.yml)
 
 > [!warning]
 > Бот НЕ официальный! Я не имею никакого отношения к учебному отделу ССАУ, я просто студент.
@@ -37,11 +37,11 @@
 - Настройка подгруппы. Вы можете спокойно отфлильтровать пары по подгруппам или же оставить отображение обеих подгрупп.
 - Темы для изображений
   - Светлая
-  ![Светлая Тема](./docs/light.png)
+    ![Светлая Тема](./docs/light.png)
   - Тёмная
-  ![Тёмная Тема](./docs/dark.png)
+    ![Тёмная Тема](./docs/dark.png)
   - Неоновая
-  ![Неоновая Тема](./docs/neon.png)
+    ![Неоновая Тема](./docs/neon.png)
   - И другие, если будут пожелания :D
 
 ## Минусы
@@ -89,7 +89,7 @@ SCHED_CREDENTIALS_KEY= #Длинная, случайная строка. 64 ил
 #Необязательные поля
 SCHED_PORT=3000 # Порт внутри контейнера. Можно не менять
 LOG_LEVEL=info # Уровень логов. debug, info, warn, error
-FASTIFY_LOG_LEVEL=error # Уровень логов Fastify. debug, info, warn, error 
+FASTIFY_LOG_LEVEL=error # Уровень логов Fastify. debug, info, warn, error
 PRISMA_LOGS=false # Логи запросов к БД
 
 TZ=Europe/Samara # Часовой пояс. По умолчанию Europe/Samara. Менять не рекомендуется
@@ -112,7 +112,7 @@ NODE_ENV=production # Не рекомендуется менять в прода
 - `/options` - Открыть настройки
 - `/config [поле] [подполе?] [значение]` - Изменить параметр. (Для настроек которые не поддерживаются в `/options`)
   - `/config` - Покажет текущие параметры
-  
+
 ### Команды администратора
 
 > [!note]

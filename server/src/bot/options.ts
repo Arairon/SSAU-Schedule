@@ -6,16 +6,13 @@ import { db } from "../db";
 import { UserPreferencesDefaults } from "../lib/misc";
 import { STYLEMAPS } from "../lib/scheduleImage";
 import { env } from "../env";
-import {
-  getCurrentYearId,
-  getPersonShortname,
-  getWeekFromDate,
-} from "../lib/utils";
+import { getCurrentYearId, getWeekFromDate } from "@shared/date";
+import { getPersonShortname } from "../lib/utils";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
 } from "../lib/tasks";
-import { User } from "@prisma/client";
+import { type User } from "../generated/prisma/client";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -249,6 +246,7 @@ function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
   const chat = ctx.chat;
   const from = ctx.from;
   if (!chat || !from || !user.groupId) return;
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   ctx.session.options.notificationsRescheduleTimeout = setTimeout(async () => {
     const now = new Date();
     const year = getCurrentYearId();
@@ -268,7 +266,7 @@ function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
       user: user.tgId,
     });
     await invalidateDailyNotificationsForTarget(user.tgId.toString());
-    await scheduleDailyNotificationsForUser(user, week);
+    await scheduleDailyNotificationsForUser(user, week.number);
   }, 30_000);
 }
 

@@ -1,9 +1,10 @@
-name: Build server:release
+name: Build server:dev
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches: ["dev"]
+  pull_request:
+    branches: ["dev"]
 
 jobs:
   build-and-push:
@@ -22,10 +23,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}:server"
+          context: "{{defaultContext}}"
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: |
-            ghcr.io/arairon/ssau-schedule:latest
-            ghcr.io/arairon/ssau-schedule:${{ github.ref_name }}
+          tags: ghcr.io/arairon/ssau-schedule:dev

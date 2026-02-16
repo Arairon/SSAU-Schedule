@@ -9,7 +9,7 @@ import { getUserIcsByUserId } from "../lib/ics";
 import { lk } from "../lib/lk";
 import { getDefaultSession } from "./bot";
 
-async function reset(ctx: Context, userId: number) {
+async function reset(_ctx: Context, userId: number) {
   await db.user.delete({ where: { tgId: userId } });
 }
 
@@ -224,6 +224,22 @@ https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
 Автор бота: @arairon
 `,
       { link_preview_options: { is_disabled: true } },
+    );
+  });
+
+  commands.command("app", "Переход в веб приложение", async (ctx) => {
+    void ctx.deleteMessage();
+    if (env.NODE_ENV !== "development") {
+      return ctx.reply("Веб приложение всё ещё в разработке. Очень надеюсь что скоро смогу его выпустить, но на данный момент оно слишком сырое. Простите :D")
+    }
+    return ctx.reply(
+      "Переход в веб приложение\n(Веб приложение специально не добавлено как отдельная кнопка в боте, т.к. приоритет всё же на команды)",
+      {
+        reply_markup: new InlineKeyboard().webApp(
+          "Открыть",
+          `https://${env.SCHED_BOT_DOMAIN}/tg-wait`,
+        ),
+      },
     );
   });
 

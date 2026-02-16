@@ -1,11 +1,11 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
-import { db } from "../db";
-import { schedule } from "../lib/schedule";
-import { findGroup } from "../lib/misc";
+import { FastifyInstance, FastifyRequest } from "fastify";
+import { db } from "../../db";
+import { getUserIcsByUserId } from "../../lib/ics";
+import { findGroup } from "../../lib/misc";
+import { schedule } from "../../lib/schedule";
+import { generateTimetableImageHtml } from "../../lib/scheduleImage";
 
-//options: FastifyPluginOptions
-// UNUSED
-async function routes(fastify: FastifyInstance) {
+export async function routesDebug(fastify: FastifyInstance) {
   const userIdParamSchema = {
     $id: "userId",
     type: "object",
@@ -15,9 +15,74 @@ async function routes(fastify: FastifyInstance) {
       },
     },
   };
+  fastify.get(
+    "/user/:userId",
+    {
+      schema: { params: userIdParamSchema },
+    },
+    async (
+      req: FastifyRequest<{
+        Params: { userId: number };
+      }>,
+      res,
+    ) => {
+      const userId = req.params.userId;
+      const user = await db.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user)
+        return res.status(404).send({
+          error: "user not found",
+          message: "Cannot find specified user",
+        });
+      return Object.assign({}, user, {
+        tgId: user.tgId.toString(),
+        password: "redacted",
+        authCookie: !!user.authCookie,
+      });
+    },
+  );
 
   fastify.get(
-    "/api/user/:userId/schedule",
+    "/user/:userId/ics",
+    {
+      schema: { params: userIdParamSchema },
+    },
+    async (
+      req: FastifyRequest<{
+        Params: { userId: number };
+        Querystring: {
+          week: number;
+          group: string;
+          groupId: number;
+          ignoreCached: boolean;
+        };
+      }>,
+      res,
+    ) => {
+      const userId = req.params.userId;
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        include: { ics: true },
+      });
+      if (!user)
+        return res.status(404).send({
+          error: "user not found",
+          message: "Cannot find specified user",
+        });
+      const cachedCal = user.ics && user.ics.validUntil > new Date();
+      const cal = cachedCal
+        ? user.ics!.data
+        : await getUserIcsByUserId(user.id);
+      return res
+        .status(200)
+        .headers({ "content-type": "text/calendar; charset=utf-8" })
+        .send(cal);
+    },
+  );
+
+  fastify.get(
+    "/user/:userId/schedule",
     {
       schema: {
         params: userIdParamSchema,
@@ -64,7 +129,7 @@ async function routes(fastify: FastifyInstance) {
   );
 
   fastify.get(
-    "/api/user/:userId/schedule/image",
+    "/user/:userId/schedule/image",
     {
       schema: {
         params: userIdParamSchema,
@@ -87,6 +152,7 @@ async function routes(fastify: FastifyInstance) {
           group: string;
           groupId: number;
           ignoreCached: boolean;
+          theme: string;
         };
       }>,
       res,
@@ -108,6 +174,7 @@ async function routes(fastify: FastifyInstance) {
         {
           ignoreCached: req.query.ignoreCached,
           groupId: (group?.id ?? 0) || undefined,
+          stylemap: req.query.theme,
         },
       );
       return res
@@ -117,8 +184,59 @@ async function routes(fastify: FastifyInstance) {
     },
   );
 
+  fastify.get(
+    "/user/:userId/schedule/html",
+    {
+      schema: {
+        params: userIdParamSchema,
+        querystring: {
+          type: "object",
+          properties: {
+            week: { type: "number", default: 0, minimum: 0, maximum: 52 },
+            group: { type: "string", default: "" },
+            groupId: { type: "number", default: 0 },
+            ignoreCached: { type: "boolean", default: false },
+          },
+        },
+      },
+    },
+    async (
+      req: FastifyRequest<{
+        Params: { userId: number };
+        Querystring: {
+          week: number;
+          group: string;
+          groupId: number;
+          ignoreCached: boolean;
+          theme: string;
+        };
+      }>,
+      res,
+    ) => {
+      const userId = req.params.userId;
+      const user = await db.user.findUnique({ where: { id: userId } });
+      if (!user)
+        return res.status(404).send({
+          error: "user not found",
+          message: "Cannot find specified user",
+        });
+      const group = await findGroup({
+        groupId: req.query.groupId,
+        groupName: req.query.group,
+      });
+      const timetable = await schedule.getWeekTimetable(user, req.query.week, {
+        ignoreCached: req.query.ignoreCached,
+        groupId: (group?.id ?? 0) || undefined,
+      });
+      const html = await generateTimetableImageHtml(timetable, {
+        stylemap: req.query.theme,
+      });
+      return res.status(200).header("content-type", "text/html").send(html);
+    },
+  );
+
   // fastify.post(
-  //   "/api/user/new",
+  //   "/user/new",
   //   {
   //     schema: {
   //       body: { type: "object", properties: { id: { type: "number" } } },
@@ -144,7 +262,7 @@ async function routes(fastify: FastifyInstance) {
   // );
 
   // fastify.get(
-  //   "/api/user/:userId",
+  //   "/user/:userId",
   //   { schema: { params: userIdParamSchema } },
   //   async (req: FastifyRequest<{ Params: { userId: number } }>, res) => {
   //     const userId = z.number().int().parse(req.params.userId);
@@ -161,7 +279,7 @@ async function routes(fastify: FastifyInstance) {
   // );
 
   // fastify.post(
-  //   "/api/user/:userId/login",
+  //   "/user/:userId/login",
   //   {
   //     schema: {
   //       params: userIdParamSchema,
@@ -223,7 +341,7 @@ async function routes(fastify: FastifyInstance) {
   // );
 
   // fastify.post(
-  //   "/api/user/:userId/relog",
+  //   "/user/:userId/relog",
   //   { schema: { params: userIdParamSchema } },
   //   async (req: FastifyRequest<{ Params: { userId: number } }>, res) => {
   //     const userId = z.number().int().parse(req.params.userId);
@@ -261,7 +379,7 @@ async function routes(fastify: FastifyInstance) {
   // );
 
   // fastify.get(
-  //   "/api/user/:userId/info",
+  //   "/user/:userId/info",
   //   { schema: { params: userIdParamSchema } },
   //   async (req: FastifyRequest<{ Params: { userId: number } }>, res) => {
   //     const userId = z.number().int().parse(req.params.userId);
@@ -287,7 +405,7 @@ async function routes(fastify: FastifyInstance) {
   // );
 
   // fastify.post(
-  //   "/api/user/:userId/schedule/update",
+  //   "/user/:userId/schedule/update",
   //   {
   //     schema: {
   //       params: userIdParamSchema,
@@ -325,8 +443,8 @@ async function routes(fastify: FastifyInstance) {
   //   },
   // );
 
-  // fastify.get("/api/debug/now", (req, res) => res.send([new Date()]));
-  // fastify.post("/api/debug/rekey", (req, res) => {
+  // fastify.get("/debug/now", (req, res) => res.send([new Date()]));
+  // fastify.post("/debug/rekey", (req, res) => {
   //   const { data, newkey, curkey } = req.body as {
   //     data: string;
   //     newkey: string;
@@ -335,7 +453,7 @@ async function routes(fastify: FastifyInstance) {
   //   res.send(creds.encrypt(creds.decrypt(data, curkey), newkey));
   // });
   // fastify.get(
-  //   "/api/debug/html/:n1",
+  //   "/debug/html/:n1",
   //   {
   //     schema: {
   //       params: { type: "object", properties: { n1: { type: "number" } } },
@@ -353,7 +471,7 @@ async function routes(fastify: FastifyInstance) {
   //   },
   // );
   // fastify.get(
-  //   "/api/debug/image/:n1",
+  //   "/debug/image/:n1",
   //   {
   //     schema: {
   //       params: { type: "object", properties: { n1: { type: "number" } } },
@@ -373,7 +491,7 @@ async function routes(fastify: FastifyInstance) {
   //   },
   // );
   // fastify.get(
-  //   "/api/debug/getDate/:n1/:n2",
+  //   "/debug/getDate/:n1/:n2",
   //   {
   //     schema: {
   //       params: {
@@ -388,5 +506,3 @@ async function routes(fastify: FastifyInstance) {
   //   },
   // );
 }
-
-export default routes;

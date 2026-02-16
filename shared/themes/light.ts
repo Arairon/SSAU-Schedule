@@ -1,7 +1,7 @@
 import { type StyleMap } from "./types";
 
-export const SCHEDULE_STYLEMAP_DEFAULT: StyleMap = {
-  name: "default",
+export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
+  name: "light",
   description: "Светлая",
   general: {
     mainStyle: "gap-1 text-lg leading-5 text-center",

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { type Lesson, LessonType, type User } from "@prisma/client";
+import { type Lesson, LessonType, type User } from "../generated/prisma/client";
 import type { MessageEntity } from "grammy/types";
 import { db } from "../db";
 import { type TeacherType } from "../schema/schedule";
@@ -18,7 +18,7 @@ export type UserPreferences = {
 };
 
 export const UserPreferencesDefaults: UserPreferences = {
-  theme: "default",
+  theme: "neon",
   showIet: true,
   showMilitary: false,
   notifyBeforeLessons: 0,
@@ -238,7 +238,7 @@ export function generateTextLesson(lesson: TimetableLesson): string {
 📖 ${lesson.discipline}
 ${LessonTypeIcon[lesson.type]} ${LessonTypeName[lesson.type]} ${lesson.isIet ? "[ИОТ]" : ""}
 🏢 ${place}
-👤 ${lesson.teacher}
+👤 ${lesson.teacher.name}
 ${subgroupStr}`
       .replace("\n\n", "\n")
       .trim(),

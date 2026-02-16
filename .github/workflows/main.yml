@@ -23,7 +23,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}:server"
+          context: "{{defaultContext}}"
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
