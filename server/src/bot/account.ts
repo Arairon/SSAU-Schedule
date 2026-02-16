@@ -229,7 +229,7 @@ https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
 
   commands.command("app", "Переход в веб приложение", async (ctx) => {
     void ctx.deleteMessage();
-    if (env.NODE_ENV !== "development") {
+    if (env.NODE_ENV !== "development" && !(ctx.message && ctx.message.text.includes("idontcare"))) {
       return ctx.reply("Веб приложение всё ещё в разработке. Очень надеюсь что скоро смогу его выпустить, но на данный момент оно слишком сырое. Простите :D")
     }
     return ctx.reply(
