@@ -1,9 +1,3 @@
--- AlterTable
-ALTER TABLE "Flow" ADD COLUMN     "customLessonId" INTEGER;
-
--- AlterTable
-ALTER TABLE "Group" ADD COLUMN     "customLessonId" INTEGER;
-
 -- CreateTable
 CREATE TABLE "CustomLesson" (
     "id" SERIAL NOT NULL,
@@ -35,6 +29,22 @@ CREATE TABLE "CustomLesson" (
 );
 
 -- CreateTable
+CREATE TABLE "_CustomLessonToGroup" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+
+    CONSTRAINT "_CustomLessonToGroup_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateTable
+CREATE TABLE "_CustomLessonToFlow" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+
+    CONSTRAINT "_CustomLessonToFlow_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateTable
 CREATE TABLE "_CustomLessonToWeek" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
@@ -49,13 +59,13 @@ CREATE INDEX "CustomLesson_lessonId_userId_idx" ON "CustomLesson"("lessonId", "u
 CREATE INDEX "CustomLesson_userId_idx" ON "CustomLesson"("userId");
 
 -- CreateIndex
+CREATE INDEX "_CustomLessonToGroup_B_index" ON "_CustomLessonToGroup"("B");
+
+-- CreateIndex
+CREATE INDEX "_CustomLessonToFlow_B_index" ON "_CustomLessonToFlow"("B");
+
+-- CreateIndex
 CREATE INDEX "_CustomLessonToWeek_B_index" ON "_CustomLessonToWeek"("B");
-
--- AddForeignKey
-ALTER TABLE "Group" ADD CONSTRAINT "Group_customLessonId_fkey" FOREIGN KEY ("customLessonId") REFERENCES "CustomLesson"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Flow" ADD CONSTRAINT "Flow_customLessonId_fkey" FOREIGN KEY ("customLessonId") REFERENCES "CustomLesson"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CustomLesson" ADD CONSTRAINT "CustomLesson_lessonId_fkey" FOREIGN KEY ("lessonId") REFERENCES "Lesson"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -65,6 +75,18 @@ ALTER TABLE "CustomLesson" ADD CONSTRAINT "CustomLesson_teacherId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "CustomLesson" ADD CONSTRAINT "CustomLesson_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_CustomLessonToGroup" ADD CONSTRAINT "_CustomLessonToGroup_A_fkey" FOREIGN KEY ("A") REFERENCES "CustomLesson"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_CustomLessonToGroup" ADD CONSTRAINT "_CustomLessonToGroup_B_fkey" FOREIGN KEY ("B") REFERENCES "Group"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_CustomLessonToFlow" ADD CONSTRAINT "_CustomLessonToFlow_A_fkey" FOREIGN KEY ("A") REFERENCES "CustomLesson"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_CustomLessonToFlow" ADD CONSTRAINT "_CustomLessonToFlow_B_fkey" FOREIGN KEY ("B") REFERENCES "Flow"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_CustomLessonToWeek" ADD CONSTRAINT "_CustomLessonToWeek_A_fkey" FOREIGN KEY ("A") REFERENCES "CustomLesson"("id") ON DELETE CASCADE ON UPDATE CASCADE;

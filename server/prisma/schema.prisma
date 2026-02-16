@@ -8,34 +8,32 @@ datasource db {
 }
 
 model Group {
-  id         Int         @id
-  name       String
-  specId     Int         @default(0)
-  specName   String      @default("Unknown")
-  lessons    Lesson[]
-  user       User[]
-  weeks      Week[]
-  ics        GroupIcs?
-  groupChats GroupChat[]
+  id            Int            @id
+  name          String
+  specId        Int            @default(0)
+  specName      String         @default("Unknown")
+  lessons       Lesson[]
+  customLessons CustomLesson[]
+  user          User[]
+  weeks         Week[]
+  ics           GroupIcs?
+  groupChats    GroupChat[]
 
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt()
-  customLesson   CustomLesson? @relation(fields: [customLessonId], references: [id])
-  customLessonId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
 }
 
 model Flow {
-  id             Int      @id
+  id             Int            @id
   name           String
-  disciplineId   Int      @default(0)
-  disciplineName String   @default("Unknown")
+  disciplineId   Int            @default(0)
+  disciplineName String         @default("Unknown")
   lessons        Lesson[]
+  customLessons  CustomLesson[]
   user           User[]
 
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt()
-  customLesson   CustomLesson? @relation(fields: [customLessonId], references: [id])
-  customLessonId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
 }
 
 model Teacher {
