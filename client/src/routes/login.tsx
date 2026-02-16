@@ -29,7 +29,7 @@ function RouteComponent() {
   }, [isAuthorized])
 
   function confirm() {
-    loginUsingToken(token)
+    if (token) loginUsingToken(token)
     
     navigate({ to: "." })
   }

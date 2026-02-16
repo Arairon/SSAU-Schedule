@@ -51,6 +51,7 @@ export async function loginUsingTg(rawTgInfo: string) {
   }
   useAuthState.setState({
     isAuthorized: auth.authorized,
+    isLoading: false,
     user: auth.user,
     error: auth.error || ""
   })
@@ -76,6 +77,7 @@ export async function loginUsingToken(token: string) {
   }
   useAuthState.setState({
     isAuthorized: auth.authorized,
+    isLoading: false,
     user: auth.user,
     error: auth.error || ""
   })
@@ -95,6 +97,7 @@ export async function loginUsingCookie() {
   }
   useAuthState.setState({
     isAuthorized: auth.authorized,
+    isLoading: false,
     user: auth.user,
     error: auth.error || ""
   })

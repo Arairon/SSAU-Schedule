@@ -170,7 +170,7 @@ model UserApiKey {
 
   name       String    @default("")
   publicPart String    @unique
-  keyHash    String    @unique
+  keyHash    String    @unique // TODO: Remove unique
   expiresAt  DateTime?
   revoked    Boolean   @default(false)
 

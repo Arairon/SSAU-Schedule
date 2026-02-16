@@ -112,7 +112,10 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
               <SelectValue placeholder="?" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="null">Обе</SelectItem>
+              {/* TODO: Allow overriding subroup to be both */}
+              {!(base?.subgroup) &&
+                <SelectItem value="null">Обе</SelectItem>
+              }
               <SelectItem value="1">1</SelectItem>
               <SelectItem value="2">2</SelectItem>
             </SelectContent>

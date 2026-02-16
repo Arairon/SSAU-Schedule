@@ -20,7 +20,6 @@
   "keywords": [],
   "author": "",
   "license": "GPL-3.0-only",
-  "packageManager": "pnpm@10.14.0",
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",

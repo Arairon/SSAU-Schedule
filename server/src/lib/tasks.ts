@@ -613,7 +613,7 @@ export const cronjobs = [
     },
   ),
   new CronJob(
-    { cronExpression: "0 0 * * *" }, // 4 am
+    { cronExpression: "0 0 * * *" }, // 0 am
     new AsyncTask("Daily cleanup", dailyCleanup),
     {
       preventOverrun: true,

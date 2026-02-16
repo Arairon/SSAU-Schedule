@@ -8,6 +8,7 @@ import { loginUsingCookie, loginUsingTg, loginUsingToken } from "@/api/auth";
 
 interface AuthData {
   isAuthorized: boolean;
+  isLoading: boolean;
   user: UserInfo | null;
   token: string;
   error: string;
@@ -15,6 +16,7 @@ interface AuthData {
   setUserInfo: (userInfo: UserInfo | null) => void;
   setToken: (token: string) => void;
   setIsAuthorized: (value: boolean) => void;
+  setIsLoading: (value: boolean) => void;
   setError: (error: string) => void;
   reset: () => void;
 }
@@ -22,15 +24,17 @@ interface AuthData {
 
 export const useAuthState = create<AuthData>((set) => ({
   isAuthorized: false,
+  isLoading: true,
   user: null,
   token: "",
   error: "",
 
   setUserInfo: (userInfo) => set({ user: userInfo }),
   setToken: (token) => set({ token }),
-  setIsAuthorized: (value) => set({ isAuthorized: value }),
+  setIsAuthorized: (value) => set({ isAuthorized: value, isLoading: false }),
+  setIsLoading: (value) => set({ isLoading: value }),
   setError: (error) => set({ error }),
-  reset: () => set({ user: null, token: "", isAuthorized: false })
+  reset: () => set({ user: null, token: "", isAuthorized: false, isLoading: true })
 }))
 
 function useAuth({ tg = false, token = undefined, creds = undefined, cookie = false }: { tg?: boolean, token?: string, creds?: { login: string, password: string }, cookie?: boolean }) {
@@ -49,7 +53,7 @@ function useAuth({ tg = false, token = undefined, creds = undefined, cookie = fa
 
   const tokenAuth = useQuery({
     queryKey: ["auth", "token", token],
-    queryFn: () => loginUsingToken(token || ""),
+    queryFn: () => loginUsingToken(token!),
     enabled: !!token,
     staleTime: 3600_000,
     retry: false
@@ -63,12 +67,16 @@ function useAuth({ tg = false, token = undefined, creds = undefined, cookie = fa
     retry: false
   })
 
-  console.log(tg, token, creds)
+  console.log(creds)
+
+  setTimeout(() => useAuthState.getState().setIsLoading(false), 30_000)
 
   if (tgAuth.isEnabled) return tgAuth
   if (tokenAuth.isEnabled) return tokenAuth
   // creds Auth
   if (cookieAuth.isEnabled) return cookieAuth
+
+  useAuthState.getState().setIsLoading(false)
 
   return null
 }

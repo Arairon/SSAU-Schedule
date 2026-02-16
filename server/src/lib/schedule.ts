@@ -249,13 +249,13 @@ async function getTimetableWithImage(
   const timetable = usingCachedTimetable
     ? week.timetable!
     : await getWeekTimetable(user, week.number, {
-        groupId: opts?.groupId,
-        year: week.year,
-        ignoreCached: opts?.ignoreCached,
-        forceUpdate: opts?.forceUpdate,
-        ignoreUpdate: opts?.ignoreUpdate,
-        ignoreIet: opts?.ignoreIet,
-      });
+      groupId: opts?.groupId,
+      year: week.year,
+      ignoreCached: opts?.ignoreCached,
+      forceUpdate: opts?.forceUpdate,
+      ignoreUpdate: opts?.ignoreUpdate,
+      ignoreIet: opts?.ignoreIet,
+    });
 
   const timetableHash =
     usingCachedTimetable && week.timetableHash
@@ -506,7 +506,10 @@ async function getWeekTimetable(
     const customLesson = customLessons.find((i) => i.lessonId === lesson.id);
     if (customLesson && customLesson.weekNumber !== timetable.week) continue; // Lesson was moved to another week
     if (!customLesson && lesson.weekNumber !== timetable.week) continue; // Lesson is from another week and was not moved to current by CustomLesson
-    if (customLesson) applyCustomization(ttLesson, customLesson);
+    if (customLesson) {
+      applyCustomization(ttLesson, customLesson);
+      if (subgroup && ttLesson.subgroup !== subgroup) continue; // Subgroup filter needs to be applied separately for customizations
+    }
 
     const day = timetable.days[lesson.weekday - 1];
     if (subgroup && lesson.subgroup && subgroup !== lesson.subgroup) continue;
@@ -815,12 +818,12 @@ async function updateWeekForUser(
   // Process week
   const knownLessons = someoneElsesGroup
     ? await getWeekLessons(user, weekNumber, opts.groupId, {
-        ignoreIet: true,
-        ignorePreferences: true,
-      })
+      ignoreIet: true,
+      ignorePreferences: true,
+    })
     : await getWeekLessons(user, weekNumber, undefined, {
-        ignorePreferences: true,
-      });
+      ignorePreferences: true,
+    });
   const updatedTeachers: number[] = [];
   const updatedGroups: number[] = [];
   const updatedFlows: number[] = [];
@@ -848,8 +851,8 @@ async function updateWeekForUser(
         return { id: group.id };
       }),
     };
-    // lessonList.discipline.name.trim().toLowerCase() === "военная кафедра"
-    if (lessonList.discipline.id === 13173) {
+    // lessonList.discipline.name.trim().toLowerCase() === "военная кафедра" // || "военная подготовка"
+    if ([13173, 12845].includes(lessonList.discipline.id)) {
       info.type = LessonType.Military;
     }
     // Ensure all groups exist in db. Also check for ssau fuckery
@@ -906,23 +909,23 @@ async function updateWeekForUser(
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
             ? {
-                connectOrCreate: {
-                  where: {
-                    owner_groupId_year_number: {
-                      owner: week.owner,
-                      groupId: week.groupId,
-                      year: week.year,
-                      number: lessonInfo.week,
-                    },
-                  },
-                  create: {
+              connectOrCreate: {
+                where: {
+                  owner_groupId_year_number: {
                     owner: week.owner,
                     groupId: week.groupId,
                     year: week.year,
                     number: lessonInfo.week,
                   },
                 },
-              }
+                create: {
+                  owner: week.owner,
+                  groupId: week.groupId,
+                  year: week.year,
+                  number: lessonInfo.week,
+                },
+              },
+            }
             : undefined, // Current week is handled separately with lessonsInThisWeek
       };
       const lesson = Object.assign({}, weekInfo, info);
@@ -1021,23 +1024,23 @@ async function updateWeekForUser(
           week:
             lessonInfo.week !== week.number // Create placeholder for other weeks
               ? {
-                  connectOrCreate: {
-                    where: {
-                      owner_groupId_year_number: {
-                        owner: week.owner,
-                        groupId: week.groupId,
-                        year: week.year,
-                        number: lessonInfo.week,
-                      },
-                    },
-                    create: {
+                connectOrCreate: {
+                  where: {
+                    owner_groupId_year_number: {
                       owner: week.owner,
                       groupId: week.groupId,
                       year: week.year,
                       number: lessonInfo.week,
                     },
                   },
-                }
+                  create: {
+                    owner: week.owner,
+                    groupId: week.groupId,
+                    year: week.year,
+                    number: lessonInfo.week,
+                  },
+                },
+              }
               : undefined, // Current week is handled separately with lessonsInThisWeek
         };
         const lesson = Object.assign({}, individualInfo, info);
