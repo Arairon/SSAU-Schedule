@@ -1,73 +1,85 @@
-# CLIENT
-# Client Deps
-FROM oven/bun:1.3.5-alpine AS client_deps
-#RUN apk add --no-cache libc6-compat openssl;
+FROM oven/bun:1.3.5-alpine AS deps
 
 WORKDIR /app
 
-COPY client/package.json client/bun.lock ./
+COPY package.json bun.lock ./
+COPY apps/client/package.json ./apps/client/package.json
+COPY apps/server/package.json ./apps/server/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 
-RUN bun install;
+RUN bun install --frozen-lockfile
 
-# Client Builder
-#FROM node:25-alpine AS client_builder 
 FROM oven/bun:1.3.5-alpine AS client_builder
 
 WORKDIR /app
 
-COPY --from=client_deps /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/client/node_modules ./apps/client/node_modules
+COPY package.json bun.lock ./
+COPY apps/client ./apps/client
+COPY packages/shared ./packages/shared
 
-COPY client/ ./
-COPY shared /shared
+WORKDIR /app/apps/client
+RUN bun run build
 
-RUN bun run build;
-
-# SERVER
-# Server Deps
-FROM oven/bun:1.3.5-alpine AS server_deps
-#RUN apk add --no-cache libc6-compat openssl;
-
-WORKDIR /app
-
-COPY server/prisma ./
-
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_DISABLE_DEV_SHM_USAGE=true
-ENV CHROME_PATH=/usr/bin/chromium-browser
-
-COPY server/package.json server/bun.lock ./
-
-RUN bun install;
-
-# Server Cached Chrome
 FROM oven/bun:1.3.5-alpine AS chrome
 
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init;
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init
 
-# Server Builder
 FROM chrome AS server_builder
 
 WORKDIR /app
 
-COPY --from=server_deps /app/node_modules ./node_modules
-COPY server/ ./
-COPY shared /shared
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
+COPY package.json bun.lock ./
+COPY apps/server ./apps/server
+COPY packages/shared ./packages/shared
 
-# Temporarily set env to silence prisma
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_DISABLE_DEV_SHM_USAGE=true
+ENV CHROME_PATH=/usr/bin/chromium-browser
 ENV SCHED_DATABASE_URL=localhost
 
-RUN bun run db:generate && SKIP_ENV_VALIDATION=1 bun run build; 
+WORKDIR /app/apps/server
+RUN bun install
+RUN bun run db:generate && SKIP_ENV_VALIDATION=1 bun run build
 
-# Server Runner
-FROM server_builder AS server_runner
+FROM chrome AS server_runner
+
+WORKDIR /app
 
 ENV NODE_ENV=production
 ENV CHROME_PATH=/usr/bin/chromium-browser
 ENV TZ=Europe/Samara
+ENV SCHED_PORT=3000
 
-COPY --from=client_builder /app/dist/ /app/public
+RUN cat > /app/package.json <<'JSON'
+{
+  "name": "prisma-runtime",
+  "private": true,
+  "dependencies": {
+    "prisma": "7",
+    "dotenv": "^17.2.1"
+  }
+}
+JSON
+RUN bun install --production
+
+COPY --from=server_builder /app/apps/server/package.json ./apps/server/package.json
+COPY --from=server_builder /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
+COPY --from=server_builder /app/apps/server/prisma ./apps/server/prisma
+# COPY --from=server_builder /app/apps/server/src/generated/prisma ./apps/server/src/generated/prisma
+COPY --from=server_builder /app/apps/server/dist ./apps/server/dist
+COPY --from=client_builder /app/apps/client/dist/ ./apps/server/public
+
+RUN mkdir -p /app/apps/server/log && chown -R bun:bun /app
+
+USER bun
+WORKDIR /app/apps/server
+ENV PATH=/app/node_modules/.bin:$PATH
 
 EXPOSE 3000
-ENV PORT=3000
 
-CMD ["bun", "run", "prod"]
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["sh", "-c", "bun --no-install /app/node_modules/prisma/build/index.js migrate deploy --schema ./prisma/schema.prisma && bun dist/index.js"]

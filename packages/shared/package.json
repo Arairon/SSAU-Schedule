@@ -1,0 +1,16 @@
+{
+  "name": "@ssau-schedule/shared",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./date": {
+      "types": "./date.ts",
+      "default": "./date.ts"
+    },
+    "./themes/*": {
+      "types": "./themes/*.ts",
+      "default": "./themes/*.ts"
+    }
+  }
+}
