@@ -7,7 +7,7 @@ COPY apps/client/package.json ./apps/client/package.json
 COPY apps/server/package.json ./apps/server/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile;
 
 FROM oven/bun:1.3.5-alpine AS client_builder
 
@@ -20,11 +20,11 @@ COPY apps/client ./apps/client
 COPY packages/shared ./packages/shared
 
 WORKDIR /app/apps/client
-RUN bun run build
+RUN bun run build;
 
 FROM oven/bun:1.3.5-alpine AS chrome
 
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init;
 
 FROM chrome AS server_builder
 
@@ -42,8 +42,8 @@ ENV CHROME_PATH=/usr/bin/chromium-browser
 ENV SCHED_DATABASE_URL=localhost
 
 WORKDIR /app/apps/server
-RUN bun install
-RUN bun run db:generate && SKIP_ENV_VALIDATION=1 bun run build
+RUN bun install;
+RUN bun run db:generate && SKIP_ENV_VALIDATION=1 bun run build;
 
 FROM chrome AS server_runner
 
@@ -64,14 +64,14 @@ RUN cat > /app/package.json <<'JSON'
   }
 }
 JSON
-RUN bun install --production
+RUN bun install --production;
 
 COPY --from=server_builder /app/apps/server/package.json ./apps/server/package.json
 COPY --from=server_builder /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
 COPY --from=server_builder /app/apps/server/prisma ./apps/server/prisma
 # COPY --from=server_builder /app/apps/server/src/generated/prisma ./apps/server/src/generated/prisma
 COPY --from=server_builder /app/apps/server/dist ./apps/server/dist
-COPY --from=client_builder /app/apps/client/dist/ ./apps/server/public
+COPY --from=client_builder /app/apps/client/dist/ ./public
 
 RUN mkdir -p /app/apps/server/log && chown -R bun:bun /app
 

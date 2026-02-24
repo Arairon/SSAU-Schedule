@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@source '../../../packages/shared/**/*.{ts,tsx,js,jsx}';
 
 @import 'tw-animate-css';
 
@@ -59,7 +60,7 @@ code {
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.141 0.005 285.823);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.129 0.042 264.695); 
+  --popover: oklch(0.129 0.042 264.695);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.279 0.041 260.031);
