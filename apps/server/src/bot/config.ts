@@ -2,9 +2,10 @@ import type { Bot } from "grammy";
 import timestring from "timestring";
 import { type Context } from "./types";
 import { db } from "@/db";
-import { findGroup, UserPreferencesDefaults } from "@/lib/misc";
-import { STYLEMAPS } from "@/lib/scheduleImage";
+import { UserPreferencesDefaults } from "@/lib/misc";
+import { STYLEMAPS } from "@/schedule/image";
 import { CommandGroup } from "@grammyjs/commands";
+import { findGroup } from "@/ssau/search";
 
 // config.ts refers to the /config command, not the bot configuration :]
 const config_field_names: Record<string, string> = {

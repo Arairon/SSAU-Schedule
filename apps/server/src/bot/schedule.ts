@@ -6,18 +6,15 @@ import { db } from "@/db";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
-import { schedule } from "@/lib/schedule";
-import {
-  findGroupOrOptions,
-  generateTextLesson,
-  UserPreferencesDefaults,
-} from "@/lib/misc";
+import { schedule } from "@/schedule/timetable";
+import { generateTextLesson, UserPreferencesDefaults } from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 import { lk } from "@/ssau/lk";
 import type { User } from "@/generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
-import { getUserIcsByUserId } from "@/lib/ics";
+import { getUserIcsByUserId } from "@/schedule/ics";
+import { findGroupOrOptions } from "@/ssau/search";
 
 async function sendGroupTimetable(
   ctx: Context,
@@ -455,19 +452,19 @@ export async function updateTimetable(
 
 async function sendGroupSelector(
   ctx: Context,
-  groups: { id: number; text: string }[],
+  groups: { id: number; name: string }[],
 ) {
   const keyboard = new InlineKeyboard();
   groups.slice(0, 3).forEach((group) => {
-    keyboard.text(group.text, `schedule_group_open_${group.id}`);
+    keyboard.text(group.name, `schedule_group_open_${group.id}`);
   });
   keyboard.row();
   groups.slice(3, 6).forEach((group) => {
-    keyboard.text(group.text, `schedule_group_open_${group.id}`);
+    keyboard.text(group.name, `schedule_group_open_${group.id}`);
   });
   keyboard.row();
   groups.slice(6, 9).forEach((group) => {
-    keyboard.text(group.text, `schedule_group_open_${group.id}`);
+    keyboard.text(group.name, `schedule_group_open_${group.id}`);
   });
   return ctx.reply(`Найдены следующие группы:`, { reply_markup: keyboard });
 }

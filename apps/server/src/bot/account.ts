@@ -5,7 +5,7 @@ import { CommandGroup } from "@grammyjs/commands";
 import { env } from "@/env";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import log from "@/logger";
-import { getUserIcsByUserId } from "@/lib/ics";
+import { getUserIcsByUserId } from "@/schedule/ics";
 import { lk } from "@/ssau/lk";
 import { getDefaultSession } from "./bot";
 

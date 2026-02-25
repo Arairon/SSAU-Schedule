@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import Puppeteer, { type Browser } from "puppeteer";
 
-import { TimeSlotMap } from "./schedule";
+import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
   type TimetableLesson,
   type Timetable,
@@ -111,10 +111,10 @@ const EMPTY_WEEK_NOTICE = `
 `;
 
 export const STYLEMAPS: Record<string, StyleMap> = {
-  light: SCHEDULE_STYLEMAP_LIGHT as StyleMap,
-  dark: SCHEDULE_STYLEMAP_DARK as StyleMap,
-  neon: SCHEDULE_STYLEMAP_NEON as StyleMap,
-  default: SCHEDULE_STYLEMAP_NEON as StyleMap,
+  light: SCHEDULE_STYLEMAP_LIGHT,
+  dark: SCHEDULE_STYLEMAP_DARK,
+  neon: SCHEDULE_STYLEMAP_NEON,
+  default: SCHEDULE_STYLEMAP_NEON,
 };
 
 function generateSingleLesson(

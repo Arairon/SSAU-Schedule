@@ -7,7 +7,7 @@ import s from "ajv-ts";
 import log from "@/logger";
 import { db } from "@/db";
 import { getLessonDate } from "@ssau-schedule/shared/date";
-import { TimeSlotMap } from "./schedule";
+import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 
 export const CustomizationDataSchema = s.object({
   id: s.number(),

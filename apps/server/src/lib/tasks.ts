@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { bot } from "@/bot/bot";
 import log from "@/logger";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { schedule, TimeSlotMap } from "./schedule";
+import { schedule } from "../schedule/timetable";
+import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
   DayString,
   formatDbLesson,
@@ -14,6 +15,7 @@ import {
 } from "./misc";
 import type { Lesson, User } from "@/generated/prisma/client";
 import { lk } from "../ssau/lk";
+import { updateWeekForUser } from "@/ssau/lessons";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -256,16 +258,10 @@ export async function dailyWeekUpdate() {
       }
 
       // Update current and next weeks
-      const currentWeekChanges = await schedule.updateWeekForUser(
-        user,
-        week.number,
-      );
+      const currentWeekChanges = await updateWeekForUser(user, week.number);
       await schedule.getTimetableWithImage(user, week.number);
 
-      const nextWeekChanges = await schedule.updateWeekForUser(
-        user,
-        week.number + 1,
-      );
+      const nextWeekChanges = await updateWeekForUser(user, week.number + 1);
       await schedule.getTimetableWithImage(user, week.number + 1);
 
       await schedule.pregenerateImagesForUser(user, week.number, 8); // For now generously pregenerate whole 2 months

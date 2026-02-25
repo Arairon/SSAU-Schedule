@@ -4,7 +4,7 @@ import { type Context } from "./types";
 import log from "@/logger";
 import { db } from "@/db";
 import { UserPreferencesDefaults } from "@/lib/misc";
-import { STYLEMAPS } from "@/lib/scheduleImage";
+import { STYLEMAPS } from "@/schedule/image";
 import { env } from "@/env";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";

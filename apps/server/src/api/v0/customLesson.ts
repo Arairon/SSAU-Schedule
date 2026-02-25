@@ -5,7 +5,7 @@ import {
   CustomizationDataSchemaPartial,
   deleteCustomLesson,
   editCustomLesson,
-} from "@/lib/customLesson";
+} from "@/schedule/customLesson";
 import { type AuthData } from "./auth";
 
 export async function routesCustomLesson(fastify: FastifyInstance) {

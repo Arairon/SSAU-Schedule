@@ -1,9 +1,9 @@
 import axios, { type AxiosError } from "axios";
 // import jwt from "jsonwebtoken";
 import { type User } from "@/generated/prisma/client";
-import { creds } from "../lib/credentials";
+import { creds } from "@/ssau/credentials";
 import { db } from "@/db";
-import { UserDetailsSchema, UserGroupsSchema } from "@/schedule/schemas/lk";
+import { UserDetailsSchema, UserGroupsSchema } from "@/ssau/schemas/lk";
 import log from "@/logger";
 import { type ReturnObj } from "@ssau-schedule/shared/utils";
 import { ensureGroupExists } from "../lib/misc";

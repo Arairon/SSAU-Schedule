@@ -1,14 +1,12 @@
-import axios from "axios";
 import { type Lesson, LessonType, type User } from "@/generated/prisma/client";
 import type { MessageEntity } from "grammy/types";
 import { db } from "@/db";
-import { type TeacherType } from "@/schedule/schemas/schedule";
+import { type TeacherType } from "@/ssau/schemas/schedule";
 import {
   formatSentence,
   getPersonShortname,
 } from "@ssau-schedule/shared/utils";
-import log from "@/logger";
-import { TimeSlotMap } from "./schedule";
+import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import { type TimetableLesson } from "@/schedule/types/timetable";
 
 export type UserPreferences = {
@@ -121,95 +119,6 @@ export async function ensureTeacherExists(teacher: TeacherType) {
     update: data,
     create: data,
   });
-}
-
-type GroupTeacherSearchResponse = {
-  id: number;
-  url: string;
-  text: string;
-};
-export async function findGroupsInSsau(
-  text: string,
-): Promise<GroupTeacherSearchResponse[]> {
-  log.debug(`Trying to find '${text}' in ssau.ru/rasp`);
-  try {
-    const page = await axios.get("https://ssau.ru/rasp", {
-      withCredentials: true,
-      responseType: "text",
-    });
-    const cookies: string[] = [];
-    page.headers["set-cookie"]?.forEach((cookie) => {
-      cookies.push(cookie.split(";")[0]);
-    });
-    const csrfRegex = /name="csrf-token".{0,3}content="(\w+)".{0,3}\/>/m;
-    const execResult = csrfRegex.exec((page.data as string).slice(0, 200));
-    const token = execResult ? execResult[1] : undefined;
-    const resp = await axios.post(
-      "https://ssau.ru/rasp/search",
-      `text=${encodeURI(text)}`,
-      {
-        headers: {
-          "X-CSRF-TOKEN": token,
-          "Content-Type": "application/x-www-form-urlencoded",
-          Cookie: cookies.join(";"),
-        },
-        withCredentials: true,
-      },
-    );
-    const options = resp.data as GroupTeacherSearchResponse[];
-    options.map(
-      (group) => void ensureGroupExists({ id: group.id, name: group.text }),
-    );
-    return options;
-  } catch {
-    log.warn(`Search for '${text}' in ssau.ru/rasp failed.`);
-    return [];
-  }
-}
-
-export async function findGroup(
-  inp: { groupName?: string; groupId?: number } & (
-    | { groupName: string }
-    | { groupId: number }
-  ),
-) {
-  const group = await findGroupOrOptions(inp);
-  if (Array.isArray(group)) {
-    if (group.length === 1) return group[0];
-  } else {
-    return group;
-  }
-  return null;
-}
-
-export async function findGroupOrOptions(
-  inp: { groupName?: string; groupId?: number } & (
-    | { groupName: string }
-    | { groupId: number }
-  ),
-) {
-  if (inp.groupId) {
-    const group = await db.group.findUnique({ where: { id: inp.groupId } });
-    if (group) return group;
-  }
-  if (inp.groupName) {
-    const name = inp.groupName.trim();
-    if (name.length >= 11) {
-      // 6101-090301 (D optional)
-      const existingGroup = await db.group.findFirst({
-        where: { name: { startsWith: name } },
-      });
-      if (existingGroup) return existingGroup;
-    } else {
-      const existingGroup = await db.group.findFirst({
-        where: { name: name },
-      });
-      if (existingGroup) return existingGroup;
-    }
-    const possibleGroups = await findGroupsInSsau(name);
-    return possibleGroups;
-  }
-  return null;
 }
 
 export async function scheduleMessage(

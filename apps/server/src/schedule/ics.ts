@@ -5,8 +5,10 @@ import {
   LessonTypeIcon,
   LessonTypeName,
   UserPreferencesDefaults,
-} from "./misc";
+} from "../lib/misc";
 import { LessonType } from "@/generated/prisma/client";
+
+const ICS_CACHE_TTL_MS = 3600_000;
 
 export async function generateUserIcs(
   userId: number,
@@ -14,7 +16,6 @@ export async function generateUserIcs(
 ) {
   const user = await db.user.findUnique({
     where: { id: userId },
-    include: { flows: true },
   });
   if (!user) {
     log.error("Attempted to generate ics for no user", { user: userId });
@@ -27,14 +28,16 @@ export async function generateUserIcs(
     user.preferences,
   );
   const now = new Date();
-  const normalLessons = await db.lesson.findMany({
-    where: {
-      validUntil: { gt: now },
-      groups: { some: { id: user.groupId! } },
-      //subgroup: user.subgroup ?? undefined,
-    },
-    include: { groups: true, teacher: true },
-  });
+  const normalLessons = user.groupId
+    ? await db.lesson.findMany({
+        where: {
+          validUntil: { gt: now },
+          groups: { some: { id: user.groupId } },
+          //subgroup: user.subgroup ?? undefined,
+        },
+        include: { groups: true, teacher: true },
+      })
+    : [];
   const ietLessons = preferences.showIet
     ? await db.lesson.findMany({
         where: {
@@ -53,12 +56,13 @@ export async function generateUserIcs(
       continue;
     if (!preferences.showMilitary && lesson.type === LessonType.Military)
       continue;
+    const teacherName = lesson.teacher?.name ?? "Преподаватель не указан";
     const event: ics.EventAttributes = {
       title:
         `${LessonTypeIcon[lesson.type]} ${lesson.discipline} ${lesson.isIet ? "[ИОТ]" : ""}` +
         (lesson.subgroup !== null ? ` (${lesson.subgroup})` : ""),
       description:
-        `${lesson.teacher.name}` +
+        `${teacherName}` +
         (lesson.subgroup !== null ? `\nПодгруппа: ${lesson.subgroup}` : "") +
         (lesson.conferenceUrl ? `\n${lesson.conferenceUrl}` : ""),
       location:
@@ -87,18 +91,26 @@ export async function generateUserIcs(
     return null;
   }
 
+  const existingCal = await db.userIcs.findUnique({
+    where: { id: user.id },
+  });
+
   const cal = rawcal.replace(
     "X-WR-CALNAME",
-    "X-WR-TIMEZONE:Europe/Samara\nX-WR-CALNAME",
+    `\
+X-WR-TIMEZONE:Europe/Samara
+COMMENT:Расписание для ${user.fullname}
+COMMENT:UUID: ${existingCal?.uuid ?? "[ временно недоступно ]"}
+X-WR-CALNAME`,
   ); // A hack to include timezone, since ics lib doesn't support it
 
   const dbCal = await db.userIcs.upsert({
     where: { id: user.id },
-    update: { data: cal, validUntil: new Date(Date.now() + 3600_000) }, // 1 h
+    update: { data: cal, validUntil: new Date(Date.now() + ICS_CACHE_TTL_MS) }, // 1 h
     create: {
       id: user.id,
       data: cal,
-      validUntil: new Date(Date.now() + 3600_000),
+      validUntil: new Date(Date.now() + ICS_CACHE_TTL_MS),
     },
   });
 
@@ -122,7 +134,7 @@ export async function getUserIcsByUserId(userId: number) {
 export async function getUserIcsByUUID(uuid: string) {
   const now = new Date();
   const cal = await db.userIcs.findUnique({
-    where: { uuid: uuid },
+    where: { uuid },
     include: { user: true },
   });
   if (!cal) {
