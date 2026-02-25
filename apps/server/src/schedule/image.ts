@@ -374,7 +374,7 @@ export async function generateTimetableImage(
   try {
     await page.setContent(html);
     await page.bringToFront();
-    image = (await page.screenshot({ fullPage: true })) as Buffer;
+    image = Buffer.from(await page.screenshot({ fullPage: true }));
   } catch (e) {
     log.error(`Failed to generate a timetable image. Error: ${String(e)}`, {
       user: -1,

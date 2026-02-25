@@ -86,32 +86,60 @@ async function sendTimetable(
   const startTime = process.hrtime.bigint();
 
   let tempMsgId: number | null = null;
-  const creatingMessageTimeout = setTimeout(() => {
-    try {
-      ctx
-        .reply("Создание изображения...")
-        .then((m) => {
-          tempMsgId = m.message_id;
-        })
-        .catch(() => {
-          /*ignore*/
-        });
-    } catch {}
-  }, 150);
+  let tempMsgPromise: Promise<unknown> | null = null;
+
+  function updateTempMsg(text: string) {
+    if (!text) return;
+
+    function requestUpdate(): Promise<unknown> {
+      if (!tempMsgId) {
+        return ctx
+          .reply(text ?? "Загрузка...")
+          .then((m) => {
+            tempMsgId = m.message_id;
+          })
+          .catch();
+      } else {
+        return ctx.api.editMessageText(ctx.chat!.id, tempMsgId, text).catch();
+      }
+    }
+
+    if (tempMsgPromise) {
+      tempMsgPromise = tempMsgPromise.then(() => requestUpdate());
+    } else {
+      tempMsgPromise = requestUpdate();
+    }
+  }
 
   let data;
+
   try {
     data = await schedule.getTimetableWithImage(user, weekNumber, {
       groupId: group?.id ?? undefined,
       stylemap: preferences.theme,
       forceUpdate: opts?.forceUpdate ?? undefined,
       ignoreUpdate: !isAuthed,
+      onUpdate: ({ state }) => {
+        let text = "";
+        switch (state) {
+          case "updatingWeek":
+            text = "Обновление расписания...";
+            break;
+          case "generatingTimetable":
+            // text = "Генерация расписания...";
+            // ignored
+            break;
+          case "generatingImage":
+            text = "Создание изображения...";
+            break;
+        }
+        updateTempMsg(text);
+      },
     });
   } catch (e) {
     log.error(`Failed to get timetable ${String(e)}`, {
       user: ctx?.from?.id,
     });
-    clearTimeout(creatingMessageTimeout);
     return ctx.reply(`
 Произошла неизвестная ошибка при обновлении.
 Попробуйте позже или повторно войдите в аккаунт через /login
@@ -119,17 +147,6 @@ async function sendTimetable(
         `);
   }
   const { timetable, image } = data;
-
-  clearTimeout(creatingMessageTimeout);
-  if (tempMsgId) {
-    try {
-      await ctx.api.deleteMessage(ctx.chat!.id, tempMsgId);
-    } catch {
-      log.warn(`Failed to delete temporary 'creating image' msg`, {
-        user: ctx?.from?.id,
-      });
-    }
-  }
 
   const buttonsMarkup = new InlineKeyboard()
     .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
@@ -152,6 +169,13 @@ async function sendTimetable(
       .row();
   }
 
+  if (!image.tgId) {
+    updateTempMsg(
+      "Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)",
+    );
+    // TODO: Remove "blame on RKN" when the image uploading is no longer fucked
+    log.debug("Image has no tgId, will upload new", { user: ctx?.from?.id });
+  }
   const msg = await ctx.replyWithPhoto(
     image.tgId ?? new InputFile(image.data),
     {
@@ -173,6 +197,16 @@ async function sendTimetable(
       where: { id: image.id },
       data: { tgId: msg.photo[0].file_id },
     });
+  }
+
+  if (tempMsgId) {
+    try {
+      await ctx.api.deleteMessage(ctx.chat!.id, tempMsgId);
+    } catch {
+      log.warn(`Failed to delete temporary 'creating image' msg`, {
+        user: ctx?.from?.id,
+      });
+    }
   }
   const endTime = process.hrtime.bigint();
   log.debug(
@@ -338,18 +372,26 @@ export async function updateTimetable(
     );
     const startTime = process.hrtime.bigint();
 
-    const creatingMessageTimeout = setTimeout(() => {
-      try {
-        ctx.api
-          .editMessageCaption(chat.id, msgId, {
-            caption: "Создание изображения...",
+    let tempMsgPromise: Promise<unknown> | null = null;
+
+    function updateTempMsg(text: string) {
+      if (!text) return;
+
+      function requestUpdate(): Promise<unknown> {
+        return ctx.api
+          .editMessageCaption(chat!.id, msgId, {
+            caption: text,
             reply_markup: new InlineKeyboard(),
           })
-          .catch(() => {
-            /*ignore*/
-          });
-      } catch {}
-    }, 150);
+          .catch();
+      }
+
+      if (tempMsgPromise) {
+        tempMsgPromise = tempMsgPromise.then(() => requestUpdate());
+      } else {
+        tempMsgPromise = requestUpdate();
+      }
+    }
 
     let data;
     try {
@@ -358,6 +400,22 @@ export async function updateTimetable(
         stylemap: preferences.theme,
         forceUpdate: opts?.forceUpdate ?? undefined,
         ignoreUpdate: !isAuthed,
+        onUpdate: ({ state }) => {
+          let text = "";
+          switch (state) {
+            case "updatingWeek":
+              text = "Обновление расписания...";
+              break;
+            case "generatingTimetable":
+              // text = "Генерация расписания...";
+              // ignored
+              break;
+            case "generatingImage":
+              text = "Создание изображения...";
+              break;
+          }
+          updateTempMsg(text);
+        },
       });
     } catch (e) {
       log.error(`Failed to get timetable ${String(e)}`, { user: userId });
@@ -368,10 +426,12 @@ export async function updateTimetable(
     }
     const { timetable, image } = data;
 
-    clearTimeout(creatingMessageTimeout);
-
     if (!image.tgId) {
-      log.debug(`Image had no tgId, will upload new`, { user: userId });
+      updateTempMsg(
+        "Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)",
+      );
+      // TODO: Remove "blame on RKN" when the image uploading is no longer fucked
+      log.debug("Image has no tgId, will upload new", { user: userId });
     }
 
     const buttonsMarkup = new InlineKeyboard()
