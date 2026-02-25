@@ -1,0 +1,8 @@
+{
+  "name": "@ssau-schedule/shared",
+  "private": true,
+  "version": "0.0.1",
+  "dependencies": {
+    "crypto": "^1.0.1"
+  }
+}
