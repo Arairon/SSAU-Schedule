@@ -1,13 +1,17 @@
-import {
-  type CustomLesson,
-  type LessonType,
-  type User,
+import type {
+  Flow,
+  Group,
+  Teacher,
+  CustomLesson,
+  LessonType,
+  User,
 } from "@/generated/prisma/client";
 import s from "ajv-ts";
 import log from "@/logger";
 import { db } from "@/db";
 import { getLessonDate } from "@ssau-schedule/shared/date";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
+import type { TimetableLesson } from "./types/timetable";
 
 export const CustomizationDataSchema = s.object({
   id: s.number(),
@@ -182,4 +186,52 @@ export async function editCustomLesson(
       userId: user.id,
     }),
   });
+}
+
+export function applyCustomization(
+  lesson: TimetableLesson,
+  customLesson: CustomLesson & {
+    groups: Group[];
+    flows: Flow[];
+    teacher: Teacher | null;
+    user: User;
+  },
+) {
+  // DateTime customization is applied beforehand.
+  lesson.original = Object.assign({}, lesson);
+  lesson.customized = {
+    hidden: customLesson.hideLesson,
+    disabled: !customLesson.isEnabled,
+    customizedBy: customLesson.userId,
+    comment: customLesson.comment,
+  };
+
+  const propsToCopy: (keyof TimetableLesson & keyof CustomLesson)[] = [
+    "discipline",
+    "type",
+    "isOnline",
+    "isIet",
+    "building",
+    "room",
+    "conferenceUrl",
+    "subgroup",
+    "dayTimeSlot",
+    "beginTime",
+    "endTime",
+  ];
+  const changes: Partial<CustomLesson> = Object.fromEntries(
+    Object.entries(customLesson).filter(
+      ([k, v]) => v && (propsToCopy as string[]).includes(k),
+    ),
+  );
+  Object.assign(lesson, changes);
+  if (customLesson.teacher)
+    lesson.teacher = {
+      name: customLesson.teacher.name,
+      id: customLesson.teacherId,
+    };
+  if (customLesson.groups)
+    lesson.groups = customLesson.groups.map((g) => g.name);
+  if (customLesson.flows) lesson.flows = customLesson.flows.map((f) => f.name);
+  lesson.id = customLesson.id;
 }

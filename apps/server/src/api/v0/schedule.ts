@@ -1,7 +1,7 @@
 import { type FastifyInstance, type FastifyRequest } from "fastify";
 import { db } from "@/db";
 import { findGroup } from "@/ssau/search";
-import { schedule } from "@/schedule/timetable";
+import { schedule } from "@/schedule/requests";
 import { type AuthData } from "./auth";
 
 export async function routesSchedule(fastify: FastifyInstance) {
@@ -39,7 +39,7 @@ export async function routesSchedule(fastify: FastifyInstance) {
         groupId: req.query.groupId,
         groupName: req.query.group,
       });
-      const timetable = await schedule.getWeekTimetable(user, req.query.week, {
+      const timetable = await schedule.getTimetable(user, req.query.week, {
         ignoreCached: true, // req.query.ignoreCached,
         groupId: (group?.id ?? 0) || undefined,
       });

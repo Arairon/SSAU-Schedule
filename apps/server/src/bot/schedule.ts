@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
-import { schedule } from "@/schedule/timetable";
+import { schedule } from "@/schedule/requests";
 import { generateTextLesson, UserPreferencesDefaults } from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
@@ -99,9 +99,9 @@ async function sendTimetable(
     } catch {}
   }, 150);
 
-  let timetable;
+  let data;
   try {
-    timetable = await schedule.getTimetableWithImage(user, weekNumber, {
+    data = await schedule.getTimetableWithImage(user, weekNumber, {
       groupId: group?.id ?? undefined,
       stylemap: preferences.theme,
       forceUpdate: opts?.forceUpdate ?? undefined,
@@ -118,6 +118,7 @@ async function sendTimetable(
 Для подробностей свяжитесь с администратором бота.
         `);
   }
+  const { timetable, image } = data;
 
   clearTimeout(creatingMessageTimeout);
   if (tempMsgId) {
@@ -131,15 +132,9 @@ async function sendTimetable(
   }
 
   const buttonsMarkup = new InlineKeyboard()
-    .text(
-      "⬅️",
-      `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
-    )
-    .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`)
-    .text(
-      "➡️",
-      `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
-    )
+    .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
+    .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.week}`)
+    .text("➡️", `schedule_button_view_${groupId ?? 0}/${timetable.week + 1}`)
     .row();
 
   if (ctx?.chat?.type === "private") {
@@ -158,13 +153,11 @@ async function sendTimetable(
   }
 
   const msg = await ctx.replyWithPhoto(
-    timetable.image.tgId ?? new InputFile(timetable.image.data),
+    image.tgId ?? new InputFile(image.data),
     {
       caption:
-        `Расписание на ${timetable.data.week} неделю` +
-        (timetable.data.week === getWeekFromDate(new Date())
-          ? " (текущая)"
-          : "") +
+        `Расписание на ${timetable.week} неделю` +
+        (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
         (group ? `\nДля группы ${group.name}` : "") +
         (!isAuthed
           ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
@@ -172,23 +165,23 @@ async function sendTimetable(
       reply_markup: buttonsMarkup,
     },
   );
-  if (!timetable.image.tgId) {
+  if (!image.tgId) {
     log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
       user: ctx?.from?.id,
     });
     await db.weekImage.update({
-      where: { id: timetable.image.id },
+      where: { id: image.id },
       data: { tgId: msg.photo[0].file_id },
     });
   }
   const endTime = process.hrtime.bigint();
   log.debug(
-    `[bot] Image viewer ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `[bot] Image viewer ${image.stylemap}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: ctx?.from?.id },
   );
   ctx.session.scheduleViewer.message = msg.message_id;
   ctx.session.scheduleViewer.chatId = msg.chat.id;
-  ctx.session.scheduleViewer.week = timetable.data.week;
+  ctx.session.scheduleViewer.week = timetable.week;
   ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
 }
 
@@ -358,9 +351,9 @@ export async function updateTimetable(
       } catch {}
     }, 150);
 
-    let timetable;
+    let data;
     try {
-      timetable = await schedule.getTimetableWithImage(user, weekNumber, {
+      data = await schedule.getTimetableWithImage(user, weekNumber, {
         groupId: group?.id ?? undefined,
         stylemap: preferences.theme,
         forceUpdate: opts?.forceUpdate ?? undefined,
@@ -373,23 +366,18 @@ export async function updateTimetable(
 Для подробностей свяжитесь с администратором бота.
         `);
     }
+    const { timetable, image } = data;
 
     clearTimeout(creatingMessageTimeout);
 
-    if (!timetable.image.tgId) {
+    if (!image.tgId) {
       log.debug(`Image had no tgId, will upload new`, { user: userId });
     }
 
     const buttonsMarkup = new InlineKeyboard()
-      .text(
-        "⬅️",
-        `schedule_button_view_${groupId ?? 0}/${timetable.data.week - 1}`,
-      )
-      .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.data.week}`)
-      .text(
-        "➡️",
-        `schedule_button_view_${groupId ?? 0}/${timetable.data.week + 1}`,
-      )
+      .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
+      .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.week}`)
+      .text("➡️", `schedule_button_view_${groupId ?? 0}/${timetable.week + 1}`)
       .row();
 
     if (ctx?.chat?.type === "private") {
@@ -413,10 +401,10 @@ export async function updateTimetable(
         msgId,
         {
           type: "photo",
-          media: timetable.image.tgId ?? new InputFile(timetable.image.data),
+          media: image.tgId ?? new InputFile(image.data),
           caption:
-            `Расписание на ${timetable.data.week} неделю` +
-            (timetable.data.week === getWeekFromDate(new Date())
+            `Расписание на ${timetable.week} неделю` +
+            (timetable.week === getWeekFromDate(new Date())
               ? " (текущая)"
               : "") +
             (group ? `\nДля группы ${group.name}` : "") +
@@ -432,13 +420,13 @@ export async function updateTimetable(
     }
     const endTime = process.hrtime.bigint();
     log.debug(
-      `[bot] Image viewer update ${timetable.image.stylemap}/${timetable.data.groupId}/${timetable.data.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+      `[bot] Image viewer update ${image.stylemap}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
       { user: userId },
     );
 
     ctx.session.scheduleViewer.message = msgId;
     ctx.session.scheduleViewer.chatId = chat.id;
-    ctx.session.scheduleViewer.week = timetable.data.week;
+    ctx.session.scheduleViewer.week = timetable.week;
     ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
   } catch (e) {
     log.error(`Failed to update timetable msg ${String(e)}`, {
@@ -557,7 +545,7 @@ export async function initSchedule(bot: Bot<Context>) {
         );
       }
       const now = new Date();
-      const timetable = await schedule.getWeekTimetable(user, 0);
+      const timetable = await schedule.getTimetable(user, 0);
       const day = timetable.days.at(now.getDay() - 1);
 
       if (
@@ -592,7 +580,7 @@ ${day.lessons.map(generateTextLesson).join("\n=====\n")}
       );
     }
     const now = new Date();
-    const timetable = await schedule.getWeekTimetable(user, 0);
+    const timetable = await schedule.getTimetable(user, 0);
     const day = timetable.days.at(now.getDay() - 1);
     if (!day?.lessons.length || now.getDay() === 0) {
       return ctx.reply("Сегодня занятий нет :D");

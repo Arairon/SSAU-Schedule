@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { bot } from "@/bot/bot";
 import log from "@/logger";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { schedule } from "../schedule/timetable";
+import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
   DayString,
@@ -418,7 +418,7 @@ export async function scheduleDailyNotificationsForUser(
     UserPreferencesDefaults,
     user.preferences,
   );
-  const timetable = await schedule.getWeekTimetable(user, weekNumber);
+  const timetable = await schedule.getTimetable(user, weekNumber);
   timetable.days.map(
     (d) => (d.lessons = d.lessons.filter((i) => !i.customized?.hidden)),
   );

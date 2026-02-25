@@ -182,3 +182,8 @@ export function formatDbLesson(lesson: Lesson) {
 ${date} / ${startTime} - ${endTime}
 ${LessonTypeIcon[lesson.type]} ${lesson.discipline} (${place}) ${lesson.isIet ? "[ИОТ]" : ""}`;
 }
+
+export type RequestStateUpdate<T extends string> = {
+  state: T;
+  message?: string;
+};

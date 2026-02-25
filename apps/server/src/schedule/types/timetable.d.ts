@@ -36,7 +36,7 @@ export type TimetableDay = {
   weekday: number;
   beginTime: Date;
   endTime: Date;
-  lessons: TimetableLesson[];
+  lessons: TimetableLesson[]; // Has variable length
   lessonCount: number;
 };
 
@@ -49,5 +49,27 @@ export type Timetable = {
   // hash: string; // TODO: generate from lessons
   //withIet: boolean;
   //isCommon: boolean;
-  days: TimetableDay[];
+  days: TimetableDay[]; // Should always have length of 6
+};
+
+export type TimetableDayWithWindows = {
+  // user: number;
+  week: number;
+  weekday: number;
+  beginTime: Date;
+  endTime: Date;
+  lessons: (TimetableLesson | null)[]; // Should always have length of 8, some slots can be null if there are no lessons
+  lessonCount: number;
+};
+
+export type TimetableWithWindows = {
+  weekId: number;
+  // user: number; // To allow sharing hashes
+  groupId: number;
+  year: number;
+  week: number;
+  // hash: string; // TODO: generate from lessons
+  //withIet: boolean;
+  //isCommon: boolean;
+  days: TimetableDayWithWindows[]; // Should always have length of 6
 };

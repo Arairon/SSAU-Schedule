@@ -65,7 +65,11 @@ export async function getWeekLessons(
   user: User,
   week: number,
   groupId?: number,
-  opts?: { ignoreIet?: boolean; ignorePreferences?: boolean },
+  opts?: {
+    ignoreIet?: boolean;
+    ignorePreferences?: boolean;
+    ignoreCustomizations?: boolean;
+  },
 ) {
   const preferences: UserPreferences = Object.assign(
     {},
@@ -102,22 +106,24 @@ export async function getWeekLessons(
 
   const lessonIds = lessons.map((i) => i.id);
 
-  const customLessons = await db.customLesson.findMany({
-    where: {
-      OR: [
-        {
-          weekNumber: week,
+  const customLessons = opts?.ignoreCustomizations
+    ? []
+    : await db.customLesson.findMany({
+        where: {
+          OR: [
+            {
+              weekNumber: week,
+            },
+            {
+              lessonId: { in: lessonIds },
+            },
+          ],
+          userId: user.id,
+          // type: militaryFilter, // breaks on null
+          isEnabled: true, // TODO: Allow viewing disabled customizations or figure out a better way
         },
-        {
-          lessonId: { in: lessonIds },
-        },
-      ],
-      userId: user.id,
-      // type: militaryFilter, // breaks on null
-      isEnabled: true, // TODO: Allow viewing disabled customizations or figure out a better way
-    },
-    include: { groups: true, teacher: true, user: true, flows: true },
-  });
+        include: { groups: true, teacher: true, user: true, flows: true },
+      });
 
   const customLessonTargetIds = customLessons
     .map((i) => i.lessonId)

@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { db } from "@/db";
 import { getUserIcsByUserId } from "@/schedule/ics";
 import { findGroup } from "@/ssau/search";
-import { schedule } from "@/schedule/timetable";
+import { schedule } from "@/schedule/requests";
 import { generateTimetableImageHtml } from "@/schedule/image";
 
 export async function routesDebug(fastify: FastifyInstance) {
@@ -120,7 +120,7 @@ export async function routesDebug(fastify: FastifyInstance) {
         groupId: req.query.groupId,
         groupName: req.query.group,
       });
-      const timetable = await schedule.getWeekTimetable(user, req.query.week, {
+      const timetable = await schedule.getTimetable(user, req.query.week, {
         ignoreCached: req.query.ignoreCached,
         groupId: (group?.id ?? 0) || undefined,
       });
@@ -224,7 +224,7 @@ export async function routesDebug(fastify: FastifyInstance) {
         groupId: req.query.groupId,
         groupName: req.query.group,
       });
-      const timetable = await schedule.getWeekTimetable(user, req.query.week, {
+      const timetable = await schedule.getTimetable(user, req.query.week, {
         ignoreCached: req.query.ignoreCached,
         groupId: (group?.id ?? 0) || undefined,
       });
