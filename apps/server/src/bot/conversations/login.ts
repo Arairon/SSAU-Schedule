@@ -6,10 +6,10 @@ import {
 import { type Conversation, createConversation } from "@grammyjs/conversations";
 
 import type { Context } from "../types";
-import log from "../../logger";
-import { db } from "../../db";
-import { lk } from "../../lib/lk";
-import { getPersonShortname } from "../../lib/utils";
+import log from "@/logger";
+import { db } from "@/db";
+import { lk } from "@/lib/lk";
+import { getPersonShortname } from "@/lib/utils";
 
 async function loginConversation(
   conversation: Conversation,

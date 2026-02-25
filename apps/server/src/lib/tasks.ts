@@ -1,8 +1,8 @@
 import { InputFile, type MessageEntity } from "grammy/types";
 import { AsyncTask, CronJob } from "toad-scheduler";
-import { db } from "../db";
-import { bot } from "../bot/bot";
-import log from "../logger";
+import { db } from "@/db";
+import { bot } from "@/bot/bot";
+import log from "@/logger";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { schedule, TimeSlotMap } from "./schedule";
 import {
@@ -12,7 +12,7 @@ import {
   scheduleMessage,
   UserPreferencesDefaults,
 } from "./misc";
-import type { Lesson, User } from "../generated/prisma/client";
+import type { Lesson, User } from "@/generated/prisma/client";
 import { lk } from "./lk";
 
 function sleep(ms: number) {

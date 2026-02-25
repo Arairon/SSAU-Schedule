@@ -1,18 +1,18 @@
 import { InlineKeyboard, type Bot } from "grammy";
 import { CommandGroup } from "@grammyjs/commands";
 import { type Context } from "./types";
-import log from "../logger";
-import { db } from "../db";
-import { UserPreferencesDefaults } from "../lib/misc";
-import { STYLEMAPS } from "../lib/scheduleImage";
-import { env } from "../env";
+import log from "@/logger";
+import { db } from "@/db";
+import { UserPreferencesDefaults } from "@/lib/misc";
+import { STYLEMAPS } from "@/lib/scheduleImage";
+import { env } from "@/env";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { getPersonShortname } from "../lib/utils";
+import { getPersonShortname } from "@/lib/utils";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
-} from "../lib/tasks";
-import { type User } from "../generated/prisma/client";
+} from "@/lib/tasks";
+import { type User } from "@/generated/prisma/client";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(

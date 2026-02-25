@@ -4,9 +4,9 @@ import { Bot as GrammyBot, session } from "grammy";
 import { run, type RunnerHandle } from "@grammyjs/runner";
 import { conversations } from "@grammyjs/conversations";
 
-import { env } from "../env";
+import { env } from "@/env";
 import { type Context, type Session } from "./types";
-import log from "../logger";
+import log from "@/logger";
 
 import { initSchedule, scheduleCommands } from "./schedule";
 import { initOptions, optionsCommands } from "./options";

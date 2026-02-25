@@ -1,10 +1,10 @@
 import { type FastifyInstance, type FastifyRequest } from "fastify";
-import { db } from "../../db";
+import { db } from "@/db";
 import { type AuthData } from "./auth";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
-} from "../../lib/tasks";
+} from "@/lib/tasks";
 
 export async function routesNotifications(fastify: FastifyInstance) {
   fastify.post(

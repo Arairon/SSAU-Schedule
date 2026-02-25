@@ -1,7 +1,7 @@
 import { type FastifyRequest, type FastifyInstance } from "fastify";
 import s from "ajv-ts";
-import { lk } from "../../lib/lk";
-import { db } from "../../db";
+import { lk } from "@/lib/lk";
+import { db } from "@/db";
 import { type AuthData } from "./auth";
 
 const CredentialsSchema = s

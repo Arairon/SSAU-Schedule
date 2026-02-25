@@ -1,7 +1,7 @@
 import { type FastifyInstance, type FastifyRequest } from "fastify";
-import { db } from "../../db";
-import { findGroup } from "../../lib/misc";
-import { schedule } from "../../lib/schedule";
+import { db } from "@/db";
+import { findGroup } from "@/lib/misc";
+import { schedule } from "@/lib/schedule";
 import { type AuthData } from "./auth";
 
 export async function routesSchedule(fastify: FastifyInstance) {

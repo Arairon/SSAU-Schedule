@@ -1,15 +1,15 @@
 import type { Bot } from "grammy";
 import { type Context } from "./types";
-import log from "../logger";
-import { db } from "../db";
-import { env } from "../env";
+import log from "@/logger";
+import { db } from "@/db";
+import { env } from "@/env";
 import {
   dailyWeekUpdate,
   invalidateDailyNotificationsForAll,
   scheduleDailyNotificationsForAll,
   type DbScheduledMessage,
   type ScheduledMessage,
-} from "../lib/tasks";
+} from "@/lib/tasks";
 import { CommandGroup } from "@grammyjs/commands";
 
 // Task for any testing that needs to happen

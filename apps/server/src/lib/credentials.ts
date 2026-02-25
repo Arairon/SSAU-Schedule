@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { env } from "../env";
+import { env } from "@/env";
 
 const ALGORITHM = "aes-256-cbc";
 const KEY_LENGTH = 32;

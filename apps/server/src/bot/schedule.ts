@@ -1,23 +1,23 @@
 import { InlineKeyboard, InputFile, type Bot } from "grammy";
 import type { Context } from "./types";
 
-import log from "../logger";
-import { db } from "../db";
-import { formatBigInt } from "../lib/utils";
+import log from "@/logger";
+import { db } from "@/db";
+import { formatBigInt } from "@/lib/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
-import { env } from "../env";
-import { schedule } from "../lib/schedule";
+import { env } from "@/env";
+import { schedule } from "@/lib/schedule";
 import {
   findGroupOrOptions,
   generateTextLesson,
   UserPreferencesDefaults,
-} from "../lib/misc";
+} from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
-import { lk } from "../lib/lk";
-import type { User } from "../generated/prisma/client";
+import { lk } from "@/lib/lk";
+import type { User } from "@/generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
-import { getUserIcsByUserId } from "../lib/ics";
+import { getUserIcsByUserId } from "@/lib/ics";
 
 async function sendGroupTimetable(
   ctx: Context,

@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
-import { db } from "../db";
+import { db } from "@/db";
 
 export async function createApiKey() {
   let publicPart = randomBytes(16).toString("hex");

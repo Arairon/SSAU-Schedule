@@ -1,5 +1,5 @@
 import { type FastifyInstance, type FastifyRequest } from "fastify";
-import { getUserIcsByUserId, getUserIcsByUUID } from "../../lib/ics";
+import { getUserIcsByUserId, getUserIcsByUUID } from "@/lib/ics";
 import { type AuthData } from "./auth";
 
 export async function routesIcs(fastify: FastifyInstance) {

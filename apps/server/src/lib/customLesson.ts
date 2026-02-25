@@ -2,10 +2,10 @@ import {
   type CustomLesson,
   type LessonType,
   type User,
-} from "../generated/prisma/client";
+} from "@/generated/prisma/client";
 import s from "ajv-ts";
-import log from "../logger";
-import { db } from "../db";
+import log from "@/logger";
+import { db } from "@/db";
 import { getLessonDate } from "@ssau-schedule/shared/date";
 import { TimeSlotMap } from "./schedule";
 

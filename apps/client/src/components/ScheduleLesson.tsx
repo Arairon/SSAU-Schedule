@@ -2,10 +2,10 @@ import { BellIcon, BellOffIcon, PenIcon, PlusIcon, TrashIcon } from "lucide-reac
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { lessonStyles } from "./ScheduleViewer";
-import { Button } from "./ui/button";
-import type { LessonDateTime, ScheduleLessonType } from "@/lib/types";
 import type { LessonType } from "@ssau-schedule/shared/themes/types";
+import type { LessonDateTime, ScheduleLessonType } from "@/lib/types";
+import { lessonStyles } from "@/components/ScheduleViewer";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,

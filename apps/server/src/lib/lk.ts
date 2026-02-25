@@ -1,10 +1,10 @@
 import axios, { type AxiosError } from "axios";
 // import jwt from "jsonwebtoken";
-import { type User } from "../generated/prisma/client";
+import { type User } from "@/generated/prisma/client";
 import { creds } from "./credentials";
-import { db } from "../db";
-import { UserDetailsSchema, UserGroupsSchema } from "../schema/lk";
-import log from "../logger";
+import { db } from "@/db";
+import { UserDetailsSchema, UserGroupsSchema } from "@/schema/lk";
+import log from "@/logger";
 import { type ReturnObj } from "./utils";
 import { ensureGroupExists } from "./misc";
 

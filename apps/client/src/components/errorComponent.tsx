@@ -1,8 +1,8 @@
 import { TriangleAlertIcon } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { Button } from "./ui/button";
 import type { ErrorComponentProps } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 
 export function ErrorComponent({ error, info, reset }: ErrorComponentProps) {
   useEffect(() => {

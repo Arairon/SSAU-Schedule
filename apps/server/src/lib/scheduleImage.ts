@@ -8,8 +8,8 @@ import {
 } from "./schedule";
 import { formatBigInt, getPersonShortname } from "./utils";
 import { getLessonDate } from "@ssau-schedule/shared/date";
-import log from "../logger";
-import { env } from "../env";
+import log from "@/logger";
+import { env } from "@/env";
 import { type StyleMap } from "@ssau-schedule/shared/themes/types";
 import { SCHEDULE_STYLEMAP_LIGHT } from "@ssau-schedule/shared/themes/light";
 import { SCHEDULE_STYLEMAP_NEON } from "@ssau-schedule/shared/themes/neon";

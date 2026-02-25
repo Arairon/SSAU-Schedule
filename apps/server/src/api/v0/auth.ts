@@ -1,15 +1,15 @@
 import { type FastifyRequest, type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
-import log from "../../logger";
+import log from "@/logger";
 import {
   parse as tgParse,
   validate as tgValidate,
 } from "@tma.js/init-data-node";
-import { env } from "../../env";
+import { env } from "@/env";
 import jwt from "jsonwebtoken";
-import { db } from "../../db";
+import { db } from "@/db";
 import s from "ajv-ts";
-import { validateApiKey } from "../../lib/apiKey";
+import { validateApiKey } from "@/lib/apiKey";
 
 export type AuthData = {
   userId: number;

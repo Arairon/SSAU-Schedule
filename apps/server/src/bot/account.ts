@@ -1,12 +1,12 @@
 import { InlineKeyboard, type Bot } from "grammy";
 import { type Context } from "./types";
-import { db } from "../db";
+import { db } from "@/db";
 import { CommandGroup } from "@grammyjs/commands";
-import { env } from "../env";
-import { getPersonShortname } from "../lib/utils";
-import log from "../logger";
-import { getUserIcsByUserId } from "../lib/ics";
-import { lk } from "../lib/lk";
+import { env } from "@/env";
+import { getPersonShortname } from "@/lib/utils";
+import log from "@/logger";
+import { getUserIcsByUserId } from "@/lib/ics";
+import { lk } from "@/lib/lk";
 import { getDefaultSession } from "./bot";
 
 async function reset(_ctx: Context, userId: number) {
@@ -229,8 +229,13 @@ https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
 
   commands.command("app", "Переход в веб приложение", async (ctx) => {
     void ctx.deleteMessage();
-    if (env.NODE_ENV !== "development" && !(ctx.message && ctx.message.text.includes("idontcare"))) {
-      return ctx.reply("Веб приложение всё ещё в разработке. Очень надеюсь что скоро смогу его выпустить, но на данный момент оно слишком сырое. Простите :D")
+    if (
+      env.NODE_ENV !== "development" &&
+      !(ctx.message && ctx.message.text.includes("idontcare"))
+    ) {
+      return ctx.reply(
+        "Веб приложение всё ещё в разработке. Очень надеюсь что скоро смогу его выпустить, но на данный момент оно слишком сырое. Простите :D",
+      );
     }
     return ctx.reply(
       "Переход в веб приложение\n(Веб приложение специально не добавлено как отдельная кнопка в боте, т.к. приоритет всё же на команды)",

@@ -4,15 +4,15 @@ import type {
   User,
   Week,
   CustomLesson,
-} from "../generated/prisma/client";
-import { LessonType } from "../generated/prisma/client";
+} from "@/generated/prisma/client";
+import { LessonType } from "@/generated/prisma/client";
 import axios from "axios";
 import { formatSentence, md5, formatBigInt } from "./utils";
 import { getLessonDate, getWeekFromDate, getCurrentYearId } from "@ssau-schedule/shared/date";
-import { db } from "../db";
+import { db } from "@/db";
 import { lk } from "./lk";
-import log from "../logger";
-import { WeekResponseSchema } from "../schema/schedule";
+import log from "@/logger";
+import { WeekResponseSchema } from "@/schema/schedule";
 import {
   ensureFlowExists,
   ensureGroupExists,

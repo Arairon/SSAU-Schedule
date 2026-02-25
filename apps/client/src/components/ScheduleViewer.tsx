@@ -1,8 +1,8 @@
 import { useEffect, useState, } from "react";
 import { getWeekFromDate, isSameDay } from "@ssau-schedule/shared/date";
 import { SCHEDULE_STYLEMAP_NEON } from "@ssau-schedule/shared/themes/neon"
-import { ScheduleLesson, ScheduleLessonWindow } from "./ScheduleLesson";
 import type { ScheduleType } from "@/lib/types";
+import { ScheduleLesson, ScheduleLessonWindow } from "@/components/ScheduleLesson";
 import { TimeSlotMap } from "@/lib/types";
 import { useIsMobile } from "@/hooks/useIsMobile";
 

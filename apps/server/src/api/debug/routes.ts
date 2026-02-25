@@ -1,9 +1,9 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
-import { db } from "../../db";
-import { getUserIcsByUserId } from "../../lib/ics";
-import { findGroup } from "../../lib/misc";
-import { schedule } from "../../lib/schedule";
-import { generateTimetableImageHtml } from "../../lib/scheduleImage";
+import { db } from "@/db";
+import { getUserIcsByUserId } from "@/lib/ics";
+import { findGroup } from "@/lib/misc";
+import { schedule } from "@/lib/schedule";
+import { generateTimetableImageHtml } from "@/lib/scheduleImage";
 
 export async function routesDebug(fastify: FastifyInstance) {
   const userIdParamSchema = {

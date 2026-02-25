@@ -1,11 +1,11 @@
 import { type FastifyInstance, type FastifyRequest } from "fastify";
-import { db } from "../../db";
+import { db } from "@/db";
 import {
   addCustomLesson,
   CustomizationDataSchemaPartial,
   deleteCustomLesson,
   editCustomLesson,
-} from "../../lib/customLesson";
+} from "@/lib/customLesson";
 import { type AuthData } from "./auth";
 
 export async function routesCustomLesson(fastify: FastifyInstance) {

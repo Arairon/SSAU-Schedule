@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import ScheduleViewer from "./ScheduleViewer";
-
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Button } from "./ui/button";
-import ScheduleLessonEditor from "./ScheduleLessonEditor";
 import type { CustomizationData, ScheduleType } from "@/lib/types";
+import ScheduleViewer from "@/components/ScheduleViewer";
+
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import ScheduleLessonEditor from "@/components/ScheduleLessonEditor";
 import useEditorState from "@/hooks/useEditorState";
 import { addCustomLesson, deleteCustomLesson, editCustomLesson } from "@/api/api";
 

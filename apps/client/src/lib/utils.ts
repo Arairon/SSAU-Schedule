@@ -2,7 +2,7 @@ import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { getWeekFromDate } from '@ssau-schedule/shared/date'
 import type { ClassValue } from 'clsx';
-import type { CustomizationData, ScheduleLessonType } from './types'
+import type { CustomizationData, ScheduleLessonType } from '@/lib/types'
 
 export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs))

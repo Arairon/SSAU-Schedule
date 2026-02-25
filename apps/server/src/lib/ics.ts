@@ -1,12 +1,12 @@
 import * as ics from "ics";
-import { db } from "../db";
-import log from "../logger";
+import { db } from "@/db";
+import log from "@/logger";
 import {
   LessonTypeIcon,
   LessonTypeName,
   UserPreferencesDefaults,
 } from "./misc";
-import { LessonType } from "../generated/prisma/client";
+import { LessonType } from "@/generated/prisma/client";
 
 export async function generateUserIcs(
   userId: number,

@@ -1,9 +1,9 @@
 import type { Bot } from "grammy";
 import timestring from "timestring";
 import { type Context } from "./types";
-import { db } from "../db";
-import { findGroup, UserPreferencesDefaults } from "../lib/misc";
-import { STYLEMAPS } from "../lib/scheduleImage";
+import { db } from "@/db";
+import { findGroup, UserPreferencesDefaults } from "@/lib/misc";
+import { STYLEMAPS } from "@/lib/scheduleImage";
 import { CommandGroup } from "@grammyjs/commands";
 
 // config.ts refers to the /config command, not the bot configuration :]

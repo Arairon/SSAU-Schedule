@@ -1,10 +1,10 @@
 import axios from "axios";
-import { type Lesson, LessonType, type User } from "../generated/prisma/client";
+import { type Lesson, LessonType, type User } from "@/generated/prisma/client";
 import type { MessageEntity } from "grammy/types";
-import { db } from "../db";
-import { type TeacherType } from "../schema/schedule";
+import { db } from "@/db";
+import { type TeacherType } from "@/schema/schedule";
 import { formatSentence, getPersonShortname } from "./utils";
-import log from "../logger";
+import log from "@/logger";
 import { TimeSlotMap, type TimetableLesson } from "./schedule";
 
 export type UserPreferences = {
