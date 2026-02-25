@@ -3,10 +3,10 @@ import { type Context } from "./types";
 import { db } from "@/db";
 import { CommandGroup } from "@grammyjs/commands";
 import { env } from "@/env";
-import { getPersonShortname } from "@/lib/utils";
+import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import log from "@/logger";
 import { getUserIcsByUserId } from "@/lib/ics";
-import { lk } from "@/lib/lk";
+import { lk } from "@/ssau/lk";
 import { getDefaultSession } from "./bot";
 
 async function reset(_ctx: Context, userId: number) {

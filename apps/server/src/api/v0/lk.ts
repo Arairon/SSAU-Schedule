@@ -1,6 +1,6 @@
 import { type FastifyRequest, type FastifyInstance } from "fastify";
 import s from "ajv-ts";
-import { lk } from "@/lib/lk";
+import { lk } from "@/ssau/lk";
 import { db } from "@/db";
 import { type AuthData } from "./auth";
 
@@ -28,19 +28,15 @@ export async function routesLk(fastify: FastifyInstance) {
         return res.status(400).send("Invalid format: " + error?.message);
       }
       const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-      // const {login,password} = data;
-      // TODO: Implement login & password auth
       const result = await lk.login(user, data);
       if (result.ok) {
         await lk.updateUserInfo(user);
         return res.status(200).send({ success: true, error: null });
       } else
-        return res
-          .status(400)
-          .send({
-            success: false,
-            error: `${result.error}: ${result.message}`,
-          });
+        return res.status(400).send({
+          success: false,
+          error: `${result.error}: ${result.message}`,
+        });
     },
   );
 }

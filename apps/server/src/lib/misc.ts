@@ -2,10 +2,14 @@ import axios from "axios";
 import { type Lesson, LessonType, type User } from "@/generated/prisma/client";
 import type { MessageEntity } from "grammy/types";
 import { db } from "@/db";
-import { type TeacherType } from "@/schema/schedule";
-import { formatSentence, getPersonShortname } from "./utils";
+import { type TeacherType } from "@/schedule/schemas/schedule";
+import {
+  formatSentence,
+  getPersonShortname,
+} from "@ssau-schedule/shared/utils";
 import log from "@/logger";
-import { TimeSlotMap, type TimetableLesson } from "./schedule";
+import { TimeSlotMap } from "./schedule";
+import { type TimetableLesson } from "@/schedule/types/timetable";
 
 export type UserPreferences = {
   theme: string;

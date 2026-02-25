@@ -49,14 +49,13 @@ export function getLessonDate(weekNumber: number, weekDay: number) {
   return date;
 }
 
-
 export function isSameDay(date1: Date, date2: Date) {
   const d1 = new Date(date1);
   const d2 = new Date(date2);
-  
+
   // Set both dates to midnight (start of day)
   d1.setHours(0, 0, 0, 0);
   d2.setHours(0, 0, 0, 0);
-  
+
   return d1.getTime() === d2.getTime();
 }

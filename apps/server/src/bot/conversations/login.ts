@@ -8,8 +8,8 @@ import { type Conversation, createConversation } from "@grammyjs/conversations";
 import type { Context } from "../types";
 import log from "@/logger";
 import { db } from "@/db";
-import { lk } from "@/lib/lk";
-import { getPersonShortname } from "@/lib/utils";
+import { lk } from "@/ssau/lk";
+import { getPersonShortname } from "@ssau-schedule/shared/utils";
 
 async function loginConversation(
   conversation: Conversation,
@@ -95,7 +95,7 @@ async function loginConversation(
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Ошибка входа: "${loginRes.error!}: ${loginRes.message!}"
+Ошибка входа: "${loginRes.error}: ${loginRes.message!}"
 Можете попробовать ввести пароль ещё раз или отменить вход через /cancel
     `,
     );

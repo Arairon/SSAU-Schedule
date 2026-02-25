@@ -18,20 +18,8 @@ export function md5(string: string) {
   hash.update(string);
   return hash.digest("hex");
 }
-
-export type ReturnObj<T> =
-  | {
-      ok: boolean;
-      data?: T;
-      error?: string;
-      message?: string;
-    }
-  | {
-      ok: true;
-      data: T;
-    }
-  | {
-      ok: false;
-      error: string;
-      message?: string;
-    };
+export type ReturnObj<T = void> =
+  | ([T] extends [void]
+      ? { ok: true; message?: string }
+      : { ok: true; data: T; message?: string })
+  | { ok: false; error: string; message?: string };

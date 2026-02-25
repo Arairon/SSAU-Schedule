@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { db } from "@/db";
 import { getUserIcsByUserId } from "@/lib/ics";
 import { findGroup } from "@/lib/misc";

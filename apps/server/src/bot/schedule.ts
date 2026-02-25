@@ -3,7 +3,7 @@ import type { Context } from "./types";
 
 import log from "@/logger";
 import { db } from "@/db";
-import { formatBigInt } from "@/lib/utils";
+import { formatBigInt } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
 import { schedule } from "@/lib/schedule";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
-import { lk } from "@/lib/lk";
+import { lk } from "@/ssau/lk";
 import type { User } from "@/generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
 import { getUserIcsByUserId } from "@/lib/ics";

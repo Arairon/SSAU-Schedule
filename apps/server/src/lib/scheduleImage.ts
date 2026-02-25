@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import Puppeteer, { type Browser } from "puppeteer";
 
+import { TimeSlotMap } from "./schedule";
 import {
-  TimeSlotMap,
   type TimetableLesson,
-  type WeekTimetable,
-} from "./schedule";
-import { formatBigInt, getPersonShortname } from "./utils";
+  type Timetable,
+} from "@/schedule/types/timetable";
+import { formatBigInt, getPersonShortname } from "@ssau-schedule/shared/utils";
 import { getLessonDate } from "@ssau-schedule/shared/date";
 import log from "@/logger";
 import { env } from "@/env";
@@ -111,10 +111,10 @@ const EMPTY_WEEK_NOTICE = `
 `;
 
 export const STYLEMAPS: Record<string, StyleMap> = {
-  light: SCHEDULE_STYLEMAP_LIGHT,
-  dark: SCHEDULE_STYLEMAP_DARK,
-  neon: SCHEDULE_STYLEMAP_NEON,
-  default: SCHEDULE_STYLEMAP_NEON
+  light: SCHEDULE_STYLEMAP_LIGHT as StyleMap,
+  dark: SCHEDULE_STYLEMAP_DARK as StyleMap,
+  neon: SCHEDULE_STYLEMAP_NEON as StyleMap,
+  default: SCHEDULE_STYLEMAP_NEON as StyleMap,
 };
 
 function generateSingleLesson(
@@ -164,12 +164,12 @@ function generateSingleLesson(
     }),
   );
   if (opts?.showGrouplist) {
-    lesson.groups.sort();
-    if (lesson.groups.length <= 4) {
+    const groups = [...lesson.groups].sort();
+    if (groups.length <= 4) {
       parts.push(
         ...[
           `<hr class="my-1"><p class="${style.groupListStyle}">`,
-          ...lesson.groups.map((group) => `<a>${group}</a>`),
+          ...groups.map((group) => `<a>${group}</a>`),
           `</p>`,
         ],
       );
@@ -177,7 +177,7 @@ function generateSingleLesson(
       parts.push(
         ...[
           `<hr class="my-1"><p class="${style.groupListStyle}">`,
-          ...lesson.groups.slice(0, 3).map((group) => `<a>${group}</a>`),
+          ...groups.slice(0, 3).map((group) => `<a>${group}</a>`),
           `<a>...</a>`,
           `</p>`,
         ],
@@ -251,7 +251,7 @@ const WEEKDAYS = [
 ];
 
 export async function generateTimetableImageHtml(
-  timetable: WeekTimetable,
+  timetable: Timetable,
   opts?: {
     stylemap?: string;
   },
@@ -338,7 +338,7 @@ export async function generateTimetableImageHtml(
 
 let browser: Browser | null = null;
 
-void Puppeteer.launch({
+const browserPromise = Puppeteer.launch({
   executablePath: env.CHROME_PATH,
   args: [
     "--no-sandbox",
@@ -349,23 +349,31 @@ void Puppeteer.launch({
     "--disable-software-rasterizer",
   ],
   protocolTimeout: 30_000,
-}).then((i) => (browser = i));
+})
+  .then((instance) => {
+    browser = instance;
+    return instance;
+  })
+  .catch((error) => {
+    log.error(`Puppeteer launch failed: ${String(error)}`, { user: "sys" });
+    throw error;
+  });
 
 export async function generateTimetableImage(
-  timetable: WeekTimetable,
+  timetable: Timetable,
   opts?: {
     stylemap?: string;
   },
 ): Promise<Buffer> {
-  if (!browser) throw new Error("Puppeteer failed to launch");
+  const activeBrowser = browser ?? (await browserPromise);
   const startTime = process.hrtime.bigint();
   const html = await generateTimetableImageHtml(timetable, opts);
   const htmlTime = process.hrtime.bigint();
-  const page = await browser.newPage();
-  await page.setContent(html);
-  await page.bringToFront();
-  let image;
+  const page = await activeBrowser.newPage();
+  let image: Buffer;
   try {
+    await page.setContent(html);
+    await page.bringToFront();
     image = (await page.screenshot({ fullPage: true })) as Buffer;
   } catch (e) {
     log.error(`Failed to generate a timetable image. Error: ${String(e)}`, {
@@ -373,9 +381,10 @@ export async function generateTimetableImage(
     });
     log.debug(`Failed HTML: \n${html}\n---`, { user: -1 });
     throw e; // Fuck it, we crash.
+  } finally {
+    await page.close();
   }
   const endTime = process.hrtime.bigint();
-  await page.close();
   log.debug(
     `Generated an image for week ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
     { user: -1 },

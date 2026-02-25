@@ -1,12 +1,12 @@
 import axios, { type AxiosError } from "axios";
 // import jwt from "jsonwebtoken";
 import { type User } from "@/generated/prisma/client";
-import { creds } from "./credentials";
+import { creds } from "../lib/credentials";
 import { db } from "@/db";
-import { UserDetailsSchema, UserGroupsSchema } from "@/schema/lk";
+import { UserDetailsSchema, UserGroupsSchema } from "@/schedule/schemas/lk";
 import log from "@/logger";
-import { type ReturnObj } from "./utils";
-import { ensureGroupExists } from "./misc";
+import { type ReturnObj } from "@ssau-schedule/shared/utils";
+import { ensureGroupExists } from "../lib/misc";
 
 function resetAuth(
   user: User,
@@ -86,9 +86,9 @@ async function login(
       );
       // await resetAuth(user, { resetCredentials: true });
     }
-    return loginRes as { ok: boolean; error?: string; message?: string };
+    return loginRes;
   }
-  const rawCookie = loginRes.data!;
+  const rawCookie = loginRes.data;
   // Save cookie and related info in user
   const cookieUpd = getCookie(rawCookie);
   if (!cookieUpd)

@@ -7,7 +7,7 @@ import { UserPreferencesDefaults } from "@/lib/misc";
 import { STYLEMAPS } from "@/lib/scheduleImage";
 import { env } from "@/env";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { getPersonShortname } from "@/lib/utils";
+import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,

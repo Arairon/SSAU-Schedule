@@ -13,7 +13,7 @@ import {
   UserPreferencesDefaults,
 } from "./misc";
 import type { Lesson, User } from "@/generated/prisma/client";
-import { lk } from "./lk";
+import { lk } from "../ssau/lk";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

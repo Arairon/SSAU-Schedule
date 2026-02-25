@@ -1,18 +1,21 @@
 import type {
   Lesson,
-  $Enums,
   User,
   Week,
   CustomLesson,
 } from "@/generated/prisma/client";
 import { LessonType } from "@/generated/prisma/client";
 import axios from "axios";
-import { formatSentence, md5, formatBigInt } from "./utils";
-import { getLessonDate, getWeekFromDate, getCurrentYearId } from "@ssau-schedule/shared/date";
+import { formatSentence, md5, formatBigInt } from "@ssau-schedule/shared/utils";
+import {
+  getLessonDate,
+  getWeekFromDate,
+  getCurrentYearId,
+} from "@ssau-schedule/shared/date";
 import { db } from "@/db";
-import { lk } from "./lk";
+import { lk } from "../ssau/lk";
 import log from "@/logger";
-import { WeekResponseSchema } from "@/schema/schedule";
+import { WeekResponseSchema } from "@/schedule/schemas/schedule";
 import {
   ensureFlowExists,
   ensureGroupExists,
@@ -21,6 +24,11 @@ import {
   UserPreferencesDefaults,
 } from "./misc";
 import { generateTimetableImage } from "./scheduleImage";
+import type {
+  Timetable,
+  TimetableDay,
+  TimetableLesson,
+} from "@/schedule/types/timetable";
 
 Object.assign(axios.defaults.headers, {
   "Cache-Control": "no-cache",
@@ -120,57 +128,6 @@ async function getWeekLessons(
   };
 }
 
-export type TimetableLesson = {
-  id: number;
-  infoId: number;
-  type: $Enums.LessonType;
-  discipline: string;
-  teacher: {
-    name: string;
-    id: number | null;
-  };
-  isOnline: boolean;
-  building: string | null;
-  room: string | null;
-  isIet: boolean;
-  subgroup: number | null;
-  groups: string[];
-  flows: string[];
-  dayTimeSlot: number;
-  beginTime: Date;
-  endTime: Date;
-  conferenceUrl: string | null;
-  original: TimetableLesson | null;
-  customized: {
-    hidden: boolean;
-    disabled: boolean;
-    comment: string;
-    customizedBy: number;
-  } | null;
-  alts: TimetableLesson[];
-};
-
-export type WeekTimetableDay = {
-  // user: number;
-  week: number;
-  weekday: number;
-  beginTime: Date;
-  endTime: Date;
-  lessons: TimetableLesson[];
-  lessonCount: number;
-};
-
-export type WeekTimetable = {
-  weekId: number;
-  // user: number; // To allow sharing hashes
-  groupId: number;
-  year: number;
-  week: number;
-  //withIet: boolean;
-  //isCommon: boolean;
-  days: WeekTimetableDay[];
-};
-
 async function getTimetableWithImage(
   user: User,
   weekN: number,
@@ -249,13 +206,13 @@ async function getTimetableWithImage(
   const timetable = usingCachedTimetable
     ? week.timetable!
     : await getWeekTimetable(user, week.number, {
-      groupId: opts?.groupId,
-      year: week.year,
-      ignoreCached: opts?.ignoreCached,
-      forceUpdate: opts?.forceUpdate,
-      ignoreUpdate: opts?.ignoreUpdate,
-      ignoreIet: opts?.ignoreIet,
-    });
+        groupId: opts?.groupId,
+        year: week.year,
+        ignoreCached: opts?.ignoreCached,
+        forceUpdate: opts?.forceUpdate,
+        ignoreUpdate: opts?.ignoreUpdate,
+        ignoreIet: opts?.ignoreIet,
+      });
 
   const timetableHash =
     usingCachedTimetable && week.timetableHash
@@ -404,7 +361,7 @@ async function getWeekTimetable(
     ignorePreferences: weekIsCommon,
   });
 
-  const timetable: WeekTimetable = {
+  const timetable: Timetable = {
     weekId: week.id,
     // user: user.id,
     groupId: week.groupId,
@@ -417,7 +374,7 @@ async function getWeekTimetable(
   for (let dayNumber = 1; dayNumber <= 6; dayNumber++) {
     // Sundays not supported. Hopefully won't have to add them later...
     const date = getLessonDate(weekNumber, dayNumber);
-    const dayTimetable: WeekTimetableDay = {
+    const dayTimetable: TimetableDay = {
       // user: user.id,
       week: weekNumber,
       weekday: dayNumber,
@@ -714,7 +671,7 @@ async function getDbWeek(
   },
 ): Promise<
   Omit<Week, "timetable"> & {
-    timetable: WeekTimetable | null;
+    timetable: Timetable | null;
   }
 > {
   const now = new Date();
@@ -750,7 +707,7 @@ async function getDbWeek(
   if (week.timetable) {
     const { timetable, ...data } = week;
     const o = Object.assign(data, {
-      timetable: timetable as object as WeekTimetable,
+      timetable: timetable as object as Timetable,
     });
     return o;
   }
@@ -818,12 +775,12 @@ async function updateWeekForUser(
   // Process week
   const knownLessons = someoneElsesGroup
     ? await getWeekLessons(user, weekNumber, opts.groupId, {
-      ignoreIet: true,
-      ignorePreferences: true,
-    })
+        ignoreIet: true,
+        ignorePreferences: true,
+      })
     : await getWeekLessons(user, weekNumber, undefined, {
-      ignorePreferences: true,
-    });
+        ignorePreferences: true,
+      });
   const updatedTeachers: number[] = [];
   const updatedGroups: number[] = [];
   const updatedFlows: number[] = [];
@@ -909,23 +866,23 @@ async function updateWeekForUser(
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
             ? {
-              connectOrCreate: {
-                where: {
-                  owner_groupId_year_number: {
+                connectOrCreate: {
+                  where: {
+                    owner_groupId_year_number: {
+                      owner: week.owner,
+                      groupId: week.groupId,
+                      year: week.year,
+                      number: lessonInfo.week,
+                    },
+                  },
+                  create: {
                     owner: week.owner,
                     groupId: week.groupId,
                     year: week.year,
                     number: lessonInfo.week,
                   },
                 },
-                create: {
-                  owner: week.owner,
-                  groupId: week.groupId,
-                  year: week.year,
-                  number: lessonInfo.week,
-                },
-              },
-            }
+              }
             : undefined, // Current week is handled separately with lessonsInThisWeek
       };
       const lesson = Object.assign({}, weekInfo, info);
@@ -1024,23 +981,23 @@ async function updateWeekForUser(
           week:
             lessonInfo.week !== week.number // Create placeholder for other weeks
               ? {
-                connectOrCreate: {
-                  where: {
-                    owner_groupId_year_number: {
+                  connectOrCreate: {
+                    where: {
+                      owner_groupId_year_number: {
+                        owner: week.owner,
+                        groupId: week.groupId,
+                        year: week.year,
+                        number: lessonInfo.week,
+                      },
+                    },
+                    create: {
                       owner: week.owner,
                       groupId: week.groupId,
                       year: week.year,
                       number: lessonInfo.week,
                     },
                   },
-                  create: {
-                    owner: week.owner,
-                    groupId: week.groupId,
-                    year: week.year,
-                    number: lessonInfo.week,
-                  },
-                },
-              }
+                }
               : undefined, // Current week is handled separately with lessonsInThisWeek
         };
         const lesson = Object.assign({}, individualInfo, info);
