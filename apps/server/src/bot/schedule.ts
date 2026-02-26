@@ -456,7 +456,7 @@ export async function updateTimetable(
     }
 
     try {
-      await ctx.api.editMessageMedia(
+      const msg = await ctx.api.editMessageMedia(
         chat.id,
         msgId,
         {
@@ -474,6 +474,19 @@ export async function updateTimetable(
         },
         { reply_markup: buttonsMarkup },
       );
+      if (msg !== true && msg.photo) {
+        log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
+          user: ctx?.from?.id,
+        });
+        await db.weekImage.update({
+          where: { id: image.id },
+          data: { tgId: msg.photo[0].file_id },
+        });
+      } else {
+        log.debug(`Failed to save image tgId. msg: ${JSON.stringify(msg)}`, {
+          user: ctx?.from?.id,
+        });
+      }
     } catch {
       log.debug(`Error: unchanged. Ignoring`, { user: userId });
       await ctx.answerCallbackQuery("Ничего не изменилось");

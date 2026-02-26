@@ -47,7 +47,6 @@ export async function findGroupsOrTeachersInSsau(
     const { success, data, error } = s
       .array(ssauSearchResponseSchema)
       .safeParse(resp.data);
-    console.log(resp.data, data);
     if (!success) {
       log.warn(
         `Failed to parse search response for '${text}' in ssau.ru/rasp, ${error}`,

@@ -309,8 +309,6 @@ async function getTimetableWithImage(
   });
   const image = await generateTimetableImage(timetable, { stylemap });
 
-  //if (!opts?.dontCache) {}
-  console.log(typeof image, image.length, image);
   const createdImage = await db.weekImage.upsert({
     where: {
       stylemap_timetableHash: {
