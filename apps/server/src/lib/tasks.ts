@@ -8,14 +8,17 @@ import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
   DayString,
-  formatDbLesson,
+  formatTimetableDiff,
   generateTextLesson,
   scheduleMessage,
   UserPreferencesDefaults,
 } from "./misc";
-import type { Lesson, User } from "@/generated/prisma/client";
+import type { User } from "@/generated/prisma/client";
 import { lk } from "../ssau/lk";
-import { updateWeekForUser } from "@/ssau/lessons";
+import type {
+  TimetableDiff,
+  TimetableLesson,
+} from "@/schedule/types/timetable";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -47,7 +50,7 @@ export async function sendScheduledNotifications() {
   });
   if (messages.length === 0) return;
   log.info(`Sending ${messages.length} pending notifications`, {
-    user: "cron/notifications",
+    user: "notifications",
   });
   for (const msg of messages) {
     try {
@@ -69,7 +72,7 @@ export async function sendScheduledNotifications() {
     } catch (e) {
       log.error(
         `Failed to send message #${msg.id} to ${msg.chatId}. Err: ${e as Error}`,
-        { user: "cron/notifications" },
+        { user: "notifications" },
       );
     }
   }
@@ -79,7 +82,7 @@ export async function sendScheduledNotifications() {
     data: { wasSentAt: now },
   });
   log.debug(`Sent ${messages.length}.`, {
-    user: "cron/notifications",
+    user: "notifications",
   });
 }
 
@@ -113,7 +116,7 @@ export async function scheduleDailyNotificationsForAll() {
       });
       if (!user) {
         log.error(`Found orphaned week #${week.id}`, {
-          user: "cron/dailyWeekUpdate",
+          user: "dailyNotificationsForAll",
         });
         continue;
       }
@@ -124,7 +127,7 @@ export async function scheduleDailyNotificationsForAll() {
       log.error(
         `Failed to schedule messages for week #${week.id}: ${e as Error}`,
         {
-          user: "cron/dailyWeekUpdate",
+          user: "dailyNotificationsForAll",
         },
       );
     }
@@ -144,11 +147,11 @@ export async function dailyWeekUpdate() {
     where: { number: weekNumber, owner: { not: 0 }, year },
   });
   log.info(`Running week update for ${weeks.length} weeks`, {
-    user: "cron/dailyWeekUpdate",
+    user: "dailyWeekUpdate",
   });
 
-  const newLessons: Lesson[] = [];
-  const removedLessons: Lesson[] = [];
+  const newLessons: TimetableLesson[] = [];
+  const removedLessons: TimetableLesson[] = [];
 
   // TODO: Also check updates for common weeks
   // on todays weeknumber
@@ -165,10 +168,6 @@ export async function dailyWeekUpdate() {
         continue;
       }
 
-      // if (user.id !== 1) {
-      //   log.debug("Skipping nonadmin user", { user: "cron/dailyWeekUpdate" });
-      //   continue;
-      // }
       if (!user.authCookie) {
         log.debug(`Skipping unauthenticated user #${user.id}`, {
           user: "cron/dailyWeekUpdate",
@@ -178,43 +177,10 @@ export async function dailyWeekUpdate() {
 
       const isActive = user.lastActive > weekAgo;
       if (!isActive) {
-        // day before week ago. Basically check if it's the first time user is noticed as inactive
         log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
           user: "cron/dailyWeekUpdate",
         });
-        // if (user.lastActive > new Date(Date.now() - 604800_000 - 86400_000)) {
-        //   log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
-        //     user: "cron/dailyWeekUpdate",
-        //   });
-        //   await scheduleMessage(
-        //     user,
-        //     today,
-        //     `Приветствую!\nЗа последнюю неделю я не заметил никакой активности с вашей стороны. Если вы хотите продолжить получать уведомления / обновления календаря - просто запросите расписание снова.\nВ противном же случае просто ничего не делайте и я перестану вам докучать :)`,
-        //     { source: "dailyupd/inactive" },
-        //   );
-        // } else {
-        //   log.debug(
-        //     `Skipping inactive user: #${user.id}/${user.tgId.toString()}`,
-        //     {
-        //       user: "cron/dailyWeekUpdate",
-        //     },
-        //   );
-        // }
-        // continue;
       }
-
-      const nextWeekBeforeUpdates = await db.week.findUnique({
-        where: {
-          owner_groupId_year_number: {
-            owner: week.owner,
-            groupId: week.groupId,
-            year: week.year,
-            number: week.number + 1,
-          },
-        },
-      });
-      const nextWeekIsNew =
-        !nextWeekBeforeUpdates || nextWeekBeforeUpdates.updatedAt < weekAgo;
 
       try {
         const auth = await lk.ensureAuth(user);
@@ -258,28 +224,35 @@ export async function dailyWeekUpdate() {
       }
 
       // Update current and next weeks
-      const currentWeekChanges = await updateWeekForUser(user, week.number);
-      await schedule.getTimetableWithImage(user, week.number);
-
-      const nextWeekChanges = await updateWeekForUser(user, week.number + 1);
-      await schedule.getTimetableWithImage(user, week.number + 1);
+      const currentWeek = await schedule.getTimetableWithImage(
+        user,
+        week.number,
+        { forceUpdate: true },
+      );
+      const nextWeek = await schedule.getTimetableWithImage(
+        user,
+        week.number + 1,
+        { forceUpdate: true },
+      );
 
       await schedule.pregenerateImagesForUser(user, week.number, 8); // For now generously pregenerate whole 2 months
 
-      if (!currentWeekChanges || !nextWeekChanges) {
-        log.error(
-          `Failed to update week for user ${user.id} (${week.number}, ${week.number + 1})`,
-          { user: "cron/dailyWeekUpdate" },
-        );
-        continue;
-      } else {
-        // push these to outer scope arrays and later handle separately
-        newLessons.push(...currentWeekChanges.new);
-        removedLessons.push(...currentWeekChanges.removed);
-        if (nextWeekIsNew) {
-          newLessons.push(...nextWeekChanges.new);
-          removedLessons.push(...nextWeekChanges.removed);
-        }
+      const diff = {
+        added: [
+          ...(currentWeek.timetable.diff?.added ?? []),
+          ...(nextWeek.timetable.diff?.added ?? []),
+        ],
+        removed: [
+          ...(currentWeek.timetable.diff?.removed ?? []),
+          ...(nextWeek.timetable.diff?.removed ?? []),
+        ],
+      };
+
+      newLessons.push(...diff.added);
+      removedLessons.push(...diff.removed);
+
+      if (diff.added.length > 0 || diff.removed.length > 0) {
+        await scheduleLessonChangeNotifications(user, diff);
       }
 
       await scheduleDailyNotificationsForUser(user, week.number);
@@ -294,113 +267,37 @@ export async function dailyWeekUpdate() {
       );
     }
   }
-  //.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime())
-  const newLessonIds = newLessons
-    .map((l) => l.id)
-    .filter((v, i, a) => a.indexOf(v) === i);
-  const removedLessonIds = removedLessons
-    .map((l) => l.id)
-    .filter((v, i, a) => a.indexOf(v) === i);
+
   log.debug(
-    `Total week changes: +${newLessonIds.length}, -${removedLessonIds.length}`,
+    `Total week changes: +${newLessons.length}, -${removedLessons.length}`,
     {
       user: "cron/dailyWeekUpdate",
     },
   );
-  for (const userId of weeks.map((w) => w.owner)) {
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user?.groupId) continue;
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
-    const userNewLessons = await db.lesson.findMany({
-      where: {
-        id: { in: newLessonIds },
-        isIet: false,
-        groups: { some: { id: user.groupId } },
-        validUntil: { gte: now },
-      },
-    });
-    const userRemovedLessons = await db.lesson.findMany({
-      where: {
-        id: { in: removedLessonIds },
-        isIet: false,
-        groups: { some: { id: user.groupId } },
-        validUntil: { gte: now },
-      },
-    });
-    if (preferences.showIet) {
-      userNewLessons.push(
-        ...(await db.lesson.findMany({
-          where: {
-            id: { in: newLessonIds },
-            isIet: true,
-            flows: { some: { user: { some: { id: user.id } } } },
-            validUntil: { gte: now },
-          },
-        })),
-      );
-      userRemovedLessons.push(
-        ...(await db.lesson.findMany({
-          where: {
-            id: { in: removedLessonIds },
-            isIet: true,
-            flows: { some: { user: { some: { id: user.id } } } },
-            validUntil: { gte: now },
-          },
-        })),
-      );
-    }
-
-    await scheduleLessonChangeNotifications(
-      user,
-      userNewLessons,
-      userRemovedLessons,
-    );
-  }
 }
 
 async function scheduleLessonChangeNotifications(
   user: User,
-  added: Lesson[],
-  removed: Lesson[],
+  diff: TimetableDiff,
 ) {
   const today = new Date();
   if (today.getHours() <= 6) today.setHours(6);
-  if (added.length + removed.length === 0) {
+  if (diff.added.length + diff.removed.length === 0) {
     log.debug(`User ${user.id} has no schedule changes.`, {
-      user: "cron/dailyWeekUpdate",
+      user: "scheduleChangeNotifications",
     });
     return;
   }
-  added.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
-  removed.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
   log.debug(
-    `User ${user.id} has (+${added.length}, -${removed.length}) schedule changes.`,
+    `User ${user.id} has (+${diff.added.length}, -${diff.removed.length}) schedule changes.`,
     {
-      user: "cron/dailyWeekUpdate",
+      user: "scheduleChangeNotifications",
     },
   );
   await scheduleMessage(
     user,
     today,
-    `\
-Обнаружены изменения в расписании!
-` +
-      (added.length > 0
-        ? `
-Добавлены занятия:
-${added.map(formatDbLesson).join("\n")}
-`
-        : "") +
-      (removed.length > 0
-        ? `
-Удалены занятия:
-${removed.map(formatDbLesson).join("\n")}
-`
-        : ""),
+    `Обнаружены изменения в расписании!\n\n${formatTimetableDiff(diff, 8)}`,
     { source: "dailyupd/changes" },
   );
 }

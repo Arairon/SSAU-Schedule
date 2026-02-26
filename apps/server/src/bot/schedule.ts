@@ -7,7 +7,11 @@ import { formatBigInt } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
 import { schedule } from "@/schedule/requests";
-import { generateTextLesson, UserPreferencesDefaults } from "@/lib/misc";
+import {
+  formatTimetableDiff,
+  generateTextLesson,
+  UserPreferencesDefaults,
+} from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 import { lk } from "@/ssau/lk";
@@ -15,6 +19,18 @@ import type { User } from "@/generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
 import { getUserIcsByUserId } from "@/schedule/ics";
 import { findGroupOrOptions } from "@/ssau/search";
+
+type ScheduleUploadMode = "file" | "url";
+
+function getUploadModesOrder(): [ScheduleUploadMode, ScheduleUploadMode] {
+  return env.SCHED_BOT_IMAGE_UPLOAD_MODE === "url"
+    ? ["url", "file"]
+    : ["file", "url"];
+}
+
+function getScheduleImageUrl(timetableHash: string, stylemap: string) {
+  return `https://${env.SCHED_BOT_DOMAIN}/api/v0/schedule/image/${encodeURIComponent(timetableHash)}/${encodeURIComponent(stylemap)}`;
+}
 
 async function sendGroupTimetable(
   ctx: Context,
@@ -169,26 +185,63 @@ async function sendTimetable(
       .row();
   }
 
-  if (!image.tgId) {
-    updateTempMsg(
-      "Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)",
-    );
-    // TODO: Remove "blame on RKN" when the image uploading is no longer fucked
-    log.debug("Image has no tgId, will upload new", { user: ctx?.from?.id });
-  }
-  const msg = await ctx.replyWithPhoto(
-    image.tgId ?? new InputFile(image.data),
-    {
-      caption:
-        `Расписание на ${timetable.week} неделю` +
-        (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
-        (group ? `\nДля группы ${group.name}` : "") +
-        (!isAuthed
-          ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
-          : ""),
+  const caption =
+    `Расписание на ${timetable.week} неделю` +
+    (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
+    (group ? `\nДля группы ${group.name}` : "") +
+    (!isAuthed
+      ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
+      : "") +
+    (timetable.diff
+      ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
+      : "");
+
+  const sendPhoto = (media: string | InputFile) =>
+    ctx.replyWithPhoto(media, {
+      caption,
       reply_markup: buttonsMarkup,
-    },
-  );
+    });
+
+  let msg: Awaited<ReturnType<typeof ctx.replyWithPhoto>>;
+  if (image.tgId) {
+    msg = await sendPhoto(image.tgId);
+  } else {
+    log.debug("Image has no tgId, will upload new", { user: ctx?.from?.id });
+    const imageUrl = getScheduleImageUrl(image.timetableHash, image.stylemap);
+    const [preferredMode, fallbackMode] = getUploadModesOrder();
+
+    try {
+      // TODO: Remove "blame on RKN" when the image uploading is no longer fucked
+      updateTempMsg(
+        `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+      );
+      msg = await sendPhoto(
+        preferredMode === "url"
+          ? new InputFile({ url: imageUrl })
+          : new InputFile(image.data),
+      );
+      log.debug(`Image uploaded using ${preferredMode} mode`, {
+        user: ctx?.from?.id,
+      });
+    } catch (error) {
+      log.warn(
+        `Failed to upload image using ${preferredMode} mode: ${String(error)}`,
+        { user: ctx?.from?.id },
+      );
+      updateTempMsg(
+        `Произошла ошибка при отправке. Пробуем другим способом...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+      );
+      msg = await sendPhoto(
+        fallbackMode === "url"
+          ? new InputFile({ url: imageUrl })
+          : new InputFile(image.data),
+      );
+      log.debug(`Image uploaded using ${fallbackMode} mode`, {
+        user: ctx?.from?.id,
+      });
+    }
+  }
+
   if (!image.tgId) {
     log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
       user: ctx?.from?.id,
@@ -426,14 +479,6 @@ export async function updateTimetable(
     }
     const { timetable, image } = data;
 
-    if (!image.tgId) {
-      updateTempMsg(
-        "Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)",
-      );
-      // TODO: Remove "blame on RKN" when the image uploading is no longer fucked
-      log.debug("Image has no tgId, will upload new", { user: userId });
-    }
-
     const buttonsMarkup = new InlineKeyboard()
       .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
       .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.week}`)
@@ -456,36 +501,84 @@ export async function updateTimetable(
     }
 
     try {
-      const msg = await ctx.api.editMessageMedia(
-        chat.id,
-        msgId,
-        {
-          type: "photo",
-          media: image.tgId ?? new InputFile(image.data),
-          caption:
-            `Расписание на ${timetable.week} неделю` +
-            (timetable.week === getWeekFromDate(new Date())
-              ? " (текущая)"
-              : "") +
-            (group ? `\nДля группы ${group.name}` : "") +
-            (!isAuthed
-              ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
-              : ""),
-        },
-        { reply_markup: buttonsMarkup },
-      );
-      if (msg !== true && msg.photo) {
-        log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
-          user: ctx?.from?.id,
-        });
-        await db.weekImage.update({
-          where: { id: image.id },
-          data: { tgId: msg.photo[0].file_id },
-        });
+      const caption =
+        `Расписание на ${timetable.week} неделю` +
+        (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
+        (group ? `\nДля группы ${group.name}` : "") +
+        (!isAuthed
+          ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
+          : "") +
+        (timetable.diff
+          ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
+          : "");
+
+      const editPhoto = (media: string | InputFile) =>
+        ctx.api.editMessageMedia(
+          chat.id,
+          msgId,
+          {
+            type: "photo",
+            media,
+            caption,
+          },
+          { reply_markup: buttonsMarkup },
+        );
+
+      let msg: Awaited<ReturnType<typeof ctx.api.editMessageMedia>>;
+      if (image.tgId) {
+        msg = await editPhoto(image.tgId);
       } else {
-        log.debug(`Failed to save image tgId. msg: ${JSON.stringify(msg)}`, {
-          user: ctx?.from?.id,
-        });
+        log.debug("Image has no tgId, will upload new", { user: userId });
+        const imageUrl = getScheduleImageUrl(
+          image.timetableHash,
+          image.stylemap,
+        );
+        const [preferredMode, fallbackMode] = getUploadModesOrder();
+
+        try {
+          updateTempMsg(
+            `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+          );
+          msg = await editPhoto(
+            preferredMode === "url"
+              ? new InputFile({ url: imageUrl })
+              : new InputFile(image.data),
+          );
+          log.debug(`Image uploaded using ${preferredMode} mode`, {
+            user: userId,
+          });
+        } catch (error) {
+          log.warn(
+            `Failed to upload image using ${preferredMode} mode: ${String(error)}`,
+            { user: userId },
+          );
+          updateTempMsg(
+            `Произошла ошибка при отправке. Пробуем другим способом...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+          );
+          msg = await editPhoto(
+            fallbackMode === "url"
+              ? new InputFile({ url: imageUrl })
+              : new InputFile(image.data),
+          );
+          log.debug(`Image uploaded using fallback ${fallbackMode} mode`, {
+            user: userId,
+          });
+        }
+      }
+      if (!image.tgId) {
+        if (msg !== true && msg.photo) {
+          log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
+            user: ctx?.from?.id,
+          });
+          await db.weekImage.update({
+            where: { id: image.id },
+            data: { tgId: msg.photo[0].file_id },
+          });
+        } else {
+          log.debug(`Failed to save image tgId. msg: ${JSON.stringify(msg)}`, {
+            user: ctx?.from?.id,
+          });
+        }
       }
     } catch {
       log.debug(`Error: unchanged. Ignoring`, { user: userId });
