@@ -7,7 +7,11 @@ import { formatBigInt } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
 import { schedule } from "@/schedule/requests";
-import { generateTextLesson, UserPreferencesDefaults } from "@/lib/misc";
+import {
+  formatTimetableDiff,
+  generateTextLesson,
+  UserPreferencesDefaults,
+} from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
 import { lk } from "@/ssau/lk";
@@ -187,7 +191,8 @@ async function sendTimetable(
     (group ? `\nДля группы ${group.name}` : "") +
     (!isAuthed
       ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
-      : "");
+      : "") +
+    (timetable.diff ? `\n${formatTimetableDiff(timetable.diff, 3)}` : "");
 
   const sendPhoto = (media: string | InputFile) =>
     ctx.replyWithPhoto(media, {
@@ -500,7 +505,8 @@ export async function updateTimetable(
         (group ? `\nДля группы ${group.name}` : "") +
         (!isAuthed
           ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
-          : "");
+          : "") +
+        (timetable.diff ? `\n${formatTimetableDiff(timetable.diff, 3)}` : "");
 
       const editPhoto = (media: string | InputFile) =>
         ctx.api.editMessageMedia(

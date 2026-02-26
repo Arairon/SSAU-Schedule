@@ -8,7 +8,7 @@ import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
   DayString,
-  formatDbLesson,
+  formatLesson,
   generateTextLesson,
   scheduleMessage,
   UserPreferencesDefaults,
@@ -392,13 +392,13 @@ async function scheduleLessonChangeNotifications(
       (added.length > 0
         ? `
 Добавлены занятия:
-${added.map(formatDbLesson).join("\n")}
+${added.map(formatLesson).join("\n")}
 `
         : "") +
       (removed.length > 0
         ? `
 Удалены занятия:
-${removed.map(formatDbLesson).join("\n")}
+${removed.map(formatLesson).join("\n")}
 `
         : ""),
     { source: "dailyupd/changes" },

@@ -5,10 +5,14 @@ import { updateWeekForUser } from "@/ssau/lessons";
 import { lk } from "@/ssau/lk";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
-import { generateTimetable, getTimetableHash } from "./timetable";
+import {
+  generateTimetable,
+  getTimetableHash,
+  getTimetablesDiff,
+} from "./timetable";
 import { UserPreferencesDefaults, type RequestStateUpdate } from "@/lib/misc";
 import { db } from "@/db";
-import type { Timetable } from "./types/timetable";
+import type { Timetable, TimetableDiff } from "./types/timetable";
 import { generateTimetableImage } from "./image";
 
 type TimetableWeekLike = {
@@ -114,7 +118,7 @@ export async function getTimetable(
       update: RequestStateUpdate<"updatingWeek" | "generatingTimetable">,
     ) => void;
   },
-) {
+): Promise<Timetable & { diff?: TimetableDiff }> {
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
   const year = (opts?.year ?? 0) || getCurrentYearId();
@@ -162,12 +166,20 @@ export async function getTimetable(
     message: "Generating timetable",
   });
 
-  return generateTimetable(user, week.number, {
+  const timetable = await generateTimetable(user, week.number, {
     groupId: opts?.groupId,
     year: opts?.year,
     ignoreIet: opts?.ignoreIet,
     ignoreSubroup: opts?.ignoreSubroup,
   });
+
+  return {
+    ...timetable,
+    diff:
+      week.timetable && week.timetableHash !== timetable.hash
+        ? getTimetablesDiff(week.timetable, timetable)
+        : undefined,
+  };
 }
 
 async function getTimetableWithImage(
@@ -190,7 +202,7 @@ async function getTimetableWithImage(
     ) => void;
   },
 ): Promise<{
-  timetable: Timetable;
+  timetable: Timetable & { diff?: TimetableDiff };
   image: Omit<WeekImage, "data"> & { data: Buffer };
 }> {
   const year = (opts?.year ?? 0) || getCurrentYearId();
@@ -356,7 +368,13 @@ async function getTimetableWithImage(
   });
 
   return {
-    timetable,
+    timetable: {
+      ...timetable,
+      diff:
+        week.timetable && week.timetableHash !== timetable.hash
+          ? getTimetablesDiff(week.timetable, timetable)
+          : undefined,
+    },
     image: Object.assign(createdImage, { data: image }),
   };
 }

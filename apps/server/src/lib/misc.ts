@@ -7,7 +7,10 @@ import {
   getPersonShortname,
 } from "@ssau-schedule/shared/utils";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
-import { type TimetableLesson } from "@/schedule/types/timetable";
+import type {
+  TimetableDiff,
+  TimetableLesson,
+} from "@/schedule/types/timetable";
 
 export type UserPreferences = {
   theme: string;
@@ -159,9 +162,9 @@ ${subgroupStr}`
   ].join("\n+\n");
 }
 
-export function formatDbLesson(lesson: Lesson) {
+export function formatLesson(lesson: Lesson | TimetableLesson) {
   const date = formatSentence(
-    lesson.date.toLocaleDateString("ru-RU", {
+    lesson.beginTime.toLocaleDateString("ru-RU", {
       weekday: "long",
       day: "2-digit",
       month: "2-digit",
@@ -181,6 +184,36 @@ export function formatDbLesson(lesson: Lesson) {
   return `\
 ${date} / ${startTime} - ${endTime}
 ${LessonTypeIcon[lesson.type]} ${lesson.discipline} (${place}) ${lesson.isIet ? "[ИОТ]" : ""}`;
+}
+
+export function formatTimetableDiff(diff: TimetableDiff, limit = 0): string {
+  const { added, removed } = diff;
+  if (added.length === 0 && removed.length === 0) {
+    return "";
+  }
+  const parts: string[] = ["Обнаружены изменения в расписании!"];
+
+  if (added.length > 0) {
+    parts.push(`\nДобавлены занятия:`);
+    for (const lesson of added.slice(0, limit || undefined)) {
+      parts.push(formatLesson(lesson));
+    }
+    if (limit > 0 && added.length > limit) {
+      parts.push(`\n...и ещё ${added.length - limit} занятий`);
+    }
+  }
+
+  if (removed.length > 0) {
+    parts.push(`\nУдалены занятия:`);
+    for (const lesson of removed.slice(0, limit || undefined)) {
+      parts.push(formatLesson(lesson));
+    }
+    if (limit > 0 && removed.length > limit) {
+      parts.push(`\n...и ещё ${removed.length - limit} занятий`);
+    }
+  }
+
+  return parts.join("\n");
 }
 
 export type RequestStateUpdate<T extends string> = {

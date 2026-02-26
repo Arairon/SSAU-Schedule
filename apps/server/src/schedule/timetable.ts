@@ -12,6 +12,7 @@ import log from "@/logger";
 import type {
   Timetable,
   TimetableDay,
+  TimetableDiff,
   TimetableLesson,
 } from "@/schedule/types/timetable";
 import { getWeek, getWeekLessons } from "@/lib/week";
@@ -68,6 +69,7 @@ export async function generateTimetable(
     groupId: week.groupId,
     year: year,
     week: weekNumber,
+    hash: "", // Will be set later, after generating the timetable
     //withIet: (opts?.ignoreIet ?? false) || weekIsCommon,
     //isCommon: weekIsCommon,
     days: [],
@@ -226,13 +228,14 @@ export async function generateTimetable(
     }
   }
 
+  timetable.hash = getTimetableHash(timetable);
+
   if (!opts?.dontCache) {
-    const timetableHash = getTimetableHash(timetable);
     await db.week.update({
       where: { id: week.id },
       data: {
         timetable,
-        timetableHash,
+        timetableHash: timetable.hash,
         cachedUntil: new Date(Date.now() + 3600_000), // 1 hour
         // No longer invalidating images if they've been generated using the same timetable. Checked by hash. Instead update them
         // images: {
@@ -244,7 +247,7 @@ export async function generateTimetable(
       },
     });
     await db.weekImage.updateMany({
-      where: { timetableHash },
+      where: { timetableHash: timetable.hash },
       data: { validUntil: new Date(Date.now() + 4 * 604800_000) }, // 4 weeks
     });
   }
@@ -261,4 +264,82 @@ export function getTimetableHash(timetable: Timetable) {
   return md5(
     JSON.stringify(timetable.days.map((d) => d.lessons.filter((l) => l))),
   );
+}
+
+export function flattenLesson(lesson: TimetableLesson): TimetableLesson[] {
+  return [lesson, ...lesson.alts.flatMap(flattenLesson)];
+}
+
+export function flattenTimetable(timetable: Timetable): TimetableLesson[] {
+  return timetable.days.flatMap((day) =>
+    day.lessons.flatMap((lesson) => flattenLesson(lesson)),
+  );
+}
+
+export function getTimetablesDiff(
+  oldTimetable: Timetable,
+  newTimetable: Timetable,
+): TimetableDiff {
+  const added: TimetableLesson[] = [];
+  const removed: TimetableLesson[] = [];
+
+  const getLessonKey = (lesson: TimetableLesson) =>
+    JSON.stringify({
+      id: lesson.id,
+      infoId: lesson.infoId,
+      type: lesson.type,
+      discipline: lesson.discipline,
+      teacherName: lesson.teacher.name,
+      teacherId: lesson.teacher.id,
+      isOnline: lesson.isOnline,
+      isIet: lesson.isIet,
+      building: lesson.building,
+      room: lesson.room,
+      subgroup: lesson.subgroup,
+      groups: [...lesson.groups].sort(),
+      flows: [...lesson.flows].sort(),
+      dayTimeSlot: lesson.dayTimeSlot,
+      beginTime: new Date(lesson.beginTime).getTime(),
+      endTime: new Date(lesson.endTime).getTime(),
+      conferenceUrl: lesson.conferenceUrl,
+      customized: lesson.customized
+        ? {
+            hidden: lesson.customized.hidden,
+            disabled: lesson.customized.disabled,
+            comment: lesson.customized.comment,
+            customizedBy: lesson.customized.customizedBy,
+          }
+        : null,
+    });
+
+  const oldByKey = new Map<string, TimetableLesson>();
+  const newByKey = new Map<string, TimetableLesson>();
+
+  for (const lesson of flattenTimetable(oldTimetable)) {
+    const key = getLessonKey(lesson);
+    oldByKey.set(key, lesson);
+  }
+
+  for (const lesson of flattenTimetable(newTimetable)) {
+    const key = getLessonKey(lesson);
+    newByKey.set(key, lesson);
+  }
+
+  const keys = new Set([...oldByKey.keys(), ...newByKey.keys()]);
+  for (const key of keys) {
+    const oldLesson = oldByKey.get(key);
+    const newLesson = newByKey.get(key);
+
+    if (!oldLesson && newLesson) {
+      added.push(newLesson);
+    }
+    if (oldLesson && !newLesson) {
+      removed.push(oldLesson);
+    }
+  }
+
+  return {
+    added,
+    removed,
+  };
 }

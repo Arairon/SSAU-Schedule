@@ -46,7 +46,7 @@ export type Timetable = {
   groupId: number;
   year: number;
   week: number;
-  // hash: string; // TODO: generate from lessons
+  hash: string;
   //withIet: boolean;
   //isCommon: boolean;
   days: TimetableDay[]; // Should always have length of 6
@@ -68,8 +68,13 @@ export type TimetableWithWindows = {
   groupId: number;
   year: number;
   week: number;
-  // hash: string; // TODO: generate from lessons
+  hash: string;
   //withIet: boolean;
   //isCommon: boolean;
   days: TimetableDayWithWindows[]; // Should always have length of 6
+};
+
+export type TimetableDiff = {
+  added: TimetableLesson[];
+  removed: TimetableLesson[];
 };
