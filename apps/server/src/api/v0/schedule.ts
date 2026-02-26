@@ -49,4 +49,40 @@ export async function routesSchedule(fastify: FastifyInstance) {
         .send(timetable);
     },
   );
+
+  fastify.get(
+    "/image/:hash/:stylemap",
+    {
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            hash: { type: "string" },
+            stylemap: { type: "string" }
+          }
+        }
+      },
+    },
+    async (
+      req: FastifyRequest<{
+        Params: { hash: string; stylemap: string };
+      }>,
+      res,
+    ) => {
+
+      const image = await db.weekImage.findUnique({
+        where: {
+          stylemap_timetableHash: { stylemap: req.params.stylemap, timetableHash: req.params.hash },
+          validUntil: { gt: new Date() },
+        },
+      });
+      if (!image) {
+        return res.status(404).send()
+      }
+      return res
+        .status(200)
+        .headers({ "content-type": "image/png" })
+        .send(Buffer.from(image.data, "base64"));
+    },
+  );
 }
