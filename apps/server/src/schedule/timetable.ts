@@ -259,6 +259,6 @@ export async function generateTimetable(
 
 export function getTimetableHash(timetable: Timetable) {
   return md5(
-    JSON.stringify(Object.assign({}, timetable, { weekId: undefined })),
+    JSON.stringify(timetable.days.map((d) => d.lessons.filter((l) => l))),
   );
 }

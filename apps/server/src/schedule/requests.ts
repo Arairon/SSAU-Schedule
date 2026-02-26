@@ -11,6 +11,93 @@ import { db } from "@/db";
 import type { Timetable } from "./types/timetable";
 import { generateTimetableImage } from "./image";
 
+type TimetableWeekLike = {
+  timetable: Timetable | null;
+  cachedUntil: Date;
+};
+
+type UpdatableWeekLike = {
+  updatedAt: Date;
+};
+
+function hydrateTimetableDates(timetable: Timetable): Timetable {
+  timetable.days.forEach((day) => {
+    day.beginTime = new Date(day.beginTime);
+    day.endTime = new Date(day.endTime);
+    day.lessons.forEach((lesson) => {
+      lesson.beginTime = new Date(lesson.beginTime);
+      lesson.endTime = new Date(lesson.endTime);
+    });
+  });
+  return timetable;
+}
+
+function getCachedTimetable(
+  week: TimetableWeekLike,
+  userId: number,
+): Timetable | null {
+  const now = new Date();
+  if (!week.timetable) return null;
+
+  if (week.cachedUntil > now) {
+    log.debug("Timetable good enough. Returning cached", { user: userId });
+    return hydrateTimetableDates(week.timetable);
+  }
+
+  log.debug("Cached timetable expired. Will generate a new one", {
+    user: userId,
+  });
+  return null;
+}
+
+async function updateWeekIfNeeded(
+  user: User,
+  week: UpdatableWeekLike,
+  weekNumber: number,
+  year: number,
+  groupId: number,
+  opts: {
+    ignoreUpdate?: boolean;
+    forceUpdate?: boolean;
+  },
+  updateState: (update: RequestStateUpdate<"updatingWeek">) => void,
+) {
+  if (opts.ignoreUpdate) {
+    log.debug(
+      `Ignoring updates and generating purely based on current db info`,
+      {
+        user: user.id,
+      },
+    );
+    return;
+  }
+
+  if (opts.forceUpdate) {
+    log.debug("Requested forceUpdate. Updating week", { user: user.id });
+    updateState({
+      state: "updatingWeek",
+      message: "Updating week from SSAU",
+    });
+    await updateWeekForUser(user, weekNumber, { year, groupId });
+    return;
+  }
+
+  if (Date.now() - week.updatedAt.getTime() > 86400_000) {
+    // 1 day
+    log.debug("Week updatedAt too old. Updating week", { user: user.id });
+    updateState({
+      state: "updatingWeek",
+      message: "Updating week from SSAU",
+    });
+    await updateWeekForUser(user, weekNumber, { year, groupId });
+    return;
+  }
+
+  log.debug("Week updatedAt looks good. Not updating from ssau", {
+    user: user.id,
+  });
+}
+
 export async function getTimetable(
   user: User,
   weekN: number,
@@ -53,57 +140,28 @@ export async function getTimetable(
 
   // TODO: Review which opts cannot be cached (or cache them separately) instead of ignoring cache entirely.
 
-  if (!opts?.ignoreCached && week.timetable) {
-    if (week.cachedUntil > now) {
-      log.debug("Timetable good enough. Returning cached", { user: user.id });
-      week.timetable.days.map((day) => {
-        day.beginTime = new Date(day.beginTime);
-        day.endTime = new Date(day.endTime);
-        day.lessons.map((lesson) => {
-          lesson.beginTime = new Date(lesson.beginTime);
-          lesson.endTime = new Date(lesson.endTime);
-        });
-      });
-      return week.timetable;
-    } else {
-      log.debug("Cached timetable expired. Will generate a new one", {
-        user: user.id,
-      });
+  if (!opts?.ignoreCached) {
+    const cachedTimetable = getCachedTimetable(week, user.id);
+    if (cachedTimetable) {
+      return cachedTimetable;
     }
   }
 
-  if (!opts?.ignoreUpdate) {
-    if (opts?.forceUpdate) {
-      log.debug("Requested forceUpdate. Updating week", { user: user.id });
-      updateState({
-        state: "updatingWeek",
-        message: "Updating week from SSAU",
-      });
-      await updateWeekForUser(user, weekNumber, { year, groupId });
-    } else if (Date.now() - week.updatedAt.getTime() > 86400_000) {
-      // 1 day
-      log.debug("Week updatedAt too old. Updating week", { user: user.id });
-      updateState({
-        state: "updatingWeek",
-        message: "Updating week from SSAU",
-      });
-      await updateWeekForUser(user, weekNumber, { year, groupId });
-    } else {
-      log.debug("Week updatedAt looks good. Not updating from ssau", {
-        user: user.id,
-      });
-    }
-  } else {
-    log.debug(
-      `Ignoring updates and generating purely based on current db info`,
-      { user: user.id },
-    );
-  }
+  await updateWeekIfNeeded(
+    user,
+    week,
+    weekNumber,
+    year,
+    groupId,
+    opts ?? {},
+    updateState,
+  );
 
   updateState({
     state: "generatingTimetable",
     message: "Generating timetable",
   });
+
   return generateTimetable(user, week.number, {
     groupId: opts?.groupId,
     year: opts?.year,
@@ -135,7 +193,6 @@ async function getTimetableWithImage(
   timetable: Timetable;
   image: Omit<WeekImage, "data"> & { data: Buffer };
 }> {
-  const now = new Date();
   const year = (opts?.year ?? 0) || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
   const preferences = Object.assign(
@@ -174,84 +231,54 @@ async function getTimetableWithImage(
     { user: user.id },
   );
 
-  if (
-    !opts?.ignoreCached &&
-    week.timetable &&
-    week.timetableHash &&
-    week.cachedUntil > now
-  ) {
-    const existingImage = await db.weekImage.findUnique({
-      where: {
-        stylemap_timetableHash: { stylemap, timetableHash: week.timetableHash },
-        validUntil: { gt: now },
-      },
-    });
-    if (existingImage) {
-      log.debug("Timetable Image good enough. Returning cached", {
-        user: user.id,
-      });
-      const { data: imageData, ...otherData } = existingImage;
-      return {
-        timetable: week.timetable,
-        image: { ...otherData, data: Buffer.from(imageData, "base64") },
-      };
-    } else {
-      log.debug("Image not found, but timetable is good", {
-        user: user.id,
-      });
-    }
-  }
+  // if (
+  //   !opts?.ignoreCached &&
+  //   week.timetable &&
+  //   week.timetableHash &&
+  //   week.cachedUntil > now
+  // ) {
+  //   const existingImage = await db.weekImage.findUnique({
+  //     where: {
+  //       stylemap_timetableHash: { stylemap, timetableHash: week.timetableHash },
+  //       validUntil: { gt: now },
+  //     },
+  //   });
+  //   if (existingImage) {
+  //     log.debug("Timetable Image good enough. Returning cached", {
+  //       user: user.id,
+  //     });
+  //     const { data: imageData, ...otherData } = existingImage;
+  //     return {
+  //       timetable: week.timetable,
+  //       image: { ...otherData, data: Buffer.from(imageData, "base64") },
+  //     };
+  //   } else {
+  //     log.debug("Image not found, but timetable is good", {
+  //       user: user.id,
+  //     });
+  //   }
+  // }
 
   let timetable: Timetable | null = null;
   let usingCachedTimetable = false;
 
-  if (!opts?.ignoreCached && week.timetable) {
-    if (week.cachedUntil > now) {
-      log.debug("Timetable good enough. Returning cached", { user: user.id });
-      week.timetable.days.map((day) => {
-        day.beginTime = new Date(day.beginTime);
-        day.endTime = new Date(day.endTime);
-        day.lessons.map((lesson) => {
-          lesson.beginTime = new Date(lesson.beginTime);
-          lesson.endTime = new Date(lesson.endTime);
-        });
-      });
-      timetable = week.timetable;
+  if (!opts?.ignoreCached) {
+    const cachedTimetable = getCachedTimetable(week, user.id);
+    if (cachedTimetable) {
+      timetable = cachedTimetable;
       usingCachedTimetable = true;
-    } else {
-      log.debug("Cached timetable expired. Will generate a new one", {
-        user: user.id,
-      });
     }
   }
 
-  if (!opts?.ignoreUpdate) {
-    if (opts?.forceUpdate) {
-      log.debug("Requested forceUpdate. Updating week", { user: user.id });
-      updateState({
-        state: "updatingWeek",
-        message: "Updating week from SSAU",
-      });
-      await updateWeekForUser(user, week.number, { year, groupId });
-    } else if (Date.now() - week.updatedAt.getTime() > 86400_000) {
-      // 1 day
-      log.debug("Week updatedAt too old. Updating week", { user: user.id });
-      updateState({
-        state: "updatingWeek",
-        message: "Updating week from SSAU",
-      });
-      await updateWeekForUser(user, week.number, { year, groupId });
-    } else {
-      log.debug("Week updatedAt looks good. Not updating from ssau", {
-        user: user.id,
-      });
-    }
-  } else {
-    log.debug(
-      `Ignoring updates and generating purely based on current db info`,
-      { user: user.id },
-    );
-  }
+  await updateWeekIfNeeded(
+    user,
+    week,
+    week.number,
+    year,
+    groupId,
+    opts ?? {},
+    updateState,
+  );
 
   if (!timetable) {
     updateState({
