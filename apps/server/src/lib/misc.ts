@@ -191,10 +191,13 @@ export function formatTimetableDiff(diff: TimetableDiff, limit = 0): string {
   if (added.length === 0 && removed.length === 0) {
     return "";
   }
-  const parts: string[] = ["Обнаружены изменения в расписании!"];
+  const parts: string[] = [];
+
+  added.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
+  removed.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
 
   if (added.length > 0) {
-    parts.push(`\nДобавлены занятия:`);
+    parts.push(`Добавлены занятия:`);
     for (const lesson of added.slice(0, limit || undefined)) {
       parts.push(formatLesson(lesson));
     }

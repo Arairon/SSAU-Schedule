@@ -192,7 +192,9 @@ async function sendTimetable(
     (!isAuthed
       ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
       : "") +
-    (timetable.diff ? `\n${formatTimetableDiff(timetable.diff, 3)}` : "");
+    (timetable.diff
+      ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
+      : "");
 
   const sendPhoto = (media: string | InputFile) =>
     ctx.replyWithPhoto(media, {
@@ -506,7 +508,9 @@ export async function updateTimetable(
         (!isAuthed
           ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
           : "") +
-        (timetable.diff ? `\n${formatTimetableDiff(timetable.diff, 3)}` : "");
+        (timetable.diff
+          ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
+          : "");
 
       const editPhoto = (media: string | InputFile) =>
         ctx.api.editMessageMedia(

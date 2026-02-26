@@ -243,34 +243,6 @@ async function getTimetableWithImage(
     { user: user.id },
   );
 
-  // if (
-  //   !opts?.ignoreCached &&
-  //   week.timetable &&
-  //   week.timetableHash &&
-  //   week.cachedUntil > now
-  // ) {
-  //   const existingImage = await db.weekImage.findUnique({
-  //     where: {
-  //       stylemap_timetableHash: { stylemap, timetableHash: week.timetableHash },
-  //       validUntil: { gt: now },
-  //     },
-  //   });
-  //   if (existingImage) {
-  //     log.debug("Timetable Image good enough. Returning cached", {
-  //       user: user.id,
-  //     });
-  //     const { data: imageData, ...otherData } = existingImage;
-  //     return {
-  //       timetable: week.timetable,
-  //       image: { ...otherData, data: Buffer.from(imageData, "base64") },
-  //     };
-  //   } else {
-  //     log.debug("Image not found, but timetable is good", {
-  //       user: user.id,
-  //     });
-  //   }
-  // }
-
   let timetable: Timetable | null = null;
   let usingCachedTimetable = false;
 
