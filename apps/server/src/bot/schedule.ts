@@ -474,18 +474,20 @@ export async function updateTimetable(
         },
         { reply_markup: buttonsMarkup },
       );
-      if (msg !== true && msg.photo) {
-        log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
-          user: ctx?.from?.id,
-        });
-        await db.weekImage.update({
-          where: { id: image.id },
-          data: { tgId: msg.photo[0].file_id },
-        });
-      } else {
-        log.debug(`Failed to save image tgId. msg: ${JSON.stringify(msg)}`, {
-          user: ctx?.from?.id,
-        });
+      if (!image.tgId) {
+        if (msg !== true && msg.photo) {
+          log.debug(`Image had no tgId, uploaded new ${msg.photo[0].file_id}`, {
+            user: ctx?.from?.id,
+          });
+          await db.weekImage.update({
+            where: { id: image.id },
+            data: { tgId: msg.photo[0].file_id },
+          });
+        } else {
+          log.debug(`Failed to save image tgId. msg: ${JSON.stringify(msg)}`, {
+            user: ctx?.from?.id,
+          });
+        }
       }
     } catch {
       log.debug(`Error: unchanged. Ignoring`, { user: userId });
