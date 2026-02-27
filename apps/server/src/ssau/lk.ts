@@ -118,6 +118,72 @@ async function getTokenUsingCredentials(
   username: string,
   password: string,
 ): Promise<ReturnObj<string>> {
+  const form = new FormData();
+  form.append("1_returnUrl", "");
+  form.append("1_login", username);
+  form.append("1_password", password);
+  form.append("0", '[{"error":""},"$K1"]');
+
+  const resp = await axios.post("https://lk.ssau.ru/account/login", form, {
+    headers: {
+      Host: "lk.ssau.ru",
+      Accept: "text/x-component",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br, zstd",
+      "Next-Action": "44356a41b38ba4bc7eb4b2a1a18092edced4d6d4",
+      "Next-Router-State-Tree":
+        "%5B%22%22%2C%7B%22children%22%3A%5B%22account%22%2C%7B%22children%22%3A%5B%22login%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fapi%2Faccount%2Flogout%22%2C%22refresh%22%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
+      Origin: "https://lk.ssau.ru",
+      "Sec-GPC": "1",
+      Connection: "keep-alive",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
+      Priority: "u=0",
+      Pragma: "no-cache",
+      "Cache-Control": "no-cache",
+      TE: "trailers",
+      "Content-Type": "multipart/form-data",
+    },
+    withCredentials: true,
+    maxRedirects: 0,
+    validateStatus: () => true,
+  });
+  if (resp.status === 200) {
+    // OK is invalid username/password. Yes. This makes a LOT of sense
+    return {
+      ok: false,
+      error: "refused",
+      message: "Invalid username or password",
+    };
+  }
+  if (resp.status === 303) {
+    // Successful login
+    if (!resp.headers["set-cookie"]?.length)
+      return {
+        ok: false,
+        error: "no cookie",
+        message: "Unable to get auth token from cookies",
+      };
+    const cookie = resp.headers["set-cookie"].find((cookie) =>
+      cookie.includes("auth="),
+    );
+    if (!cookie)
+      return {
+        ok: false,
+        error: "no cookie",
+        message: "Unable to get auth token from cookies",
+      };
+    return { ok: true, data: cookie };
+  }
+  return { ok: false, error: "failed", message: "Unable to complete request" };
+}
+/*
+// Archived. Old auth
+async function getTokenUsingCredentials(
+  username: string,
+  password: string,
+): Promise<ReturnObj<string>> {
   const resp = await axios.post(
     "https://lk.ssau.ru/account/login",
     [{ login: username, password }, ["/"]],
@@ -156,6 +222,7 @@ async function getTokenUsingCredentials(
   }
   return { ok: false, error: "failed", message: "Unable to complete request" };
 }
+*/
 
 async function relog(user: User) {
   log.debug("Relogging...", { user: user.id });

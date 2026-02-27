@@ -88,17 +88,19 @@ async function loginConversation(
     lk.login(user, { username, password }),
   );
   while (!loginRes.ok) {
-    await ctx.api.editMessageText(
-      msg.chat.id,
-      msg.message_id,
-      `
+    await ctx.api
+      .editMessageText(
+        msg.chat.id,
+        msg.message_id,
+        `
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
 Ошибка входа: "${loginRes.error}: ${loginRes.message!}"
 Можете попробовать ввести пароль ещё раз или отменить вход через /cancel
     `,
-    );
+      )
+      .catch(); // Ignore "message is not modified" error
     const passwordMsg = await conversation.waitFor("message:text");
     if (!passwordMsg.message.text || passwordMsg.message.text === "/cancel")
       return ctx.api.editMessageText(
@@ -117,10 +119,11 @@ async function loginConversation(
   }
   if (loginRes.ok) {
     await lk.updateUserInfo(user);
-    await ctx.api.editMessageText(
-      msg.chat.id,
-      msg.message_id,
-      `
+    await ctx.api
+      .editMessageText(
+        msg.chat.id,
+        msg.message_id,
+        `
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
@@ -128,12 +131,13 @@ async function loginConversation(
 Сохранить данные для входа в базе данных?
 (Данные хранятся в зашифрованном виде и используются только если ЛК по той или иной причине прервёт сессию. Сохранять данные необязательно)
     `,
-      {
-        reply_markup: new InlineKeyboard()
-          .text("❌ Нет", "login_complete_dontsave")
-          .text("✅ Да", "login_complete_save"),
-      },
-    );
+        {
+          reply_markup: new InlineKeyboard()
+            .text("❌ Нет", "login_complete_dontsave")
+            .text("✅ Да", "login_complete_save"),
+        },
+      )
+      .catch(); // Ignore "message is not modified" error
     const saveAnswer = await conversation.waitForCallbackQuery(
       /login_complete_save/,
       {

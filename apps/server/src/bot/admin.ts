@@ -164,9 +164,10 @@ export async function initAdmin(bot: Bot<Context>) {
   });
 
   commands.command(
-    "broadcastTest",
+    "broadcasttest",
     '"Broadcasts" the message back to sender',
     async (ctx) => {
+      console.log("AAAA", ctx);
       if (!ctx.from || !ctx.message) return;
       if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
       const text = ctx.message.text.slice(14).trimStart();
@@ -293,6 +294,6 @@ ${
     },
   );
 
-  bot.filter((ctx) => ctx.from?.id === env.SCHED_BOT_ADMIN_TGID).use(commands);
+  bot.use(commands);
   return commands;
 }
