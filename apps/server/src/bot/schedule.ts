@@ -83,7 +83,7 @@ async function sendTimetable(
   groupId?: number,
   opts?: { forceUpdate?: boolean },
 ) {
-  const isAuthed = await lk.ensureAuth(user);
+  const isAuthed = !!user.authCookie;
   const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
   const preferences = Object.assign(
     {},
@@ -385,7 +385,7 @@ export async function updateTimetable(
         "Вы не найдены в базе данных. Пожалуйста пропишите /start",
       );
     }
-    const isAuthed = await lk.ensureAuth(user);
+    const isAuthed = !!user.authCookie;
     const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
     const group = groupId
       ? await db.group.findUnique({ where: { id: groupId } })
