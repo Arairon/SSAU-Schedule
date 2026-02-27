@@ -1,4 +1,8 @@
-import { type FastifyRequest, type FastifyInstance } from "fastify";
+import {
+  type FastifyRequest,
+  type FastifyInstance,
+  type FastifyReply,
+} from "fastify";
 import cookie from "@fastify/cookie";
 import log from "@/logger";
 import {
@@ -6,7 +10,7 @@ import {
   validate as tgValidate,
 } from "@tma.js/init-data-node";
 import { env } from "@/env";
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import { db } from "@/db";
 import s from "ajv-ts";
 import { validateApiKey } from "@/lib/apiKey";
@@ -18,13 +22,32 @@ export type AuthData = {
 
 const CredentialsSchema = s
   .object({
-    username: s.string().min(1),
+    login: s.string().min(1),
     password: s.string().min(1),
   })
   .strict()
   .required();
 
 export async function registerAuth(fastify: FastifyInstance) {
+  const accessTokenCookieOptions = {
+    path: "/api/v0",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: env.NODE_ENV === "production",
+  };
+
+  function issueAccessToken(
+    res: FastifyReply,
+    auth: Exclude<AuthData, null>,
+    expiresIn: SignOptions["expiresIn"],
+  ) {
+    res.setCookie(
+      "accessToken",
+      jwt.sign(auth as object, env.SCHED_JWT_SECRET, { expiresIn }),
+      accessTokenCookieOptions,
+    );
+  }
+
   fastify.decorateRequest("authData", null as AuthData);
   fastify.register(cookie, {
     secret: env.SCHED_JWT_SECRET,
@@ -32,18 +55,19 @@ export async function registerAuth(fastify: FastifyInstance) {
 
   fastify.addHook("onRequest", async (req, res) => {
     // Check current auth
-    const cookie = req.cookies.accessToken;
-    // console.log(req.url, cookie)
-    if (cookie) {
+    const accessTokenCookie = req.cookies.accessToken;
+    if (accessTokenCookie) {
       try {
-        const data = jwt.verify(cookie, env.SCHED_JWT_SECRET) as AuthData;
+        const data = jwt.verify(
+          accessTokenCookie,
+          env.SCHED_JWT_SECRET,
+        ) as AuthData;
         if (data) {
           req.setDecorator("authData", data);
-          console.log(req.url, "OK", cookie, data);
           return;
         }
       } catch {
-        log.debug("User provided invalid or expired JWT, trying refreshToken");
+        // log.debug("User provided invalid or expired JWT, trying refreshToken");
       }
     }
     const refreshToken = req.cookies.refreshToken;
@@ -55,36 +79,26 @@ export async function registerAuth(fastify: FastifyInstance) {
       );
     } else {
       // Fall through to regular auth
-      log.debug(
-        "User failed to provide valid jwt or refreshToken, trying to re-auth",
-      );
+      // log.debug(
+      //   "User failed to provide valid jwt or refreshToken, trying to re-auth",
+      // );
     }
 
     // Authorize new session
-    const [authType, authData = ""] = (req.headers.authorization ?? "").split(
-      " ",
-    );
-    console.log("onRequest-v0-auth", req.url, authType, authData)
+    const [authType = "", ...authDataParts] = (req.headers.authorization ?? "")
+      .trim()
+      .split(/\s+/);
+    const authData = authDataParts.join(" ");
+    // console.log("onRequest-v0-auth", req.url, authType, authData)
 
     if (authData === "null" && env.NODE_ENV === "development") {
-      //req.setDecorator("authData", tgParse("query_id=AAEwEU4tAAAAADARTi2N1Ojc&user=%7B%22id%22%3A760090928%2C%22first_name%22%3A%22Arairon%22%2C%22last_name%22%3A%22%22%2C%22username%22%3A%22arairon%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%2C%22photo_url%22%3A%22https%3A%5C%2F%5C%2Ft.me%5C%2Fi%5C%2Fuserpic%5C%2F320%5C%2FxQtPJZWudbTdIhgDbD4ArUKDPqA5jKU3I8A1hUKLvak.svg%22%7D&auth_date=1767380093&signature=D5HHSMC-qwQVBqQa6WnOHEPVHO0XcoEHuRdhgTF6spZaeTJhn0Ecv2nKUYfIUFTHWuvGMwLCaEOT3sAw734TDQ&hash=d344d401789f4916bef87051e1d6c7fcf7a667848b501fe15957d1383f6b8de3"))
       res.header("authorization-info", "Bypassed for dev");
-      res.setCookie(
-        "accessToken",
-        jwt.sign(
-          {
-            userId: 1,
-            tgId: env.SCHED_BOT_ADMIN_TGID.toString(),
-          } as AuthData as object,
-          env.SCHED_JWT_SECRET,
-          { expiresIn: "5m" },
-        ),
-        { path: "/api/v0" },
-      );
-      req.setDecorator("authData", {
+      const auth = {
         userId: 1,
         tgId: env.SCHED_BOT_ADMIN_TGID.toString(),
-      });
+      };
+      issueAccessToken(res, auth, "5m");
+      req.setDecorator("authData", auth);
       return;
     }
 
@@ -106,12 +120,8 @@ export async function registerAuth(fastify: FastifyInstance) {
           const auth = {
             userId: user.id,
             tgId: user.tgId.toString(),
-          } as AuthData;
-          res.setCookie(
-            "accessToken",
-            jwt.sign(auth as object, env.SCHED_JWT_SECRET, { expiresIn: "1h" }),
-            { path: "/api/v0" },
-          );
+          };
+          issueAccessToken(res, auth, "1h");
           // Not using refreshTokens for tma auth
           req.setDecorator("authData", auth);
         } catch (e) {
@@ -134,19 +144,22 @@ export async function registerAuth(fastify: FastifyInstance) {
         const auth = {
           userId: apiKey.user.id,
           tgId: apiKey.user.tgId.toString(),
-        } as AuthData;
-        res.setCookie(
-          "accessToken",
-          jwt.sign(auth as object, env.SCHED_JWT_SECRET, { expiresIn: "1h" }),
-          { path: "/api/v0" },
-        );
+        };
+        issueAccessToken(res, auth, "1h");
         // Not using refreshTokens for token auth
         req.setDecorator("authData", auth);
         break;
       }
       default: {
-        res.header("authorization-error", "Invalid method: " + authType);
-        log.warn("Unable to authorize user: ", { user: "req-unk" });
+        if (authType) {
+          res.header("authorization-error", "Invalid method: " + authType);
+          log.warn(
+            "Unable to authorize user: unsupported auth type: " + authType,
+            {
+              user: "req-unk",
+            },
+          );
+        }
       }
     }
   });

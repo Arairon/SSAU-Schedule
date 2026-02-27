@@ -20,6 +20,7 @@ import type {
   TimetableDiff,
   TimetableLesson,
 } from "@/schedule/types/timetable";
+import { formatBigInt } from "@ssau-schedule/shared/utils";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -576,15 +577,18 @@ export async function uploadWeekImagesWithoutTgId() {
         uploaded += 1;
         const elapsedMs = Date.now() - imageStartedAtMs;
         totalImageMs += elapsedMs;
-        log.debug(`WeekImage #${weekImage.id}: uploaded in ${elapsedMs}ms`, {
-          user: "cron/uploadWeekImagesWithoutTgId",
-        });
+        log.debug(
+          `WeekImage #${weekImage.id}: uploaded in ${formatBigInt(elapsedMs)}ms`,
+          {
+            user: "cron/uploadWeekImagesWithoutTgId",
+          },
+        );
       } catch (error) {
         failed += 1;
         const elapsedMs = Date.now() - imageStartedAtMs;
         totalImageMs += elapsedMs;
         log.error(
-          `WeekImage #${weekImage.id}: failed in ${elapsedMs}ms. Error: ${String(error)}`,
+          `WeekImage #${weekImage.id}: failed in ${formatBigInt(elapsedMs)}ms. Error: ${String(error)}`,
           { user: "cron/uploadWeekImagesWithoutTgId" },
         );
       }
