@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { lk } from "../ssau/lk";
 import log from "@/logger";
 import type {
+  NormalizedTimetableLesson,
   Timetable,
   TimetableDay,
   TimetableDiff,
@@ -260,12 +261,6 @@ export async function generateTimetable(
   return timetable;
 }
 
-export function getTimetableHash(timetable: Timetable) {
-  return md5(
-    JSON.stringify(timetable.days.map((d) => d.lessons.filter((l) => l))),
-  );
-}
-
 export function flattenLesson(lesson: TimetableLesson): TimetableLesson[] {
   return [lesson, ...lesson.alts.flatMap(flattenLesson)];
 }
@@ -274,6 +269,92 @@ export function flattenTimetable(timetable: Timetable): TimetableLesson[] {
   return timetable.days.flatMap((day) =>
     day.lessons.flatMap((lesson) => flattenLesson(lesson)),
   );
+}
+
+function normalizeTimetableLesson(
+  lesson: TimetableLesson,
+): NormalizedTimetableLesson {
+  const normalizeStringArray = (values: string[]) => [...values].sort();
+
+  return {
+    id: lesson.id,
+    infoId: lesson.infoId,
+    type: lesson.type,
+    discipline: lesson.discipline,
+    teacher: {
+      name: lesson.teacher.name,
+      id: lesson.teacher.id,
+    },
+    isOnline: lesson.isOnline,
+    isIet: lesson.isIet,
+    building: lesson.building,
+    room: lesson.room,
+    subgroup: lesson.subgroup,
+    groups: normalizeStringArray(lesson.groups),
+    flows: normalizeStringArray(lesson.flows),
+    dayTimeSlot: lesson.dayTimeSlot,
+    beginTime: new Date(lesson.beginTime).getTime(),
+    endTime: new Date(lesson.endTime).getTime(),
+    conferenceUrl: lesson.conferenceUrl,
+    customized: lesson.customized
+      ? {
+          hidden: lesson.customized.hidden,
+          disabled: lesson.customized.disabled,
+          comment: lesson.customized.comment,
+          customizedBy: lesson.customized.customizedBy,
+        }
+      : null,
+  };
+}
+
+export function getTimetableHash(timetable: Timetable) {
+  const normalizedLessons = flattenTimetable(timetable).map(
+    normalizeTimetableLesson,
+  );
+  const withSortKey = normalizedLessons.map((lesson) => {
+    const sortTuple = [
+      lesson.id,
+      lesson.infoId,
+      lesson.dayTimeSlot,
+      lesson.beginTime,
+      lesson.endTime,
+      lesson.type,
+      lesson.discipline,
+      lesson.teacher.id ?? -1,
+      lesson.teacher.name,
+      lesson.isOnline ? 1 : 0,
+      lesson.isIet ? 1 : 0,
+      lesson.subgroup ?? -1,
+      lesson.building ?? "",
+      lesson.room ?? "",
+      lesson.conferenceUrl ?? "",
+    ] as const;
+    return {
+      lesson,
+      sortTuple,
+      jsonKey: JSON.stringify(lesson),
+    };
+  });
+
+  withSortKey.sort((a, b) => {
+    for (let i = 0; i < a.sortTuple.length; i++) {
+      const left = a.sortTuple[i];
+      const right = b.sortTuple[i];
+      if (left === right) continue;
+      if (typeof left === "number" && typeof right === "number") {
+        return left - right;
+      }
+      const leftStr = String(left);
+      const rightStr = String(right);
+      if (leftStr < rightStr) return -1;
+      if (leftStr > rightStr) return 1;
+    }
+    if (a.jsonKey < b.jsonKey) return -1;
+    if (a.jsonKey > b.jsonKey) return 1;
+    return 0;
+  });
+
+  return md5(JSON.stringify(withSortKey.map((entry) => entry.lesson)));
 }
 
 export function getTimetablesDiff(

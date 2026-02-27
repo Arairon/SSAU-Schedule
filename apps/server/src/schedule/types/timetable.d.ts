@@ -30,6 +30,34 @@ export type TimetableLesson = {
   alts: TimetableLesson[];
 };
 
+type NormalizedTimetableLesson = {
+  id: number;
+  infoId: number;
+  type: LessonType;
+  discipline: string;
+  teacher: {
+    name: string;
+    id: number | null;
+  };
+  isOnline: boolean;
+  isIet: boolean;
+  building: string | null;
+  room: string | null;
+  subgroup: number | null;
+  groups: string[];
+  flows: string[];
+  dayTimeSlot: number;
+  beginTime: number;
+  endTime: number;
+  conferenceUrl: string | null;
+  customized: {
+    hidden: boolean;
+    disabled: boolean;
+    comment: string;
+    customizedBy: number;
+  } | null;
+};
+
 export type TimetableDay = {
   // user: number;
   week: number;
