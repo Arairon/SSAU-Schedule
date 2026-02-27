@@ -167,6 +167,8 @@ export async function initAdmin(bot: Bot<Context>) {
         });
         return ctx.reply(`Отменена отправка ${result.count} сообщений`);
       }
+
+      return ctx.reply("Опции: cache, images, notifs");
     },
   );
 

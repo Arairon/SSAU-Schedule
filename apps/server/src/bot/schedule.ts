@@ -207,6 +207,7 @@ async function sendTimetable(
 
   let msg: Awaited<ReturnType<typeof ctx.replyWithPhoto>>;
   if (image.tgId) {
+    log.debug("Image has tgId, sending by tgId", { user: ctx?.from?.id });
     msg = await sendPhoto(image.tgId);
   } else {
     log.debug("Image has no tgId, will upload new", { user: ctx?.from?.id });
@@ -535,6 +536,7 @@ export async function updateTimetable(
 
       let msg: Awaited<ReturnType<typeof ctx.api.editMessageMedia>>;
       if (image.tgId) {
+        log.debug("Image has tgId, sending by tgId", { user: userId });
         msg = await editPhoto(image.tgId);
       } else {
         log.debug("Image has no tgId, will upload new", { user: userId });

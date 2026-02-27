@@ -255,6 +255,7 @@ async function updateCookie(user: User) {
         Cookie: user.authCookie,
       },
       maxRedirects: 0,
+      timeout: 15_000,
       validateStatus: (s) => [307, 200].includes(s),
     });
   } catch (e) {
