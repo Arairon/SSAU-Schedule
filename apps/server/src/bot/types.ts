@@ -10,7 +10,7 @@ export interface Session {
     updText: string | null;
     notificationsRescheduleTimeout: NodeJS.Timeout | null;
   };
-  runningScheduleUpdate: boolean;
+  startedScheduleUpdateAt: Date | null;
   scheduleViewer: {
     message: number;
     chatId: number;

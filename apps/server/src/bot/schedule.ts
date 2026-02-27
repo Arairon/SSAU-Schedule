@@ -38,12 +38,15 @@ async function sendGroupTimetable(
   opts?: { forceUpdate?: boolean },
 ) {
   if (!ctx.chat || !ctx.from) return;
-  if (ctx.session.runningScheduleUpdate) {
+  if (
+    ctx.session.startedScheduleUpdateAt &&
+    Date.now() - ctx.session.startedScheduleUpdateAt.getTime() < 30_000
+  ) {
     return ctx.answerCallbackQuery(
       "Обновление уже запущено, пожалуйста подождите.",
     );
   }
-  ctx.session.runningScheduleUpdate = true;
+  ctx.session.startedScheduleUpdateAt = new Date();
   const groupChat = await db.groupChat.findUnique({
     where: { tgId: ctx.chat.id },
     include: { user: true },
@@ -72,7 +75,7 @@ async function sendGroupTimetable(
   try {
     return sendTimetable(ctx, groupChat.user, week, groupChat.groupId, opts);
   } finally {
-    ctx.session.runningScheduleUpdate = false;
+    ctx.session.startedScheduleUpdateAt = null;
   }
 }
 
@@ -278,7 +281,10 @@ async function sendUserTimetable(
   groupId?: number,
   opts?: { forceUpdate?: boolean },
 ) {
-  if (ctx.session.runningScheduleUpdate) {
+  if (
+    ctx.session.startedScheduleUpdateAt &&
+    Date.now() - ctx.session.startedScheduleUpdateAt.getTime() < 30_000
+  ) {
     const msg = await ctx.reply(
       "Обновление уже запущено, пожалуйста подождите.",
     );
@@ -289,7 +295,7 @@ async function sendUserTimetable(
     }, 2500);
     return;
   }
-  ctx.session.runningScheduleUpdate = true;
+  ctx.session.startedScheduleUpdateAt = new Date();
   try {
     const user = await db.user.findUnique({ where: { tgId: ctx?.from?.id } });
     if (!user) {
@@ -331,7 +337,7 @@ async function sendUserTimetable(
         `,
     );
   } finally {
-    ctx.session.runningScheduleUpdate = false;
+    ctx.session.startedScheduleUpdateAt = null;
   }
 }
 
@@ -341,13 +347,16 @@ export async function updateTimetable(
   groupId?: number,
   opts?: { forceUpdate?: boolean },
 ) {
-  if (ctx.session.runningScheduleUpdate) {
+  if (
+    ctx.session.startedScheduleUpdateAt &&
+    Date.now() - ctx.session.startedScheduleUpdateAt.getTime() < 30_000
+  ) {
     return ctx.answerCallbackQuery(
       "Обновление уже запущено, пожалуйста подождите.",
     );
   }
   if (!ctx.from) return;
-  ctx.session.runningScheduleUpdate = true;
+  ctx.session.startedScheduleUpdateAt = new Date();
   try {
     let userId = ctx.from.id as unknown as bigint;
     if (ctx.chat?.type !== "private") {
@@ -600,7 +609,7 @@ export async function updateTimetable(
     });
     return ctx.answerCallbackQuery("Произошла ошибка при обновлении.");
   } finally {
-    ctx.session.runningScheduleUpdate = false;
+    ctx.session.startedScheduleUpdateAt = null;
   }
 }
 
