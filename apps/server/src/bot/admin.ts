@@ -7,10 +7,12 @@ import {
   dailyWeekUpdate,
   invalidateDailyNotificationsForAll,
   scheduleDailyNotificationsForAll,
+  uploadWeekImagesWithoutTgId,
   type DbScheduledMessage,
   type ScheduledMessage,
 } from "@/lib/tasks";
 import { CommandGroup } from "@grammyjs/commands";
+import { formatBigInt } from "@ssau-schedule/shared/utils";
 
 // Task for any testing that needs to happen
 async function taskTest() {
@@ -62,9 +64,25 @@ export async function initAdmin(bot: Bot<Context>) {
         );
         break;
       }
+      case "preuploadimages": {
+        const imageCount = await db.weekImage.count({ where: { tgId: null } });
+        if (imageCount === 0) {
+          return ctx.reply("Нет изображений для загрузки");
+        }
+        const msg = await ctx.reply(
+          `Запущена предзагрузка изображений расписаний. Всего: ${imageCount}`,
+        );
+        const res = await uploadWeekImagesWithoutTgId();
+        await ctx.api.editMessageText(
+          msg.chat.id,
+          msg.message_id,
+          `Предзагрузка завершена. Всего: ${res.total}, загружено: ${res.uploaded}, ошибок: ${res.failed}, время: ${formatBigInt(res.totalWallMs)}мс (сумма по изображениям: ${formatBigInt(res.totalImageMs)}мс, среднее: ${formatBigInt(res.avgImageMs)}мс/изобр.)`,
+        );
+        break;
+      }
       default: {
         return ctx.reply(
-          "Задача не найдена\nЗадачи: dailyupd, test, renotifs, notifs",
+          "Задача не найдена\nЗадачи: dailyupd, test, renotifs, notifs, preuploadImages",
         );
       }
     }

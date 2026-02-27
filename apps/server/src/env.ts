@@ -7,6 +7,7 @@ export const env = createEnv({
   server: {
     SCHED_BOT_TOKEN: z.string(),
     SCHED_BOT_DOMAIN: z.string(),
+    SCHED_BOT_IMAGE_DUMP_CHATID: z.string().optional(),
     SCHED_BOT_IMAGE_UPLOAD_MODE: z.enum(["file", "url"]).default("file"),
     SCHED_BOT_ADMIN_TGID: z.coerce.number().int().default(0),
     SCHED_BOT_ADMIN_CONTACT: z.string().default("[Администратор не задан]"),
