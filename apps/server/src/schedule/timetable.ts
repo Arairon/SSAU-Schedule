@@ -279,7 +279,7 @@ export function flattenTimetable(timetable: Timetable): TimetableLesson[] {
 export function getTimetablesDiff(
   oldTimetable: Timetable,
   newTimetable: Timetable,
-): TimetableDiff {
+): TimetableDiff | null {
   const added: TimetableLesson[] = [];
   const removed: TimetableLesson[] = [];
 
@@ -337,6 +337,8 @@ export function getTimetablesDiff(
       removed.push(oldLesson);
     }
   }
+
+  if (added.length === 0 && removed.length === 0) return null;
 
   return {
     added,

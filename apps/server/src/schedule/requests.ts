@@ -177,7 +177,7 @@ export async function getTimetable(
     ...timetable,
     diff:
       week.timetable && week.timetableHash !== timetable.hash
-        ? getTimetablesDiff(week.timetable, timetable)
+        ? (getTimetablesDiff(week.timetable, timetable) ?? undefined)
         : undefined,
   };
 }
@@ -344,7 +344,7 @@ async function getTimetableWithImage(
       ...timetable,
       diff:
         week.timetable && week.timetableHash !== timetable.hash
-          ? getTimetablesDiff(week.timetable, timetable)
+          ? (getTimetablesDiff(week.timetable, timetable) ?? undefined)
           : undefined,
     },
     image: Object.assign(createdImage, { data: image }),
