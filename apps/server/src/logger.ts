@@ -19,6 +19,8 @@ const rotatingLogFile = new winston.transports.DailyRotateFile({
   zippedArchive: true,
   maxSize: "20m",
   maxFiles: "14d",
+  createSymlink: true,
+  symlinkName: "latest.log",
 });
 
 const log = winston.createLogger({
@@ -26,6 +28,14 @@ const log = winston.createLogger({
   format: f,
   defaultMeta: { user: "sys" },
   transports: [new winston.transports.Console(), rotatingLogFile],
+});
+
+rotatingLogFile.on("error", (error) => {
+  console.error("[logger] daily rotate file transport error:", error);
+});
+
+log.on("error", (error) => {
+  console.error("[logger] logger error:", error);
 });
 
 // rotatingLogFile.on('rotate', (oldFilename, newFilename) => {

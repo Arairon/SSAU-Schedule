@@ -66,17 +66,17 @@ RUN cat > /app/package.json <<'JSON'
 JSON
 RUN bun install --production;
 
-COPY --from=server_builder /app/apps/server/package.json ./apps/server/package.json
-COPY --from=server_builder /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
-COPY --from=server_builder /app/apps/server/prisma ./apps/server/prisma
-# COPY --from=server_builder /app/apps/server/src/generated/prisma ./apps/server/src/generated/prisma
-COPY --from=server_builder /app/apps/server/dist ./apps/server/dist
+COPY --from=server_builder /app/apps/server/package.json ./package.json
+COPY --from=server_builder /app/apps/server/prisma.config.ts ./prisma.config.ts
+COPY --from=server_builder /app/apps/server/prisma ./prisma
+# COPY --from=server_builder /app/apps/server/src/generated/prisma ./src/generated/prisma
+COPY --from=server_builder /app/apps/server/dist ./dist
 COPY --from=client_builder /app/apps/client/dist/ ./public
 
-RUN mkdir -p /app/apps/server/log && chown -R bun:bun /app
+RUN mkdir -p /app/log && chown -R bun:bun /app
 
 USER bun
-WORKDIR /app/apps/server
+WORKDIR /app
 ENV PATH=/app/node_modules/.bin:$PATH
 
 EXPOSE 3000
