@@ -2,5 +2,3 @@
 @source "./timetable.html";
 @source "../lib/scheduleImage.ts";
 @source "../../../../packages/shared/themes/*.ts";
-
-/* Generate timetable.css using `bun css`, replace `\` with `\\` and place it into `const CSS` in scheduleImage.ts */

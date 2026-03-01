@@ -14,8 +14,8 @@
     "prod": "bunx --bun prisma migrate deploy && bun dist/index.js",
     "lint": "bunx --bun eslint .",
     "format": "bunx --bun prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
-    "css": "bunx --bun @tailwindcss/cli -i src/template/base.css -o src/generated/timetable.css --minify",
-    "css:watch": "bunx --bun @tailwindcss/cli -i src/template/base.css -o src/generated/timetable.css --watch --minify",
+    "css": "bunx --bun @tailwindcss/cli -i src/schedule/base.css -o src/generated/timetable.css --minify",
+    "css:watch": "bunx --bun @tailwindcss/cli -i src/schedule/base.css -o src/generated/timetable.css --watch --minify",
     "copy:css": "mkdir -p dist/generated && cp src/generated/timetable.css dist/generated/timetable.css",
     "build:container": "docker build -t ghcr.io/arairon/ssau-schedule -f ../../Dockerfile ../.."
   },
