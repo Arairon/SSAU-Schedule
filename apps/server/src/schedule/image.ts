@@ -349,6 +349,25 @@ function shouldRetryBrowserOperation(error: unknown) {
   );
 }
 
+export function detectImageMimeType(image: Buffer): "image/png" | "image/jpeg" {
+  const isPng =
+    image.length >= 8 &&
+    image[0] === 0x89 &&
+    image[1] === 0x50 &&
+    image[2] === 0x4e &&
+    image[3] === 0x47 &&
+    image[4] === 0x0d &&
+    image[5] === 0x0a &&
+    image[6] === 0x1a &&
+    image[7] === 0x0a;
+
+  if (isPng) {
+    return "image/png";
+  }
+
+  return "image/jpeg";
+}
+
 async function getBrowser() {
   if (browser?.connected) {
     return browser;
@@ -380,14 +399,24 @@ async function getBrowser() {
   return browserPromise;
 }
 
-async function generateTimetableImageBuffer(html: string) {
+async function generateTimetableImageBuffer(
+  html: string,
+  opts?: { quality?: number },
+): Promise<Buffer> {
   const activeBrowser = await getBrowser();
   const page = await activeBrowser.newPage();
 
   try {
     await page.setContent(html);
     await page.bringToFront();
-    return Buffer.from(await page.screenshot({ fullPage: true }));
+    return Buffer.from(
+      await page.screenshot({
+        fullPage: true,
+        type: "jpeg",
+        quality: opts?.quality ?? 80,
+        optimizeForSpeed: true,
+      }),
+    );
   } finally {
     await page.close();
   }

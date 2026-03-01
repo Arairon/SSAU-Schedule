@@ -3,7 +3,10 @@ import { db } from "@/db";
 import { getUserIcsByUserId } from "@/schedule/ics";
 import { findGroup } from "@/ssau/search";
 import { schedule } from "@/schedule/requests";
-import { generateTimetableImageHtml } from "@/schedule/image";
+import {
+  detectImageMimeType,
+  generateTimetableImageHtml,
+} from "@/schedule/image";
 
 export async function routesDebug(fastify: FastifyInstance) {
   const userIdParamSchema = {
@@ -177,10 +180,11 @@ export async function routesDebug(fastify: FastifyInstance) {
           stylemap: req.query.theme,
         },
       );
+      const imageBuffer = Buffer.from(timetable.image.data);
       return res
         .status(200)
-        .header("content-type", "image/png")
-        .send(timetable.image.data);
+        .header("content-type", detectImageMimeType(imageBuffer))
+        .send(imageBuffer);
     },
   );
 

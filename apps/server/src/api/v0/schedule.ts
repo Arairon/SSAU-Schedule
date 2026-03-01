@@ -2,6 +2,7 @@ import { type FastifyInstance, type FastifyRequest } from "fastify";
 import { db } from "@/db";
 import { findGroup } from "@/ssau/search";
 import { schedule } from "@/schedule/requests";
+import { detectImageMimeType } from "@/schedule/image";
 import { type AuthData } from "./auth";
 
 export async function routesSchedule(fastify: FastifyInstance) {
@@ -79,10 +80,11 @@ export async function routesSchedule(fastify: FastifyInstance) {
       if (!image) {
         return res.status(404).send()
       }
+      const imageBuffer = Buffer.from(image.data, "base64");
       return res
         .status(200)
-        .headers({ "content-type": "image/png" })
-        .send(Buffer.from(image.data, "base64"));
+        .headers({ "content-type": detectImageMimeType(imageBuffer) })
+        .send(imageBuffer);
     },
   );
 }
