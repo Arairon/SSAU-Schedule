@@ -358,10 +358,22 @@ async function pregenerateImagesForUser(
   opts?: { groupId?: number; year?: number },
 ) {
   const startTime = process.hrtime.bigint();
-  log.info(`Pregenerating #${week}: ${count ?? 1} images for user.`, {
-    user: user.id,
-  });
-  for (let weekNumber = week; weekNumber < week + (count ?? 1); weekNumber++) {
+  const requestedCount = count ?? 1;
+  const direction = requestedCount < 0 ? -1 : 1;
+  const totalToGenerate = Math.abs(requestedCount);
+  const startingWeek = Math.max(1, week);
+  let generatedCount = 0;
+
+  log.info(
+    `Pregenerating #${startingWeek}: ${requestedCount} images for user.`,
+    {
+      user: user.id,
+    },
+  );
+  for (let i = 0; i < totalToGenerate; i++) {
+    const weekNumber = startingWeek + i * direction;
+    if (weekNumber < 1) break;
+
     const week = await getWeek(user, weekNumber, {
       groupId: opts?.groupId,
       year: opts?.year,
@@ -371,10 +383,11 @@ async function pregenerateImagesForUser(
       week.number,
       Object.assign({}, opts, { ignoreUpdates: true }),
     );
+    generatedCount += 1;
   }
   const endTime = process.hrtime.bigint();
   log.debug(
-    `Pregenerated #${week}: ${count ?? 1} images for user. Took: ${formatBigInt(endTime - startTime)}ns`,
+    `Pregenerated #${startingWeek}: ${generatedCount}/${totalToGenerate} images for user. Took: ${formatBigInt(endTime - startTime)}ns`,
     { user: user.id },
   );
 }

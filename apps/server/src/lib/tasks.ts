@@ -250,6 +250,7 @@ export async function dailyWeekUpdate() {
       );
 
       await schedule.pregenerateImagesForUser(user, week.number, 8); // For now generously pregenerate whole 2 months
+      await schedule.pregenerateImagesForUser(user, week.number - 1, -2); // and 2 previous weeks for smoother scroll
 
       const diff = {
         added: [
@@ -468,13 +469,13 @@ export async function dailyCleanup() {
   const results: number[] = [];
 
   results.push(
-    (await db.weekImage.deleteMany({ where: { updatedAt: { lt: weekAgo } } }))
+    (await db.weekImage.deleteMany({ where: { validUntil: { lt: weekAgo } } }))
       .count,
   );
   results.push(
     (
       await db.scheduledMessage.deleteMany({
-        where: { updatedAt: { lt: weekAgo } },
+        where: { wasSentAt: { lt: weekAgo } },
       })
     ).count,
   );
@@ -491,9 +492,12 @@ export async function dailyCleanup() {
       .count,
   );
 
-  log.info(`Cleanup complete: ${results.join(", ")}`, {
-    user: "cron/dailyCleanup",
-  });
+  log.info(
+    `Cleanup complete: ${results.join(", ")} (im, msg, uIcs, gIcs, les)`,
+    {
+      user: "cron/dailyCleanup",
+    },
+  );
 }
 
 export async function uploadWeekImagesWithoutTgId() {

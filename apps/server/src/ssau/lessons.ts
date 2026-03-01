@@ -248,8 +248,8 @@ export async function updateWeekForUser(
       }
 
       if (lessonList.flows.length > 1) {
-        log.warn(
-          `Apparently multiple flows are actually used... ${JSON.stringify(lessonList)}`,
+        log.debug(
+          `Lesson uses multiple flows: ${lessonList.flows.map((f) => f.id).join(", ")}. Connecting all to user`,
           { user: user.id },
         );
       }
@@ -469,13 +469,14 @@ export async function updateWeekForUser(
 
   // TODO Might need to add change detection to individual lessons later
   removedLessons.push(...orphanedLessons);
+  const filteredNewLessons = newLessons.filter(
+    (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
+  );
+  const filteredRemovedLessons = removedLessons.filter(
+    (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
+  );
   log.debug(
-    `Updated week. Added: [${newLessons.map((i) => i.id).join()}] Removed: [${removedLessons
-      .filter(
-        (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
-      )
-      .map((i) => i.id)
-      .join()}]`,
+    `Updated week. Added: [${filteredNewLessons.map((i) => i.id).join()}] (${newLessons.length}) Removed: [${filteredRemovedLessons.map((i) => i.id).join()}] (${removedLessons.length})`,
     { user: user.id },
   );
 
