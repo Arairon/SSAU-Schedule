@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import Puppeteer, { type Browser } from "puppeteer";
 
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
@@ -10,19 +11,22 @@ import { formatBigInt, getPersonShortname } from "@ssau-schedule/shared/utils";
 import { getLessonDate } from "@ssau-schedule/shared/date";
 import log from "@/logger";
 import { env } from "@/env";
-import { type StyleMap } from "@ssau-schedule/shared/themes/types";
-import { SCHEDULE_STYLEMAP_LIGHT } from "@ssau-schedule/shared/themes/light";
-import { SCHEDULE_STYLEMAP_NEON } from "@ssau-schedule/shared/themes/neon";
-import { SCHEDULE_STYLEMAP_DARK } from "@ssau-schedule/shared/themes/dark";
+import { getStylemap } from "@ssau-schedule/shared/themes/index";
 
-//#region Static css
-const STATIC_CSS = `@layer properties{@supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b)))){*,:before,:after,::backdrop{--tw-rotate-x:initial;--tw-rotate-y:initial;--tw-rotate-z:initial;--tw-skew-x:initial;--tw-skew-y:initial;--tw-border-style:solid;--tw-leading:initial;--tw-font-weight:initial;--tw-outline-style:solid}}}@layer theme{:root,:host{--font-sans:ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";--font-mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;--color-red-400:oklch(70.4% .191 22.216);--color-red-950:oklch(25.8% .092 26.042);--color-orange-400:oklch(75% .183 55.934);--color-orange-950:oklch(26.6% .079 36.259);--color-yellow-400:oklch(85.2% .199 91.936);--color-yellow-900:oklch(42.1% .095 57.708);--color-yellow-950:oklch(28.6% .066 53.813);--color-green-400:oklch(79.2% .209 151.711);--color-green-600:oklch(62.7% .194 149.214);--color-green-950:oklch(26.6% .065 152.934);--color-cyan-200:oklch(91.7% .08 205.041);--color-cyan-400:oklch(78.9% .154 211.53);--color-cyan-600:oklch(60.9% .126 221.723);--color-cyan-700:oklch(52% .105 223.128);--color-cyan-800:oklch(45% .085 224.283);--color-cyan-900:oklch(39.8% .07 227.392);--color-blue-400:oklch(70.7% .165 254.624);--color-blue-950:oklch(28.2% .091 267.935);--color-purple-400:oklch(71.4% .203 305.504);--color-purple-500:oklch(62.7% .265 303.9);--color-purple-950:oklch(29.1% .149 302.717);--color-pink-400:oklch(71.8% .202 349.761);--color-pink-500:oklch(65.6% .241 354.308);--color-pink-950:oklch(28.4% .109 3.907);--color-slate-300:oklch(86.9% .022 252.894);--color-slate-400:oklch(70.4% .04 256.788);--color-slate-500:oklch(55.4% .046 257.417);--color-slate-600:oklch(44.6% .043 257.281);--color-slate-800:oklch(27.9% .041 260.031);--color-slate-900:oklch(20.8% .042 265.755);--color-gray-700:oklch(37.3% .034 259.733);--color-black:#000;--color-white:#fff;--spacing:.25rem;--text-xs:.75rem;--text-xs--line-height:calc(1/.75);--text-lg:1.125rem;--text-lg--line-height:calc(1.75/1.125);--font-weight-bold:700;--radius-lg:.5rem;--radius-xl:.75rem;--default-font-family:var(--font-sans);--default-mono-font-family:var(--font-mono)}}@layer base{*,:after,:before,::backdrop{box-sizing:border-box;border:0 solid;margin:0;padding:0}::file-selector-button{box-sizing:border-box;border:0 solid;margin:0;padding:0}html,:host{-webkit-text-size-adjust:100%;tab-size:4;line-height:1.5;font-family:var(--default-font-family,ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji");font-feature-settings:var(--default-font-feature-settings,normal);font-variation-settings:var(--default-font-variation-settings,normal);-webkit-tap-highlight-color:transparent}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;-webkit-text-decoration:inherit;-webkit-text-decoration:inherit;-webkit-text-decoration:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,samp,pre{font-family:var(--default-mono-font-family,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace);font-feature-settings:var(--default-mono-font-feature-settings,normal);font-variation-settings:var(--default-mono-font-variation-settings,normal);font-size:1em}small{font-size:80%}sub,sup{vertical-align:baseline;font-size:75%;line-height:0;position:relative}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}:-moz-focusring{outline:auto}progress{vertical-align:baseline}summary{display:list-item}ol,ul,menu{list-style:none}img,svg,video,canvas,audio,iframe,embed,object{vertical-align:middle;display:block}img,video{max-width:100%;height:auto}button,input,select,optgroup,textarea{font:inherit;font-feature-settings:inherit;font-variation-settings:inherit;letter-spacing:inherit;color:inherit;opacity:1;background-color:#0000;border-radius:0}::file-selector-button{font:inherit;font-feature-settings:inherit;font-variation-settings:inherit;letter-spacing:inherit;color:inherit;opacity:1;background-color:#0000;border-radius:0}:where(select:is([multiple],[size])) optgroup{font-weight:bolder}:where(select:is([multiple],[size])) optgroup option{padding-inline-start:20px}::file-selector-button{margin-inline-end:4px}::placeholder{opacity:1}@supports (not ((-webkit-appearance:-apple-pay-button))) or (contain-intrinsic-size:1px){::placeholder{color:currentColor}@supports (color:color-mix(in lab, red, red)){::placeholder{color:color-mix(in oklab,currentcolor 50%,transparent)}}}textarea{resize:vertical}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-date-and-time-value{min-height:1lh;text-align:inherit}::-webkit-datetime-edit{display:inline-flex}::-webkit-datetime-edit-fields-wrapper{padding:0}::-webkit-datetime-edit{padding-block:0}::-webkit-datetime-edit-year-field{padding-block:0}::-webkit-datetime-edit-month-field{padding-block:0}::-webkit-datetime-edit-day-field{padding-block:0}::-webkit-datetime-edit-hour-field{padding-block:0}::-webkit-datetime-edit-minute-field{padding-block:0}::-webkit-datetime-edit-second-field{padding-block:0}::-webkit-datetime-edit-millisecond-field{padding-block:0}::-webkit-datetime-edit-meridiem-field{padding-block:0}::-webkit-calendar-picker-indicator{line-height:1}:-moz-ui-invalid{box-shadow:none}button,input:where([type=button],[type=reset],[type=submit]){appearance:button}::file-selector-button{appearance:button}::-webkit-inner-spin-button{height:auto}::-webkit-outer-spin-button{height:auto}[hidden]:where(:not([hidden=until-found])){display:none!important}}@layer components;@layer utilities{.relative{position:relative}.static{position:static}.col-span-6{grid-column:span 6/span 6}.my-1{margin-block:calc(var(--spacing)*1)}.flex{display:flex}.grid{display:grid}.hidden{display:none}.table{display:table}.w-full{width:100%}.flex-1{flex:1}.grow{flex-grow:1}.transform{transform:var(--tw-rotate-x,)var(--tw-rotate-y,)var(--tw-rotate-z,)var(--tw-skew-x,)var(--tw-skew-y,)}.grid-flow-col{grid-auto-flow:column}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-\\[auto_1fr_1fr_1fr_1fr_1fr_1fr\\]{grid-template-columns:auto 1fr 1fr 1fr 1fr 1fr 1fr}.grid-rows-2{grid-template-rows:repeat(2,minmax(0,1fr))}.flex-col{flex-direction:column}.flex-row{flex-direction:row}.items-center{align-items:center}.items-stretch{align-items:stretch}.justify-between{justify-content:space-between}.justify-center{justify-content:center}.justify-end{justify-content:flex-end}.gap-1{gap:calc(var(--spacing)*1)}.gap-2{gap:calc(var(--spacing)*2)}.rounded-lg{border-radius:var(--radius-lg)}.rounded-xl{border-radius:var(--radius-xl)}.border-2{border-style:var(--tw-border-style);border-width:2px}.border-dashed{--tw-border-style:dashed;border-style:dashed}.border-blue-400{border-color:var(--color-blue-400)}.border-cyan-600{border-color:var(--color-cyan-600)}.border-green-400{border-color:var(--color-green-400)}.border-orange-400{border-color:var(--color-orange-400)}.border-pink-400{border-color:var(--color-pink-400)}.border-purple-400{border-color:var(--color-purple-400)}.border-purple-500{border-color:var(--color-purple-500)}.border-red-400{border-color:var(--color-red-400)}.border-slate-500{border-color:var(--color-slate-500)}.border-slate-600{border-color:var(--color-slate-600)}.border-white{border-color:var(--color-white)}.border-yellow-400{border-color:var(--color-yellow-400)}.bg-black{background-color:var(--color-black)}.bg-blue-400{background-color:var(--color-blue-400)}.bg-blue-950{background-color:var(--color-blue-950)}.bg-cyan-200{background-color:var(--color-cyan-200)}.bg-cyan-400{background-color:var(--color-cyan-400)}.bg-cyan-700{background-color:var(--color-cyan-700)}.bg-cyan-800{background-color:var(--color-cyan-800)}.bg-cyan-900{background-color:var(--color-cyan-900)}.bg-gray-700{background-color:var(--color-gray-700)}.bg-green-400{background-color:var(--color-green-400)}.bg-green-600{background-color:var(--color-green-600)}.bg-green-950{background-color:var(--color-green-950)}.bg-orange-400{background-color:var(--color-orange-400)}.bg-orange-950{background-color:var(--color-orange-950)}.bg-pink-500{background-color:var(--color-pink-500)}.bg-pink-950{background-color:var(--color-pink-950)}.bg-purple-500{background-color:var(--color-purple-500)}.bg-purple-950{background-color:var(--color-purple-950)}.bg-red-400{background-color:var(--color-red-400)}.bg-red-950{background-color:var(--color-red-950)}.bg-slate-300{background-color:var(--color-slate-300)}.bg-slate-800{background-color:var(--color-slate-800)}.bg-slate-900{background-color:var(--color-slate-900)}.bg-white{background-color:var(--color-white)}.bg-white\\/90{background-color:#ffffffe6}@supports (color:color-mix(in lab, red, red)){.bg-white\\/90{background-color:color-mix(in oklab,var(--color-white)90%,transparent)}}.bg-yellow-900{background-color:var(--color-yellow-900)}.bg-yellow-950{background-color:var(--color-yellow-950)}.p-1{padding:calc(var(--spacing)*1)}.p-2{padding:calc(var(--spacing)*2)}.px-1{padding-inline:calc(var(--spacing)*1)}.px-2{padding-inline:calc(var(--spacing)*2)}.py-2{padding-block:calc(var(--spacing)*2)}.py-12{padding-block:calc(var(--spacing)*12)}.py-\\[0\\.25\\]{padding-block:.25px}.text-center{text-align:center}.text-left{text-align:left}.text-lg{font-size:var(--text-lg);line-height:var(--tw-leading,var(--text-lg--line-height))}.text-xs{font-size:var(--text-xs);line-height:var(--tw-leading,var(--text-xs--line-height))}.leading-5{--tw-leading:calc(var(--spacing)*5);line-height:calc(var(--spacing)*5)}.font-bold{--tw-font-weight:var(--font-weight-bold);font-weight:var(--font-weight-bold)}.text-slate-600{color:var(--color-slate-600)}.text-white{color:var(--color-white)}.italic{font-style:italic}.outline-2{outline-style:var(--tw-outline-style);outline-width:2px}.outline-purple-500{outline-color:var(--color-purple-500)}.outline-slate-400{outline-color:var(--color-slate-400)}.outline-white{outline-color:var(--color-white)}.outline-dashed{--tw-outline-style:dashed;outline-style:dashed}}@property --tw-rotate-x{syntax:"*";inherits:false}@property --tw-rotate-y{syntax:"*";inherits:false}@property --tw-rotate-z{syntax:"*";inherits:false}@property --tw-skew-x{syntax:"*";inherits:false}@property --tw-skew-y{syntax:"*";inherits:false}@property --tw-border-style{syntax:"*";inherits:false;initial-value:solid}@property --tw-leading{syntax:"*";inherits:false}@property --tw-font-weight{syntax:"*";inherits:false}@property --tw-outline-style{syntax:"*";inherits:false;initial-value:solid}`;
-//#endregion
+const CURRENT_DIR = __dirname;
+const GENERATED_CSS_PATH =
+  env.NODE_ENV === "production"
+    ? resolve("./dist/generated/timetable.css")
+    : resolve(CURRENT_DIR, "../generated/timetable.css");
 
-const CSS =
-  env.NODE_ENV === "development"
-    ? readFileSync("./src/template/timetable.css")
-    : STATIC_CSS;
+function readTimetableCss() {
+  if (existsSync(GENERATED_CSS_PATH)) {
+    return readFileSync(GENERATED_CSS_PATH, "utf8");
+  }
+  throw new Error(`Timetable CSS not found. Checked: ${GENERATED_CSS_PATH}`);
+}
+
+const CSS = readTimetableCss();
 
 // These variable names are terrible. God help us all
 
@@ -34,7 +38,7 @@ const HTML_HEAD = `\
 <meta charset="UTF-8">
 </head>
 <body class="bg-black flex flex-col gap-2 w-full items-stretch p-2">
-<style>${CSS}</style>`; // eslint-disable-line
+<style>${CSS}</style>`;
 
 const HTML_SIZER = `<style>body{width:{width};height:{height};}</style>\n`;
 
@@ -110,20 +114,13 @@ const EMPTY_WEEK_NOTICE = `
 </div>
 `;
 
-export const STYLEMAPS: Record<string, StyleMap> = {
-  light: SCHEDULE_STYLEMAP_LIGHT,
-  dark: SCHEDULE_STYLEMAP_DARK,
-  neon: SCHEDULE_STYLEMAP_NEON,
-  default: SCHEDULE_STYLEMAP_NEON,
-};
-
 function generateSingleLesson(
   lesson: TimetableLesson | null,
   opts?: { showGrouplist?: boolean; stylemap?: string },
 ) {
   if (lesson === null)
     return generateWindowLesson({ stylemap: opts?.stylemap });
-  const stylemap = STYLEMAPS[opts?.stylemap ?? "default"];
+  const stylemap = getStylemap(opts?.stylemap ?? "default");
   const style = stylemap.lessonTypes[lesson.type];
   const parts: string[] = [];
   parts.push(
@@ -191,7 +188,7 @@ function generateSingleLesson(
 }
 
 function generateWindowLesson(opts?: { stylemap?: string }) {
-  const stylemap = STYLEMAPS[opts?.stylemap ?? "default"];
+  const stylemap = getStylemap(opts?.stylemap ?? "default");
   const style = stylemap.lessonTypes.Window;
   const parts: string[] = [];
   parts.push(
@@ -232,10 +229,8 @@ function generateLesson(
 }
 
 function format(string: string, values: Record<string, string>) {
-  //console.debug(values);
-  return string.replace(/\{(\w+)\}/g, function (x) {
-    //console.debug(x, values[x.slice(1, x.length - 1)]);
-    return values[x.slice(1, x.length - 1)] ?? x;
+  return string.replace(/\{(\w+)\}/g, (match: string, key: string) => {
+    return values[key] ?? match;
   });
 }
 
@@ -256,7 +251,7 @@ export async function generateTimetableImageHtml(
     stylemap?: string;
   },
 ): Promise<string> {
-  const stylemap = STYLEMAPS[opts?.stylemap ?? "default"];
+  const stylemap = getStylemap(opts?.stylemap ?? "default");
   // const scheduleName = timetable.isCommon
   //   ? ((await db.group.findUnique({ where: { id: timetable.groupId } }))
   //       ?.name ?? "#Группа не найдена#")
@@ -337,27 +332,66 @@ export async function generateTimetableImageHtml(
 }
 
 let browser: Browser | null = null;
+let browserPromise: Promise<Browser> | null = null;
 
-const browserPromise = Puppeteer.launch({
-  executablePath: env.CHROME_PATH,
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--disable-extensions",
-    "--disable-software-rasterizer",
-  ],
-  protocolTimeout: 30_000,
-})
-  .then((instance) => {
-    browser = instance;
-    return instance;
+function resetBrowserState() {
+  browser = null;
+  browserPromise = null;
+}
+
+function shouldRetryBrowserOperation(error: unknown) {
+  const message = String(error);
+  return (
+    message.includes("Target closed") ||
+    message.includes("Session closed") ||
+    message.includes("Protocol error") ||
+    message.includes("Connection closed")
+  );
+}
+
+async function getBrowser() {
+  if (browser?.connected) {
+    return browser;
+  }
+
+  browserPromise ??= Puppeteer.launch({
+    executablePath: env.CHROME_PATH,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-extensions",
+      "--disable-software-rasterizer",
+    ],
+    protocolTimeout: 30_000,
   })
-  .catch((error) => {
-    log.error(`Puppeteer launch failed: ${String(error)}`, { user: "sys" });
-    throw error;
-  });
+    .then((instance) => {
+      browser = instance;
+      instance.on("disconnected", resetBrowserState);
+      return instance;
+    })
+    .catch((error) => {
+      resetBrowserState();
+      log.error(`Puppeteer launch failed: ${String(error)}`, { user: "sys" });
+      throw error;
+    });
+
+  return browserPromise;
+}
+
+async function generateTimetableImageBuffer(html: string) {
+  const activeBrowser = await getBrowser();
+  const page = await activeBrowser.newPage();
+
+  try {
+    await page.setContent(html);
+    await page.bringToFront();
+    return Buffer.from(await page.screenshot({ fullPage: true }));
+  } finally {
+    await page.close();
+  }
+}
 
 export async function generateTimetableImage(
   timetable: Timetable,
@@ -365,25 +399,30 @@ export async function generateTimetableImage(
     stylemap?: string;
   },
 ): Promise<Buffer> {
-  const activeBrowser = browser ?? (await browserPromise);
   const startTime = process.hrtime.bigint();
   const html = await generateTimetableImageHtml(timetable, opts);
   const htmlTime = process.hrtime.bigint();
-  const page = await activeBrowser.newPage();
   let image: Buffer;
+
   try {
-    await page.setContent(html);
-    await page.bringToFront();
-    image = Buffer.from(await page.screenshot({ fullPage: true }));
+    image = await generateTimetableImageBuffer(html);
   } catch (e) {
-    log.error(`Failed to generate a timetable image. Error: ${String(e)}`, {
-      user: -1,
-    });
-    log.debug(`Failed HTML: \n${html}\n---`, { user: -1 });
-    throw e; // Fuck it, we crash.
-  } finally {
-    await page.close();
+    if (shouldRetryBrowserOperation(e)) {
+      log.warn(
+        `Browser operation failed (${String(e)}). Restarting browser and retrying once.`,
+        { user: -1 },
+      );
+      resetBrowserState();
+      image = await generateTimetableImageBuffer(html);
+    } else {
+      log.error(`Failed to generate a timetable image. Error: ${String(e)}`, {
+        user: -1,
+      });
+      log.debug(`Failed HTML: \n${html}\n---`, { user: -1 });
+      throw e;
+    }
   }
+
   const endTime = process.hrtime.bigint();
   log.debug(
     `Generated an image for week ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,

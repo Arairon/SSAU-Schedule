@@ -3,7 +3,7 @@ import timestring from "timestring";
 import { type Context } from "./types";
 import { db } from "@/db";
 import { UserPreferencesDefaults } from "@/lib/misc";
-import { STYLEMAPS } from "@/schedule/image";
+import { stylemaps } from "@ssau-schedule/shared/themes/index";
 import { CommandGroup } from "@grammyjs/commands";
 import { findGroup } from "@/ssau/search";
 
@@ -53,7 +53,7 @@ ${Object.entries(preferences)
     const field = args.shift()!.toLowerCase();
     switch (field) {
       case "theme": {
-        const themes = Object.keys(STYLEMAPS);
+        const themes = Object.keys(stylemaps);
         const target = args[0];
         if (!target) {
           return ctx.reply(`Доступные темы: ${themes.join(", ")}`);

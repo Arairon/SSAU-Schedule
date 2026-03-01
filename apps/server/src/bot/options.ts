@@ -4,7 +4,7 @@ import { type Context } from "./types";
 import log from "@/logger";
 import { db } from "@/db";
 import { UserPreferencesDefaults } from "@/lib/misc";
-import { STYLEMAPS } from "@/schedule/image";
+import { stylemaps, getStylemap } from "@ssau-schedule/shared/themes/index";
 import { env } from "@/env";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
@@ -67,8 +67,7 @@ async function updateOptionsMsg(ctx: Context) {
   ctx.session.options.updText = null;
   switch (menu) {
     case "": {
-      const theme =
-        STYLEMAPS[preferences.theme ?? "default"] ?? STYLEMAPS.default;
+      const theme = getStylemap(preferences.theme ?? "default");
       return ctx.api
         .editMessageText(chat, msgId, newText, {
           reply_markup: new InlineKeyboard()
@@ -99,7 +98,7 @@ async function updateOptionsMsg(ctx: Context) {
     }
     case "themes": {
       const keyboard = new InlineKeyboard();
-      Object.values(STYLEMAPS).map((theme) =>
+      Object.values(stylemaps).map((theme) =>
         keyboard
           .text(`${theme.description}`, `options_theme_set_${theme.name}`)
           .row(),
@@ -492,7 +491,7 @@ export async function initOptions(bot: Bot<Context>) {
       user.preferences,
     );
     if (preferences.theme === theme) {
-      ctx.session.options.updText = `Оставляем тему: "${STYLEMAPS[theme].description}"`;
+      ctx.session.options.updText = `Оставляем тему: "${stylemaps[theme].description}"`;
       ctx.session.options.menu = "";
       return updateOptionsMsg(ctx);
     }
@@ -501,7 +500,7 @@ export async function initOptions(bot: Bot<Context>) {
       where: { id: user.id },
       data: { preferences, lastActive: new Date() },
     });
-    ctx.session.options.updText = `Тема успешно изменена на "${STYLEMAPS[theme].description}"`;
+    ctx.session.options.updText = `Тема успешно изменена на "${stylemaps[theme].description}"`;
     ctx.session.options.menu = "";
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
