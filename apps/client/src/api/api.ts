@@ -1,7 +1,25 @@
-import type { CustomizationData } from "@/lib/types";
-import { ScheduleSchema } from "@/lib/types"
+import { initClient } from '@ts-rest/core'
+import { apiContract } from '@ssau-schedule/contracts'
 
-export async function getSchedule({ week, group, groupId, ignoreCached }: { week?: number, group?: string, groupId?: number, ignoreCached?: boolean }) {
+import type { CustomizationData, ScheduleType } from '@/lib/types'
+
+const api = initClient(apiContract, {
+  baseUrl: '',
+  credentials: 'include',
+  validateResponse: true,
+})
+
+export async function getSchedule({
+  week,
+  group,
+  groupId,
+  ignoreCached,
+}: {
+  week?: number
+  group?: string
+  groupId?: number
+  ignoreCached?: boolean
+}): Promise<ScheduleType> {
   const params = new URLSearchParams()
   for (const [k, v] of Object.entries({ week, group, groupId, ignoreCached })) {
     if (v !== undefined) {
@@ -9,67 +27,85 @@ export async function getSchedule({ week, group, groupId, ignoreCached }: { week
     }
   }
   console.log(params)
-  const res = await fetch("/api/v0/schedule?" + params.toString(), {
-    headers: {
-      authorization: window.localStorage.getItem("auth-token") || ""
+  const res = await api.v0.schedule.getSchedule({
+    query: {
+      week,
+      group,
+      groupId,
+      ignoreCached,
     },
-    credentials: "include"
+    extraHeaders: {
+      authorization: window.localStorage.getItem('auth-token') || '',
+    },
   })
-  if (!res.ok) throw new Error(`(${res.status}) Failed to fetch schedule: ${await res.text() || "No additional info"}`)
-  const data = ScheduleSchema.parse(await res.json())
-  console.log(res, data)
-  return data
+
+  if (res.status !== 200) {
+    throw new Error('Failed to fetch schedule: ' + res.body)
+  }
+
+  return res.body
 }
 
 export async function getCurrentUser() {
-  const req = await fetch("/api/v0/whoami", {
-    headers: {
-      authorization: window.localStorage.getItem("auth-token") || "",
+  const req = await api.v0.whoami({
+    extraHeaders: {
+      authorization: window.localStorage.getItem('auth-token') || '',
     },
-    credentials: "include"
   })
-  return await req.text()
+
+  if (req.status !== 200) {
+    return null
+  }
+
+  return req.body
 }
 
-
-export async function addCustomLesson({ customizationData }: { customizationData: Partial<CustomizationData> }) {
-  const req = await fetch("/api/v0/customLesson", {
-    method: "post",
-    headers: {
-      authorization: window.localStorage.getItem("auth-token") || "",
-      "content-type": "application/json"
+export async function addCustomLesson({
+  customizationData,
+}: {
+  customizationData: Partial<CustomizationData> & {
+    weekday: number
+    dayTimeSlot: number
+    weekNumber: number
+  }
+}) {
+  const req = await api.v0.customLesson.add({
+    body: customizationData,
+    extraHeaders: {
+      authorization: window.localStorage.getItem('auth-token') || '',
     },
-    credentials: "include",
-    body: JSON.stringify(customizationData)
   })
-  return await req.json()
+
+  return req.body
 }
 
-export async function editCustomLesson({ customizationData }: { customizationData: Partial<CustomizationData> }) {
-  const req = await fetch("/api/v0/customLesson", {
-    method: "put",
-    headers: {
-      authorization: window.localStorage.getItem("auth-token") || "",
-      "content-type": "application/json"
+export async function editCustomLesson({
+  customizationData,
+}: {
+  customizationData: Partial<CustomizationData> & {
+    id: number
+    weekday: number
+    dayTimeSlot: number
+    weekNumber: number
+  }
+}) {
+  const req = await api.v0.customLesson.edit({
+    body: customizationData,
+    extraHeaders: {
+      authorization: window.localStorage.getItem('auth-token') || '',
     },
-    credentials: "include",
-    body: JSON.stringify(customizationData)
   })
-  return await req.json()
+
+  return req.body
 }
 
 export async function deleteCustomLesson({ id }: { id: number }) {
-  const req = await fetch("/api/v0/customLesson/" + id, {
-    method: "delete",
-    headers: {
-      authorization: window.localStorage.getItem("auth-token") || "",
+  const req = await api.v0.customLesson.remove({
+    params: { lessonId: id.toString() },
+    extraHeaders: {
+      authorization: window.localStorage.getItem('auth-token') || '',
     },
-    credentials: "include"
   })
-  return await req.json()
-}/*
-          week: number;
-          group: string;
-          groupId: number;
-          ignoreCached: boolean;
-  */
+
+  return req.body
+}

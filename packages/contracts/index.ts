@@ -4,6 +4,6 @@ import { v0Contract } from "./v0";
 
 const c = initContract();
 
-export const contracts = c.router({
+export const apiContract = c.router({
   v0: c.router(v0Contract, { pathPrefix: "/api/v0" }),
 });
