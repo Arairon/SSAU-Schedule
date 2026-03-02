@@ -106,19 +106,47 @@ export async function getWeekLessons(
 
   const lessonIds = lessons.map((i) => i.id);
 
+  const trustedLessonCustomizers = preferences.trustedLessonCustomizers ?? [];
+
   const customLessons = opts?.ignoreCustomizations
     ? []
     : await db.customLesson.findMany({
         where: {
-          OR: [
+          AND: [
             {
-              weekNumber: week,
+              OR: [
+                {
+                  weekNumber: week,
+                },
+                {
+                  lessonId: { in: lessonIds },
+                },
+              ],
             },
             {
-              lessonId: { in: lessonIds },
+              OR: [
+                // Owner always sees their own custom lessons
+                { userId: user.id },
+                // Viewer sees shared lessons if they match a target AND trust the owner
+                {
+                  AND: [
+                    {
+                      OR: [
+                        { targetUsers: { some: { id: user.id } } },
+                        { targetGroups: { some: { id: user.groupId ?? -1 } } },
+                        {
+                          targetFlows: {
+                            some: { user: { some: { id: user.id } } },
+                          },
+                        },
+                      ],
+                    },
+                    { userId: { in: trustedLessonCustomizers } },
+                  ],
+                },
+              ],
             },
           ],
-          userId: user.id,
           // type: militaryFilter, // breaks on null
           isEnabled: true, // TODO: Allow viewing disabled customizations or figure out a better way
         },

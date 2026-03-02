@@ -36,6 +36,9 @@ export const CustomizationDataSchema = s.object({
   weekday: s.number(),
   comment: s.string(),
   userId: s.number(), //
+  targetUserIds: s.array(s.number()),
+  targetGroupIds: s.array(s.number()),
+  targetFlowIds: s.array(s.number()),
 });
 export type CustomizationData = s.infer<typeof CustomizationDataSchema>;
 
@@ -74,6 +77,11 @@ export async function addCustomLesson(
   const data = normalizeCustomLessonData(customData);
   data.userId = user.id;
 
+  // Extract target IDs for relations
+  const targetUserIds = customData.targetUserIds ?? [];
+  const targetGroupIds = customData.targetGroupIds ?? [];
+  const targetFlowIds = customData.targetFlowIds ?? [];
+
   if (data.lessonInfoId) {
     const lessonsToOverride = await db.lesson.findMany({
       where: { infoId: data.lessonInfoId },
@@ -86,6 +94,9 @@ export async function addCustomLesson(
           weekNumber: lesson.weekNumber,
           weekday: lesson.weekday,
           userId: user.id,
+          targetUserIds,
+          targetGroupIds,
+          targetFlowIds,
         }),
       );
       return custom as CustomLesson;
@@ -103,6 +114,12 @@ export async function addCustomLesson(
       id: undefined,
       type: customData.type ? (customData.type as LessonType) : undefined,
       userId: user.id,
+      targetUserIds: undefined,
+      targetGroupIds: undefined,
+      targetFlowIds: undefined,
+      targetUsers: { connect: targetUserIds.map((id) => ({ id })) },
+      targetGroups: { connect: targetGroupIds.map((id) => ({ id })) },
+      targetFlows: { connect: targetFlowIds.map((id) => ({ id })) },
     }),
   });
 }
@@ -117,7 +134,7 @@ export async function deleteCustomLesson(user: User, lessonId: number) {
 
   if (target.lessonInfoId) {
     return await db.customLesson.deleteMany({
-      where: { lessonInfoId: target.lessonInfoId },
+      where: { lessonInfoId: target.lessonInfoId, userId: user.id },
     });
   }
   return await db.customLesson.delete({ where: { id: target.id } });
@@ -141,6 +158,11 @@ export async function editCustomLesson(
   data.id = customData.id;
   data.userId = user.id;
 
+  // Extract target IDs for relations
+  const targetUserIds = customData.targetUserIds ?? [];
+  const targetGroupIds = customData.targetGroupIds ?? [];
+  const targetFlowIds = customData.targetFlowIds ?? [];
+
   const target = await db.customLesson.findUnique({
     where: { id: data.id, userId: user.id },
   });
@@ -148,7 +170,7 @@ export async function editCustomLesson(
 
   if (target.lessonInfoId) {
     const lessonsToOverride = await db.customLesson.findMany({
-      where: { lessonInfoId: target.lessonInfoId },
+      where: { lessonInfoId: target.lessonInfoId, userId: user.id },
     });
     const lessons = [] as unknown[];
     for (const lesson of lessonsToOverride) {
@@ -166,7 +188,14 @@ export async function editCustomLesson(
       lessons.push(
         await db.customLesson.update({
           where: { id: lesson.id },
-          data: custom,
+          data: Object.assign({}, custom, {
+            targetUserIds: undefined,
+            targetGroupIds: undefined,
+            targetFlowIds: undefined,
+            targetUsers: { set: targetUserIds.map((id) => ({ id })) },
+            targetGroups: { set: targetGroupIds.map((id) => ({ id })) },
+            targetFlows: { set: targetFlowIds.map((id) => ({ id })) },
+          }),
         }),
       );
     }
@@ -184,6 +213,12 @@ export async function editCustomLesson(
       id: undefined,
       type: customData.type ? (customData.type as LessonType) : undefined,
       userId: user.id,
+      targetUserIds: undefined,
+      targetGroupIds: undefined,
+      targetFlowIds: undefined,
+      targetUsers: { set: targetUserIds.map((id) => ({ id })) },
+      targetGroups: { set: targetGroupIds.map((id) => ({ id })) },
+      targetFlows: { set: targetFlowIds.map((id) => ({ id })) },
     }),
   });
 }

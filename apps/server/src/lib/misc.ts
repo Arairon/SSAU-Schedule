@@ -20,6 +20,7 @@ export type UserPreferences = {
   notifyAboutNextLesson: boolean;
   notifyAboutNextDay: boolean;
   notifyAboutNextWeek: boolean;
+  trustedLessonCustomizers?: number[]; // User IDs whose shared custom lessons this user wants to see
 };
 
 export const UserPreferencesDefaults: UserPreferences = {
@@ -30,6 +31,7 @@ export const UserPreferencesDefaults: UserPreferences = {
   notifyAboutNextLesson: false,
   notifyAboutNextDay: false,
   notifyAboutNextWeek: false,
+  trustedLessonCustomizers: [],
 };
 
 export const LessonTypeIcon: Record<LessonType, string> = {

@@ -8,29 +8,31 @@ datasource db {
 }
 
 model Group {
-  id            Int            @id
-  name          String
-  specId        Int            @default(0)
-  specName      String         @default("Unknown")
-  lessons       Lesson[]
-  customLessons CustomLesson[]
-  user          User[]
-  weeks         Week[]
-  ics           GroupIcs?
-  groupChats    GroupChat[]
+  id                    Int            @id
+  name                  String
+  specId                Int            @default(0)
+  specName              String         @default("Unknown")
+  lessons               Lesson[]
+  customLessons         CustomLesson[]
+  externalCustomLessons CustomLesson[] @relation("CustomLessonTargetGroups")
+  user                  User[]
+  weeks                 Week[]
+  ics                   GroupIcs?
+  groupChats            GroupChat[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 }
 
 model Flow {
-  id             Int            @id
-  name           String
-  disciplineId   Int            @default(0)
-  disciplineName String         @default("Unknown")
-  lessons        Lesson[]
-  customLessons  CustomLesson[]
-  user           User[]
+  id                    Int            @id
+  name                  String
+  disciplineId          Int            @default(0)
+  disciplineName        String         @default("Unknown")
+  lessons               Lesson[]
+  customLessons         CustomLesson[]
+  externalCustomLessons CustomLesson[] @relation("CustomLessonTargetFlows")
+  user                  User[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
@@ -94,11 +96,17 @@ model CustomLesson {
   userId  Int
   comment String @default("")
 
+  // Sharing targets: custom lesson is visible to these users/groups/flows if they trust the owner
+  targetUsers  User[]  @relation("CustomLessonTargetUsers")
+  targetGroups Group[] @relation("CustomLessonTargetGroups")
+  targetFlows  Flow[]  @relation("CustomLessonTargetFlows")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()
 
   @@index([lessonId, userId])
   @@index([userId])
+  @@index([userId, weekNumber])
 }
 
 model Lesson {
@@ -132,27 +140,28 @@ model Lesson {
 }
 
 model User {
-  id                  Int            @id @default(autoincrement())
-  tgId                BigInt         @unique
-  staffId             Int? // LK id
-  fullname            String?
-  group               Group?         @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  groupId             Int?
-  flows               Flow[]
-  authCookie          String?
-  authCookieExpiresAt DateTime       @default(value: "1970-01-01T00:00:00.000Z")
-  sessionExpiresAt    DateTime       @default(value: "1970-01-01T00:00:00.000Z")
-  username            String?
-  password            String?
+  id                    Int            @id @default(autoincrement())
+  tgId                  BigInt         @unique
+  staffId               Int? // LK id
+  fullname              String?
+  group                 Group?         @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  groupId               Int?
+  flows                 Flow[]
+  authCookie            String?
+  authCookieExpiresAt   DateTime       @default(value: "1970-01-01T00:00:00.000Z")
+  sessionExpiresAt      DateTime       @default(value: "1970-01-01T00:00:00.000Z")
+  username              String?
+  password              String?
   // notifyOnNextLesson  Boolean  @default(true)
   // notifyOnNextDay     Boolean  @default(true)
   // notifyOnNextWeek    Boolean  @default(true)
-  preferences         Json           @default(value: "{}")
-  subgroup            Int?
-  ics                 UserIcs?
-  groupChats          GroupChat[]
-  customLessons       CustomLesson[]
-  apiKeys             UserApiKey[]
+  preferences           Json           @default(value: "{}")
+  subgroup              Int?
+  ics                   UserIcs?
+  groupChats            GroupChat[]
+  customLessons         CustomLesson[]
+  externalCustomLessons CustomLesson[] @relation("CustomLessonTargetUsers")
+  apiKeys               UserApiKey[]
   //weeks               Week[] // Disabled, since weeks can have '0' as their owner
 
   lastActive DateTime @default(now())
