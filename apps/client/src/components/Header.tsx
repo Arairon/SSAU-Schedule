@@ -5,7 +5,7 @@ import useAuth from '@/hooks/useAuth'
 export default function Header() {
   // const [isOpen, setIsOpen] = useState(false)
   const isTg = !!(window as any).Telegram?.WebApp
-  useAuth({ tg: isTg, token: window.localStorage.getItem("auth-token") || "", cookie: !isTg })
+  useAuth({ tg: isTg, token: window.localStorage.getItem("auth-token") || "", cookie: true })
   // const { user } = useAuthState()
 
   return (
