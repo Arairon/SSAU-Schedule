@@ -18,6 +18,7 @@ import type {
 } from "@/schedule/types/timetable";
 import { getWeek, getWeekLessons } from "@/lib/week";
 import { applyCustomization } from "./customLesson";
+import { lessonToTimetableLesson } from "@/lib/misc";
 
 export async function generateTimetable(
   user: User,
@@ -96,34 +97,7 @@ export async function generateTimetable(
 
   // Run through all the lessons and add them to the timetable, applying customizations if needed
   for (const lesson of lessons.all) {
-    const timetableLesson: TimetableLesson = {
-      id: lesson.id,
-      infoId: lesson.infoId,
-      type: lesson.type,
-      discipline: formatSentence(lesson.discipline),
-      teacher: {
-        name: lesson.teacher.name,
-        id: lesson.teacherId,
-      },
-      isOnline: lesson.isOnline,
-      isIet: lesson.isIet,
-      building: lesson.building,
-      room: lesson.room,
-      subgroup: lesson.subgroup,
-      groups: [],
-      flows: [],
-      dayTimeSlot: lesson.dayTimeSlot,
-      beginTime: lesson.beginTime,
-      endTime: lesson.endTime,
-      conferenceUrl: lesson.conferenceUrl,
-      alts: [],
-      customized: null,
-      original: null,
-    };
-    if ("groups" in lesson)
-      timetableLesson.groups = lesson.groups.map((g) => g.name);
-    if ("flows" in lesson)
-      timetableLesson.flows = lesson.flows.map((f) => f.name);
+    const timetableLesson = lessonToTimetableLesson(lesson);
 
     const customLesson = customLessons.find((i) => i.lessonId === lesson.id);
     if (customLesson && customLesson.weekNumber !== timetable.week) continue; // Lesson was moved to another week

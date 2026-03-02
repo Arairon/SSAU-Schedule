@@ -2,11 +2,13 @@ import * as ics from "ics";
 import { db } from "@/db";
 import log from "@/logger";
 import {
+  lessonToTimetableLesson,
   LessonTypeIcon,
   LessonTypeName,
   UserPreferencesDefaults,
 } from "../lib/misc";
 import { LessonType } from "@/generated/prisma/client";
+import { applyCustomization } from "./customLesson";
 
 const ICS_CACHE_TTL_MS = 3600_000;
 
@@ -49,22 +51,91 @@ export async function generateUserIcs(
       })
     : [];
 
+  // Fetch custom lessons for this user
+  const allLessonIds = [...normalLessons, ...ietLessons].map((l) => l.id);
+  const trustedLessonCustomizers = preferences.trustedLessonCustomizers ?? [];
+
+  const customLessons = await db.customLesson.findMany({
+    where: {
+      AND: [
+        {
+          OR: [
+            { lessonId: { in: allLessonIds } },
+            { lessonId: null }, // Standalone custom lessons
+          ],
+        },
+        {
+          OR: [
+            // Owner always sees their own custom lessons
+            { userId: user.id },
+            // Viewer sees shared lessons if they match a target AND trust the owner
+            {
+              AND: [
+                {
+                  OR: [
+                    { targetUsers: { some: { id: user.id } } },
+                    { targetGroups: { some: { id: user.groupId ?? -1 } } },
+                    {
+                      targetFlows: {
+                        some: { user: { some: { id: user.id } } },
+                      },
+                    },
+                  ],
+                },
+                { userId: { in: trustedLessonCustomizers } },
+              ],
+            },
+          ],
+        },
+      ],
+      isEnabled: true,
+    },
+    include: { groups: true, teacher: true, flows: true, user: true },
+  });
+
+  // Build a map of lessonId -> customization for quick lookup
+  const customizationMap = new Map(
+    customLessons
+      .filter((cl) => cl.lessonId !== null)
+      .map((cl) => [cl.lessonId!, cl]),
+  );
+
   const events: ics.EventAttributes[] = [];
 
+  // Process regular lessons with customizations applied
   for (const lesson of [...normalLessons, ...ietLessons]) {
     if (user.subgroup && lesson.subgroup && user.subgroup !== lesson.subgroup)
       continue;
     if (!preferences.showMilitary && lesson.type === LessonType.Military)
       continue;
-    const teacherName = lesson.teacher?.name ?? "Преподаватель не указан";
+
+    // Check if there's a customization for this lesson
+    const customLesson = customizationMap.get(lesson.id);
+
+    // Skip if customization hides this lesson
+    if (customLesson?.hideLesson) continue;
+
+    // Apply customizations to lesson properties
+    if (customLesson)
+      applyCustomization(lessonToTimetableLesson(lesson), customLesson);
+
+    let teacherName = "Преподаватель не указан";
+    if (customLesson?.teacher) {
+      teacherName = customLesson.teacher.name;
+    } else if (lesson.teacher) {
+      teacherName = lesson.teacher.name;
+    }
+
     const event: ics.EventAttributes = {
       title:
         `${LessonTypeIcon[lesson.type]} ${lesson.discipline} ${lesson.isIet ? "[ИОТ]" : ""}` +
-        (lesson.subgroup !== null ? ` (${lesson.subgroup})` : ""),
+        (lesson.subgroup !== null ? ` (${lesson.subgroup})` : "") +
+        (customLesson ? " [изм]" : ""),
       description:
         `${teacherName}` +
         (lesson.subgroup !== null ? `\nПодгруппа: ${lesson.subgroup}` : "") +
-        (lesson.conferenceUrl ? `\n${lesson.conferenceUrl}` : ""),
+        (lesson.conferenceUrl ? `\n${lesson.conferenceUrl}` : "") +
+        (customLesson?.comment ? `\n\n${customLesson.comment}` : ""),
       location:
         `${LessonTypeName[lesson.type]} / ` +
         (lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`),
@@ -73,8 +144,64 @@ export async function generateUserIcs(
       startInputType: "utc",
       end: ics.convertTimestampToArray(lesson.endTime.getTime(), "utc"),
       endInputType: "utc",
-      uid: `lesson-${lesson.id}@ssau-schedule-bot`,
+      uid: customLesson
+        ? `custom-${customLesson.id}@ssau-schedule-bot`
+        : `lesson-${lesson.id}@ssau-schedule-bot`,
       categories: [LessonTypeName[lesson.type]],
+    };
+    events.push(event);
+  }
+
+  // Add standalone custom lessons (not tied to existing lessons)
+  for (const customLesson of customLessons.filter(
+    (cl) => cl.lessonId === null,
+  )) {
+    // Apply subgroup filtering
+    if (
+      user.subgroup &&
+      customLesson.subgroup &&
+      user.subgroup !== customLesson.subgroup
+    )
+      continue;
+
+    // Skip if marked as hidden (though this shouldn't happen for standalone lessons)
+    if (customLesson.hideLesson) continue;
+
+    const type = customLesson.type ?? LessonType.Unknown;
+    const discipline = customLesson.discipline ?? "Неизвестный предмет";
+    const isOnline = customLesson.isOnline ?? false;
+    const isIet = customLesson.isIet ?? false;
+    const building = customLesson.building ?? "?";
+    const room = customLesson.room ?? "???";
+    const teacherName = customLesson.teacher
+      ? customLesson.teacher.name
+      : "Преподаватель не указан";
+
+    const event: ics.EventAttributes = {
+      title:
+        `${LessonTypeIcon[type]} ${discipline} ${isIet ? "[ИОТ]" : ""}` +
+        (customLesson.subgroup !== null ? ` (${customLesson.subgroup})` : "") +
+        " [доб]", // Mark standalone custom lessons as added
+      description:
+        `${teacherName}` +
+        (customLesson.subgroup !== null
+          ? `\nПодгруппа: ${customLesson.subgroup}`
+          : "") +
+        (customLesson.conferenceUrl ? `\n${customLesson.conferenceUrl}` : "") +
+        (customLesson.comment ? `\n\n${customLesson.comment}` : ""),
+      location:
+        `${LessonTypeName[type]} / ` +
+        (isOnline ? "Online" : `${building} - ${room}`),
+      url: customLesson.conferenceUrl ?? undefined,
+      start: ics.convertTimestampToArray(
+        customLesson.beginTime.getTime(),
+        "utc",
+      ),
+      startInputType: "utc",
+      end: ics.convertTimestampToArray(customLesson.endTime.getTime(), "utc"),
+      endInputType: "utc",
+      uid: `custom-${customLesson.id}@ssau-schedule-bot`,
+      categories: [LessonTypeName[type]],
     };
     events.push(event);
   }

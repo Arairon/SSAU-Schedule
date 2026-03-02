@@ -221,6 +221,46 @@ export function formatTimetableDiff(diff: TimetableDiff, limit = 0): string {
   return parts.join("\n");
 }
 
+/**
+ * Converts a Prisma Lesson model (with included relations) to a TimetableLesson
+ * @param lesson Prisma Lesson with teacher, groups, and/or flows included
+ * @returns TimetableLesson ready for use in timetables
+ */
+export function lessonToTimetableLesson(
+  lesson: Lesson & {
+    teacher: { name: string; id: number };
+    groups?: { name: string }[];
+    flows?: { name: string }[];
+  },
+): TimetableLesson {
+  const timetableLesson: TimetableLesson = {
+    id: lesson.id,
+    infoId: lesson.infoId,
+    type: lesson.type,
+    discipline: formatSentence(lesson.discipline),
+    teacher: {
+      name: lesson.teacher.name,
+      id: lesson.teacherId,
+    },
+    isOnline: lesson.isOnline,
+    isIet: lesson.isIet,
+    building: lesson.building,
+    room: lesson.room,
+    subgroup: lesson.subgroup,
+    groups: lesson.groups?.map((g) => g.name) ?? [],
+    flows: lesson.flows?.map((f) => f.name) ?? [],
+    dayTimeSlot: lesson.dayTimeSlot,
+    beginTime: lesson.beginTime,
+    endTime: lesson.endTime,
+    conferenceUrl: lesson.conferenceUrl,
+    alts: [],
+    customized: null,
+    original: null,
+  };
+
+  return timetableLesson;
+}
+
 export type RequestStateUpdate<T extends string> = {
   state: T;
   message?: string;
