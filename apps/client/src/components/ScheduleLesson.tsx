@@ -3,7 +3,7 @@ import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { LessonType } from "@ssau-schedule/shared/themes/types";
-import type { LessonDateTime, ScheduleLessonType } from "@/lib/types";
+import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
 import { lessonStyles } from "@/components/ScheduleViewer";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,6 +106,7 @@ export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonTy
   )
 }
 
+type CustomizationDataPayload = Partial<CustomizationData> & {weekNumber:number, weekday: number, dayTimeSlot: number}
 
 export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { lesson: Omit<ScheduleLessonType, "alts"> | null; hasMenu?: boolean }) {
   const { openEditDialog, openDeleteDialog } = useEditorState()
@@ -121,9 +122,9 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
 
       let promise: Promise<any>;
       if (lesson.customized) {
-        promise = editCustomLesson({ customizationData })
+        promise = editCustomLesson({ customizationData: customizationData as CustomizationDataPayload & {id:number} })
       } else {
-        promise = addCustomLesson({ customizationData })
+        promise = addCustomLesson({ customizationData: customizationData as CustomizationDataPayload })
       }
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара обновлена" })
       return promise

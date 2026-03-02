@@ -10,6 +10,7 @@ import useEditorState from "@/hooks/useEditorState";
 import { addCustomLesson, deleteCustomLesson, editCustomLesson } from "@/api/api";
 
 
+type CustomizationDataPayload = Partial<CustomizationData> & {weekNumber:number, weekday: number, dayTimeSlot: number}
 
 export default function ScheduleViewerWithEditor({ schedule }: { schedule: ScheduleType; }) {
   const { isDeleteDialogOpen, isEditDialogOpen, close, lesson, time: lessonTimeslot, customizationData } = useEditorState()
@@ -43,7 +44,7 @@ export default function ScheduleViewerWithEditor({ schedule }: { schedule: Sched
   const addCustomization = useMutation({
     mutationKey: ["customLesson", "add"],
     mutationFn: (data: Partial<CustomizationData>) => {
-      const promise = addCustomLesson({ customizationData: data })
+      const promise = addCustomLesson({ customizationData: data as CustomizationDataPayload })
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара добавлена" })
       return promise
     },
@@ -65,7 +66,7 @@ export default function ScheduleViewerWithEditor({ schedule }: { schedule: Sched
   const editCustomization = useMutation({
     mutationKey: ["customLesson", "add"],
     mutationFn: (data: Partial<CustomizationData>) => {
-      const promise = editCustomLesson({ customizationData: data })
+      const promise = editCustomLesson({ customizationData: data  as CustomizationDataPayload & {id:number}})
       toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара изменена" })
       return promise
     },
