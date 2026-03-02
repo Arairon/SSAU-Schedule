@@ -20,6 +20,48 @@ import { getWeek, getWeekLessons } from "@/lib/week";
 import { applyCustomization } from "./customLesson";
 import { lessonToTimetableLesson } from "@/lib/misc";
 
+function compareLessonSubgroup(
+  left: TimetableLesson,
+  right: TimetableLesson,
+): number {
+  const leftSubgroup = left.subgroup ?? -1;
+  const rightSubgroup = right.subgroup ?? -1;
+  if (leftSubgroup !== rightSubgroup) return leftSubgroup - rightSubgroup;
+
+  if (left.id !== right.id) return left.id - right.id;
+  return left.discipline.localeCompare(right.discipline);
+}
+
+function addLessonToDay(day: TimetableDay, lesson: TimetableLesson): void {
+  const sameSlotLessons = day.lessons.filter(
+    (existing) => existing.dayTimeSlot === lesson.dayTimeSlot,
+  );
+
+  if (sameSlotLessons.length === 0) {
+    day.lessonCount += 1;
+    day.lessons.push(lesson);
+    return;
+  }
+
+  const mergedLessons = [
+    lesson,
+    ...sameSlotLessons,
+    ...sameSlotLessons.flatMap((existing) => existing.alts),
+  ];
+  mergedLessons.forEach((entry) => {
+    entry.alts = [];
+  });
+  mergedLessons.sort(compareLessonSubgroup);
+
+  const primaryLesson = mergedLessons[0];
+  primaryLesson.alts = mergedLessons.slice(1);
+
+  day.lessons = day.lessons.filter(
+    (existing) => !sameSlotLessons.includes(existing),
+  );
+  day.lessons.push(primaryLesson);
+}
+
 export async function generateTimetable(
   user: User,
   weekN: number,
@@ -123,19 +165,7 @@ export async function generateTimetable(
         ? timetableLesson.endTime
         : day.endTime;
 
-    const alts = day.lessons.filter(
-      (l) => l.dayTimeSlot === lesson.dayTimeSlot,
-    );
-    if (alts.length > 0) {
-      alts.forEach((alt) => {
-        timetableLesson.alts.push(alt, ...alt.alts);
-        alt.alts = [];
-      });
-      day.lessons = day.lessons.filter((l) => !alts.includes(l));
-    } else {
-      day.lessonCount += 1;
-    }
-    day.lessons.push(timetableLesson);
+    addLessonToDay(day, timetableLesson);
   }
 
   // Run through all customLessons that don't have a lessonId and add them as new lessons to the timetable
@@ -178,19 +208,7 @@ export async function generateTimetable(
         lesson.beginTime < day.beginTime ? lesson.beginTime : day.beginTime;
       day.endTime = lesson.endTime > day.endTime ? lesson.endTime : day.endTime;
 
-      const alts = day.lessons.filter(
-        (l) => l.dayTimeSlot === lesson.dayTimeSlot,
-      );
-      if (alts.length > 0) {
-        alts.forEach((alt) => {
-          lesson.alts.push(alt, ...alt.alts);
-          alt.alts = [];
-        });
-        day.lessons = day.lessons.filter((l) => !alts.includes(l));
-      } else {
-        day.lessonCount += 1;
-      }
-      day.lessons.push(lesson);
+      addLessonToDay(day, lesson);
     });
 
   // Sort lessons in each day by time
