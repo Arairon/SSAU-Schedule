@@ -1,42 +1,36 @@
-import { type FastifyRequest, type FastifyInstance } from "fastify";
-import s from "ajv-ts";
+import { type FastifyInstance } from "fastify";
 import { lk } from "@/ssau/lk";
 import { db } from "@/db";
 import { type AuthData } from "./auth";
+import { initServer } from "@ts-rest/fastify";
+import { lkContract } from "@ssau-schedule/contracts/v0/lk";
 
-const CredentialsSchema = s
-  .object({
-    username: s.string().min(1),
-    password: s.string().min(1),
-    saveCredentials: s.boolean().default(false),
-  })
-  .strict()
-  .required();
+const s = initServer();
+
+const router = s.router(lkContract, {
+  login: async ({ body, request }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    if (!auth) {
+      return { status: 403, body: "Unauthorized" };
+    }
+
+    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+    const result = await lk.login(user, body);
+    if (result.ok) {
+      await lk.updateUserInfo(user);
+      return { status: 200, body: { success: true, error: null } };
+    }
+
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: `${result.error}: ${result.message}`,
+      },
+    };
+  },
+});
 
 export async function routesLk(fastify: FastifyInstance) {
-  fastify.post(
-    "/login",
-    {},
-    async (
-      req: FastifyRequest<{ Body: { login: string; password: string } }>,
-      res,
-    ) => {
-      const auth: AuthData = req.getDecorator("authData");
-      if (!auth) return res.status(403).send("Unauthorized");
-      const { success, data, error } = CredentialsSchema.safeParse(req.body);
-      if (!success) {
-        return res.status(400).send("Invalid format: " + error?.message);
-      }
-      const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-      const result = await lk.login(user, data);
-      if (result.ok) {
-        await lk.updateUserInfo(user);
-        return res.status(200).send({ success: true, error: null });
-      } else
-        return res.status(400).send({
-          success: false,
-          error: `${result.error}: ${result.message}`,
-        });
-    },
-  );
+  s.registerRouter(lkContract, router, fastify);
 }

@@ -1,47 +1,50 @@
-import { type FastifyInstance, type FastifyRequest } from "fastify";
+import { type FastifyInstance } from "fastify";
+import { initServer } from "@ts-rest/fastify";
 import { getUserIcsByUserId, getUserIcsByUUID } from "@/schedule/ics";
 import { type AuthData } from "./auth";
+import { icsContract } from "@ssau-schedule/contracts/v0/ics";
 
-export async function routesIcs(fastify: FastifyInstance) {
-  fastify.get(
-    "/",
-    {},
-    async (req: FastifyRequest<{ Params: { lessonId: number } }>, res) => {
-      const auth: AuthData = req.getDecorator("authData");
-      if (!auth) return res.status(403).send("Unauthorized");
-      const cal = await getUserIcsByUserId(auth.userId);
-      if (!cal)
-        return res.status(404).send({
+const s = initServer();
+
+const router = s.router(icsContract, {
+  getOwnIcs: async ({ request, reply }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    if (!auth) {
+      return { status: 403, body: "Unauthorized" };
+    }
+
+    const cal = await getUserIcsByUserId(auth.userId);
+    if (!cal) {
+      return {
+        status: 404,
+        body: {
           error: "not found",
           message: "Could not generate Calendar",
-        });
-      return res
-        .status(200)
-        .headers({ "content-type": "text/calendar; charset=utf-8" })
-        .send(cal.data);
-    },
-  );
+        },
+      };
+    }
 
-  fastify.get(
-    "/:icsUUID",
-    {},
-    async (
-      req: FastifyRequest<{
-        Params: { icsUUID: string };
-      }>,
-      res,
-    ) => {
-      const icsUUID = req.params.icsUUID;
-      const cal = await getUserIcsByUUID(icsUUID);
-      if (!cal)
-        return res.status(404).send({
+    reply.header("content-type", "text/calendar; charset=utf-8");
+    return { status: 200, body: cal.data };
+  },
+
+  getIcsByUuid: async ({ params, reply }) => {
+    const cal = await getUserIcsByUUID(params.icsUUID);
+    if (!cal) {
+      return {
+        status: 404,
+        body: {
           error: "not found",
           message: "Could not find such Calendar",
-        });
-      return res
-        .status(200)
-        .headers({ "content-type": "text/calendar; charset=utf-8" })
-        .send(cal.data);
-    },
-  );
+        },
+      };
+    }
+
+    reply.header("content-type", "text/calendar; charset=utf-8");
+    return { status: 200, body: cal.data };
+  },
+});
+
+export async function routesIcs(fastify: FastifyInstance) {
+  s.registerRouter(icsContract, router, fastify);
 }

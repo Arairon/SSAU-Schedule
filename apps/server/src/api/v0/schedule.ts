@@ -4,52 +4,34 @@ import { findGroup } from "@/ssau/search";
 import { schedule } from "@/schedule/requests";
 import { detectImageMimeType } from "@/schedule/image";
 import { type AuthData } from "./auth";
+import { initServer } from "@ts-rest/fastify";
+import { scheduleContract } from "@ssau-schedule/contracts/v0/schedule";
+
+const s = initServer();
+
+const router = s.router(scheduleContract, {
+  getSchedule: async ({ query, request }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    if (!auth) {
+      return { status: 403, body: "Unauthorized" };
+    }
+
+    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+    const group = await findGroup({
+      groupId: query.groupId,
+      groupName: query.group,
+    });
+    const timetable = await schedule.getTimetable(user, query.week, {
+      ignoreCached: true,
+      groupId: (group?.id ?? 0) || undefined,
+    });
+
+    return { status: 200, body: timetable };
+  },
+});
 
 export async function routesSchedule(fastify: FastifyInstance) {
-  fastify.get(
-    "/",
-    {
-      schema: {
-        querystring: {
-          type: "object",
-          properties: {
-            week: { type: "number", default: 0, minimum: 0, maximum: 52 },
-            group: { type: "string", default: "" },
-            groupId: { type: "number", default: 0 },
-            ignoreCached: { type: "boolean", default: false },
-          },
-        },
-      },
-    },
-    async (
-      req: FastifyRequest<{
-        Params: { userId: number };
-        Querystring: {
-          week: number;
-          group: string;
-          groupId: number;
-          ignoreCached: boolean;
-        };
-      }>,
-      res,
-    ) => {
-      const auth: AuthData = req.getDecorator("authData");
-      if (!auth) return res.status(403).send("Unauthorized");
-      const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-      const group = await findGroup({
-        groupId: req.query.groupId,
-        groupName: req.query.group,
-      });
-      const timetable = await schedule.getTimetable(user, req.query.week, {
-        ignoreCached: true, // req.query.ignoreCached,
-        groupId: (group?.id ?? 0) || undefined,
-      });
-      return res
-        .status(200)
-        .headers({ "content-type": "application/json" })
-        .send(timetable);
-    },
-  );
+  s.registerRouter(scheduleContract, router, fastify);
 
   fastify.get(
     "/image/:hash/:stylemap",
@@ -59,9 +41,9 @@ export async function routesSchedule(fastify: FastifyInstance) {
           type: "object",
           properties: {
             hash: { type: "string" },
-            stylemap: { type: "string" }
-          }
-        }
+            stylemap: { type: "string" },
+          },
+        },
       },
     },
     async (
@@ -70,15 +52,17 @@ export async function routesSchedule(fastify: FastifyInstance) {
       }>,
       res,
     ) => {
-
       const image = await db.weekImage.findUnique({
         where: {
-          stylemap_timetableHash: { stylemap: req.params.stylemap, timetableHash: req.params.hash },
+          stylemap_timetableHash: {
+            stylemap: req.params.stylemap,
+            timetableHash: req.params.hash,
+          },
           validUntil: { gt: new Date() },
         },
       });
       if (!image) {
-        return res.status(404).send()
+        return res.status(404).send();
       }
       const imageBuffer = Buffer.from(image.data, "base64");
       return res

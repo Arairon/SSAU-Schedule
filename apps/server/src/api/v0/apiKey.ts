@@ -1,63 +1,78 @@
-import { type FastifyInstance, type FastifyRequest } from "fastify";
+import { type FastifyInstance } from "fastify";
 import { db } from "@/db";
 import { type AuthData } from "./auth";
 import { createApiKeyAndStore, validateApiKey } from "@/lib/apiKey";
+import { initServer } from "@ts-rest/fastify";
+import { apiKeyContract } from "@ssau-schedule/contracts/v0/apiKey";
 
-export async function routesApiKey(fastify: FastifyInstance) {
-  fastify.get(
-    "/new",
-    {},
-    async (req: FastifyRequest<{ Body: unknown }>, res) => {
-      const auth: AuthData = req.getDecorator("authData");
-      if (!auth) return res.status(403).send("Unauthorized");
-      const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+const s = initServer();
 
-      const { key, info } = await createApiKeyAndStore(
-        user.id,
-        new Date(Date.now() + 30 * 24 * 3600_000),
-      );
+const router = s.router(apiKeyContract, {
+  create: async ({ request }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    if (!auth) {
+      return { status: 403, body: "Unauthorized" };
+    }
 
-      return {
+    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+    const { key, info } = await createApiKeyAndStore(
+      user.id,
+      new Date(Date.now() + 30 * 24 * 3600_000),
+    );
+
+    return {
+      status: 200,
+      body: {
         key,
         info: Object.assign({}, info, { keyHash: "redacted" }),
-      };
-    },
-  );
-
-  fastify.get(
-    "/check/:key",
-    {},
-    async (req: FastifyRequest<{ Params: { key: string } }>, res) => {
-      const key = req.params.key;
-      return res.status(200).send(await validateApiKey({ key }));
-    },
-  );
-
-  fastify.get("/list", {}, async (req, res) => {
-    const auth: AuthData = req.getDecorator("authData");
-    if (!auth) return res.status(403).send("Unauthorized");
-    return await db.userApiKey.findMany({
-      where: {
-        userId: auth.userId,
-        revoked: false,
-        expiresAt: { gt: new Date() },
       },
-    });
-  });
+    };
+  },
 
-  fastify.delete(
-    "/:keyId",
-    {},
-    async (req: FastifyRequest<{ Params: { keyId: number } }>, res) => {
-      const auth: AuthData = req.getDecorator("authData");
-      if (!auth) return res.status(403).send("Unauthorized");
-      const keyId = Number(req.params.keyId);
-      return !!(
+  check: async ({ params }) => {
+    return {
+      status: 200,
+      body: await validateApiKey({ key: params.key }),
+    };
+  },
+
+  list: async ({ request }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    if (!auth) {
+      return { status: 403, body: "Unauthorized" };
+    }
+
+    return {
+      status: 200,
+      body: await db.userApiKey.findMany({
+        where: {
+          userId: auth.userId,
+          revoked: false,
+          expiresAt: { gt: new Date() },
+        },
+      }),
+    };
+  },
+
+  revoke: async ({ params, request }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    if (!auth) {
+      return { status: 403, body: "Unauthorized" };
+    }
+
+    const keyId = Number(params.keyId);
+    return {
+      status: 200,
+      body: !!(
         await db.userApiKey.updateMany({
           where: { id: keyId, userId: auth.userId, revoked: false },
           data: { revoked: true },
         })
-      ).count;
-    },
-  );
+      ).count,
+    };
+  },
+});
+
+export async function routesApiKey(fastify: FastifyInstance) {
+  s.registerRouter(apiKeyContract, router, fastify);
 }

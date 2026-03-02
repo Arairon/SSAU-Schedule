@@ -1,5 +1,6 @@
 import { initContract } from "@ts-rest/core";
 import { z } from "zod";
+import { UserSchema } from "./schemas/user.js";
 
 const c = initContract();
 
@@ -10,12 +11,7 @@ export const AuthDataSchema = z
   })
   .nullable();
 
-export const AuthUserSchema = z.object({
-  id: z.number(),
-  tgId: z.string(),
-  password: z.string().nullable().optional(),
-  authCookie: z.boolean().optional(),
-});
+export const AuthUserSchema = UserSchema;
 
 export const AuthStatusSchema = z.object({
   authorized: z.boolean(),

@@ -1,8 +1,4 @@
-import {
-  type FastifyRequest,
-  type FastifyInstance,
-  type FastifyReply,
-} from "fastify";
+import { type FastifyInstance, type FastifyReply } from "fastify";
 import cookie from "@fastify/cookie";
 import log from "@/logger";
 import {
@@ -14,6 +10,8 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { db } from "@/db";
 import s from "ajv-ts";
 import { validateApiKey } from "@/lib/apiKey";
+import { initServer } from "@ts-rest/fastify";
+import { authContract } from "@ssau-schedule/contracts/v0/auth";
 
 export type AuthData = {
   userId: number;
@@ -27,6 +25,70 @@ const CredentialsSchema = s
   })
   .strict()
   .required();
+
+function redactUser(
+  user: {
+    id: number;
+    tgId: bigint;
+    password: string | null;
+    authCookie: string | null;
+  } | null,
+) {
+  if (!user) {
+    return null;
+  }
+
+  return Object.assign({}, user, {
+    tgId: user.tgId.toString(),
+    password: user.password ? "redacted" : null,
+    authCookie: !!user.authCookie,
+  });
+}
+
+const tsr = initServer();
+
+const router = tsr.router(authContract, {
+  login: async ({ body }) => {
+    const { success, data, error } = CredentialsSchema.safeParse(body);
+    if (!success) {
+      return { status: 400, body: "Invalid format: " + error?.message };
+    }
+
+    return { status: 501, body: "Not implemented yet " + JSON.stringify(data) };
+  },
+
+  auth: async ({ request, reply }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    const authError = reply.getHeader("authorization-error");
+    const dbUser = auth?.userId
+      ? await db.user.findUnique({ where: { id: auth.userId } })
+      : null;
+    const user = redactUser(dbUser);
+
+    return {
+      status: 200,
+      body: {
+        authorized: !!auth,
+        auth,
+        error: authError,
+        user,
+      },
+    };
+  },
+
+  whoami: async ({ request, reply }) => {
+    const auth = request.getDecorator<AuthData>("authData");
+    if (!auth) {
+      return { status: 403, body: "Unauthorized" };
+    }
+
+    const dbUser = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+    const user = redactUser(dbUser)!;
+
+    reply.header("content-type", "application/json");
+    return { status: 200, body: user };
+  },
+});
 
 export async function registerAuth(fastify: FastifyInstance) {
   const accessTokenCookieOptions = {
@@ -164,56 +226,5 @@ export async function registerAuth(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post(
-    "/login",
-    {},
-    async (
-      req: FastifyRequest<{ Body: { login: string; password: string } }>,
-      res,
-    ) => {
-      const { success, data, error } = CredentialsSchema.safeParse(req.body);
-      if (!success) {
-        return res.status(400).send("Invalid format: " + error?.message);
-      }
-      // const {login,password} = data;
-      // TODO: Implement login & password auth
-
-      res.status(501).send("Not implemented yet " + JSON.stringify(data));
-    },
-  );
-
-  fastify.get("/auth", {}, async (req, res) => {
-    const auth: AuthData = req.getDecorator("authData");
-    const authError = res.getHeader("authorization-error");
-    const user = auth?.userId
-      ? await db.user.findUnique({ where: { id: auth.userId } })
-      : null;
-    if (user)
-      Object.assign(user, {
-        tgId: user.tgId.toString(),
-        password: user.password ? "redacted" : null,
-        authCookie: !!user.authCookie,
-      });
-    res.status(200).send({
-      authorized: !!auth,
-      auth: auth,
-      error: authError,
-      user,
-    });
-  });
-
-  fastify.get("/whoami", {}, async (req, res) => {
-    const auth: AuthData = req.getDecorator("authData");
-    if (!auth) return res.status(403).send("Unauthorized");
-    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-    Object.assign(user, {
-      tgId: user.tgId.toString(),
-      password: user.password ? "redacted" : null,
-      authCookie: !!user.authCookie,
-    });
-    return res
-      .status(200)
-      .headers({ "content-type": "application/json" })
-      .send(user);
-  });
+  tsr.registerRouter(authContract, router, fastify);
 }

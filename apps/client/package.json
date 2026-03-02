@@ -30,7 +30,7 @@
     "@tanstack/react-query-devtools": "^5.84.2",
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-router-devtools": "^1.132.0",
-    "@ts-rest/core": "^3.52.1",
+    "@ts-rest/core": "3.53.0-rc.1",
     "@tma.js/sdk-react": "^3.0.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
