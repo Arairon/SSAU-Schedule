@@ -6,6 +6,7 @@ COPY package.json bun.lock ./
 COPY apps/client/package.json ./apps/client/package.json
 COPY apps/server/package.json ./apps/server/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
 
 RUN bun install --frozen-lockfile;
 
@@ -18,6 +19,7 @@ COPY --from=deps /app/apps/client/node_modules ./apps/client/node_modules
 COPY package.json bun.lock ./
 COPY apps/client ./apps/client
 COPY packages/shared ./packages/shared
+COPY packages/contracts ./packages/contracts
 
 WORKDIR /app/apps/client
 RUN bun run build;
@@ -35,6 +37,7 @@ COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
 COPY package.json bun.lock ./
 COPY apps/server ./apps/server
 COPY packages/shared ./packages/shared
+COPY packages/contracts ./packages/contracts
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_DISABLE_DEV_SHM_USAGE=true
