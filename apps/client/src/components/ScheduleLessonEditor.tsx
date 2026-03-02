@@ -3,6 +3,7 @@ import { EyeIcon, EyeOffIcon, GlobeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getLessonDate, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { useState } from "react";
+import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap"
 import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
 import type { LessonType } from "@ssau-schedule/shared/themes/types";
 import { lessonStyles } from "@/components/ScheduleViewer";
@@ -11,8 +12,7 @@ import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Toggle } from "@/components/ui/toggle";
 import { Calendar } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { TimeSlotMap } from "@/lib/types";
-import { applyCustomization } from "@/lib/utils";
+import { applyCustomization } from '@/lib/utils';
 import useEditorState from "@/hooks/useEditorState";
 
 function EditableLesson({ base, time, customizationData, setData }: { base: Omit<ScheduleLessonType, "alts"> | null, time: LessonDateTime, customizationData: Partial<CustomizationData>, setData: (data: Partial<CustomizationData>) => void }) {

@@ -23,6 +23,7 @@
   "author": "",
   "license": "GPL-3.0-only",
   "dependencies": {
+    "@ssau-schedule/contracts": "workspace:*",
     "@ssau-schedule/shared": "workspace:*",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",

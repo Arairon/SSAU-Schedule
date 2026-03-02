@@ -18,6 +18,7 @@
         "@radix-ui/react-slot": "^1.2.4",
         "@radix-ui/react-toggle": "^1.1.10",
         "@radix-ui/react-tooltip": "^1.2.8",
+        "@ssau-schedule/contracts": "workspace:*",
         "@ssau-schedule/shared": "workspace:*",
         "@t3-oss/env-core": "^0.13.8",
         "@tanstack/react-devtools": "^0.7.0",
@@ -26,6 +27,7 @@
         "@tanstack/react-router": "^1.132.0",
         "@tanstack/react-router-devtools": "^1.132.0",
         "@tma.js/sdk-react": "^3.0.11",
+        "@ts-rest/core": "^3.52.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "date-fns": "^4.1.0",
@@ -75,6 +77,7 @@
         "@grammyjs/runner": "^2.0.3",
         "@prisma/adapter-pg": "^7.2.0",
         "@prisma/client": "7",
+        "@ssau-schedule/contracts": "workspace:*",
         "@ssau-schedule/shared": "workspace:*",
         "@t3-oss/env-core": "^0.13.8",
         "@tma.js/init-data-node": "^2.0.5",
@@ -115,6 +118,14 @@
         "ts-node-dev": "^2.0.0",
         "typescript": "^5.9.2",
         "typescript-eslint": "^8.42.0",
+      },
+    },
+    "packages/contracts": {
+      "name": "@ssau-schedule/contracts",
+      "version": "0.0.1",
+      "dependencies": {
+        "@ts-rest/core": "^3.52.1",
+        "zod": "^4.1.13",
       },
     },
     "packages/shared": {
@@ -570,6 +581,8 @@
 
     "@ssau-schedule/client": ["@ssau-schedule/client@workspace:apps/client"],
 
+    "@ssau-schedule/contracts": ["@ssau-schedule/contracts@workspace:packages/contracts"],
+
     "@ssau-schedule/server": ["@ssau-schedule/server@workspace:apps/server"],
 
     "@ssau-schedule/shared": ["@ssau-schedule/shared@workspace:packages/shared"],
@@ -679,6 +692,8 @@
     "@tma.js/types": ["@tma.js/types@1.0.2", "", {}, "sha512-qs4mi+U1xZmMQBdMhWAo1X4YqUJ/ae0y28s+GNCpQq58bsJo0h8rvyVOB1RwPvXogIY9+yribbZe6z3AIJmsAQ=="],
 
     "@tootallnate/quickjs-emscripten": ["@tootallnate/quickjs-emscripten@0.23.0", "", {}, "sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA=="],
+
+    "@ts-rest/core": ["@ts-rest/core@3.52.1", "", { "peerDependencies": { "@types/node": "^18.18.7 || >=20.8.4", "zod": "^3.22.3" }, "optionalPeers": ["@types/node", "zod"] }, "sha512-tAjz7Kxq/grJodcTA1Anop4AVRDlD40fkksEV5Mmal88VoZeRKAG8oMHsDwdwPZz+B/zgnz0q2sF+cm5M7Bc7g=="],
 
     "@tsconfig/node10": ["@tsconfig/node10@1.0.12", "", {}, "sha512-UCYBaeFvM11aU2y3YPZ//O5Rhj+xKyzy7mvcIoAjASbigy8mHMryP5cK7dgjlz2hWxh1g5pLw084E0a/wlUSFQ=="],
 
