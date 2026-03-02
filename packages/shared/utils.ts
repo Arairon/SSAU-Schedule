@@ -23,3 +23,13 @@ export type ReturnObj<T = void> =
       ? { ok: true; message?: string }
       : { ok: true; data: T; message?: string })
   | { ok: false; error: string; message?: string };
+
+export const DayString: { normal: string; in: string }[] = [
+  { normal: "воскресенье", in: "в воскресенье" },
+  { normal: "понедельник", in: "в понедельник" },
+  { normal: "вторник", in: "во вторник" },
+  { normal: "среда", in: "в среду" },
+  { normal: "четверг", in: "в четверг" },
+  { normal: "пятница", in: "в пятницу" },
+  { normal: "суббота", in: "в субботу" },
+];

@@ -3,7 +3,7 @@ import { CommandGroup } from "@grammyjs/commands";
 import { type Context } from "./types";
 import log from "@/logger";
 import { db } from "@/db";
-import { UserPreferencesDefaults } from "@/lib/misc";
+import { getUserPreferences } from "@/lib/misc";
 import { stylemaps, getStylemap } from "@ssau-schedule/shared/themes/index";
 import { env } from "@/env";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
@@ -58,11 +58,7 @@ async function updateOptionsMsg(ctx: Context) {
   if (!user) {
     return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
   }
-  const preferences = Object.assign(
-    {},
-    UserPreferencesDefaults,
-    user.preferences,
-  );
+  const preferences = getUserPreferences(user);
   const newText = `Настройки\n==============================\n${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
   ctx.session.options.updText = null;
   switch (menu) {
@@ -485,11 +481,7 @@ export async function initOptions(bot: Bot<Context>) {
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
+    const preferences = getUserPreferences(user);
     if (preferences.theme === theme) {
       ctx.session.options.updText = `Оставляем тему: "${stylemaps[theme].description}"`;
       ctx.session.options.menu = "";
@@ -575,11 +567,7 @@ export async function initOptions(bot: Bot<Context>) {
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
+    const preferences = getUserPreferences(user);
     preferences.showIet = !preferences.showIet;
     const now = new Date();
     await db.user.update({
@@ -613,11 +601,7 @@ export async function initOptions(bot: Bot<Context>) {
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
+    const preferences = getUserPreferences(user);
     preferences.showMilitary = !preferences.showMilitary;
     const now = new Date();
     await db.user.update({
@@ -706,11 +690,7 @@ export async function initOptions(bot: Bot<Context>) {
       if (!user) {
         return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
       }
-      const preferences = Object.assign(
-        {},
-        UserPreferencesDefaults,
-        user.preferences,
-      );
+      const preferences = getUserPreferences(user);
       if (time === preferences.notifyBeforeLessons) {
         ctx.session.options.updText = `Оставляем время: "${time / 60} мин"`;
         ctx.session.options.menu = "notifications";
@@ -742,11 +722,7 @@ export async function initOptions(bot: Bot<Context>) {
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
+    const preferences = getUserPreferences(user);
     preferences.notifyAboutNextLesson = !preferences.notifyAboutNextLesson;
     await db.user.update({
       where: { id: user.id },
@@ -765,11 +741,7 @@ export async function initOptions(bot: Bot<Context>) {
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
+    const preferences = getUserPreferences(user);
     preferences.notifyAboutNextDay = !preferences.notifyAboutNextDay;
     await db.user.update({
       where: { id: user.id },
@@ -788,11 +760,7 @@ export async function initOptions(bot: Bot<Context>) {
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
+    const preferences = getUserPreferences(user);
     preferences.notifyAboutNextWeek = !preferences.notifyAboutNextWeek;
     await db.user.update({
       where: { id: user.id },

@@ -2,7 +2,7 @@ import type { Bot } from "grammy";
 import timestring from "timestring";
 import { type Context } from "./types";
 import { db } from "@/db";
-import { UserPreferencesDefaults } from "@/lib/misc";
+import { getUserPreferences } from "@/lib/misc";
 import { stylemaps } from "@ssau-schedule/shared/themes/index";
 import { CommandGroup } from "@grammyjs/commands";
 import { findGroup } from "@/ssau/search";
@@ -33,18 +33,16 @@ export async function initConfig(bot: Bot<Context>) {
       return ctx.reply(
         "Вас не существует в базе данных. Пожалуйста пропишите /start",
       );
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      { group: user.group?.name ?? null, subgroup: user.subgroup ?? 0 },
-      user.preferences,
-    );
+    const preferences = Object.assign({}, getUserPreferences(user), {
+      group: user.group?.name ?? null,
+      subgroup: user.subgroup ?? 0,
+    });
     if (args.length === 0) {
       return ctx.reply(`\
 Текущие параметры:
 ${Object.entries(preferences)
   .filter(([k]) => k in config_field_names)
-  .map(([k, v]) => `${config_field_names[k]}: ${v}`)
+  .map(([k, v]) => `${config_field_names[k]}: ${String(v)}`)
   .join("\n")}
 
 Параметры используются для продвинутых настроек. Для обычных функций используйте /options.

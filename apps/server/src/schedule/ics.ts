@@ -2,10 +2,10 @@ import * as ics from "ics";
 import { db } from "@/db";
 import log from "@/logger";
 import {
+  getUserPreferences,
   lessonToTimetableLesson,
   LessonTypeIcon,
   LessonTypeName,
-  UserPreferencesDefaults,
 } from "../lib/misc";
 import { LessonType } from "@/generated/prisma/client";
 import { applyCustomization } from "./customLesson";
@@ -24,11 +24,7 @@ export async function generateUserIcs(
     return null;
   }
   log.debug("Generating new ics", { user: user.id });
-  const preferences = Object.assign(
-    {},
-    UserPreferencesDefaults,
-    user.preferences,
-  );
+  const preferences = getUserPreferences(user);
   const now = new Date();
   const normalLessons = user.groupId
     ? await db.lesson.findMany({

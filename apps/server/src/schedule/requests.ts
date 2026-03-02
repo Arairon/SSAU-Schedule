@@ -10,7 +10,7 @@ import {
   getTimetableHash,
   getTimetablesDiff,
 } from "./timetable";
-import { UserPreferencesDefaults, type RequestStateUpdate } from "@/lib/misc";
+import { getUserPreferences, type RequestStateUpdate } from "@/lib/misc";
 import { db } from "@/db";
 import type { Timetable, TimetableDiff } from "./types/timetable";
 import { generateTimetableImage } from "./image";
@@ -207,11 +207,7 @@ async function getTimetableWithImage(
 }> {
   const year = (opts?.year ?? 0) || getCurrentYearId();
   const groupId = opts?.groupId ?? user.groupId;
-  const preferences = Object.assign(
-    {},
-    UserPreferencesDefaults,
-    user.preferences,
-  );
+  const preferences = getUserPreferences(user);
   const stylemap = opts?.stylemap ?? preferences.theme ?? "default";
   if (opts?.forceUpdate) {
     opts.ignoreCached = true;

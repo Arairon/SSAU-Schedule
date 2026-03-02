@@ -95,6 +95,7 @@ model CustomLesson {
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId  Int
   comment String @default("")
+  // discoverable Boolean @default(false) // add later
 
   // Sharing targets: custom lesson is visible to these users/groups/flows if they trust the owner
   targetUsers  User[]  @relation("CustomLessonTargetUsers")

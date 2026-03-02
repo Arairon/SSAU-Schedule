@@ -4,7 +4,7 @@ import log from "@/logger";
 import type { Timetable } from "@/schedule/types/timetable";
 import { lk } from "@/ssau/lk";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { type UserPreferences, UserPreferencesDefaults } from "./misc";
+import { getUserPreferences } from "./misc";
 
 export async function getWeek(
   user: User,
@@ -71,11 +71,7 @@ export async function getWeekLessons(
     ignoreCustomizations?: boolean;
   },
 ) {
-  const preferences: UserPreferences = Object.assign(
-    {},
-    UserPreferencesDefaults,
-    user.preferences,
-  );
+  const preferences = getUserPreferences(user);
   if (!(groupId || user.groupId)) {
     log.error(`Groupless user requested an update`, { user: user.id });
     void lk.updateUserInfo(user);

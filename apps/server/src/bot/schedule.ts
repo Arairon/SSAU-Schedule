@@ -9,8 +9,8 @@ import { env } from "@/env";
 import { schedule } from "@/schedule/requests";
 import {
   formatTimetableDiff,
+  getUserPreferences,
   generateTextLesson,
-  UserPreferencesDefaults,
 } from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
@@ -88,11 +88,7 @@ async function sendTimetable(
 ) {
   const isAuthed = !!user.authCookie;
   const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
-  const preferences = Object.assign(
-    {},
-    UserPreferencesDefaults,
-    user.preferences,
-  );
+  const preferences = getUserPreferences(user);
 
   const group = groupId
     ? await db.group.findUnique({ where: { id: groupId } })
@@ -423,11 +419,7 @@ export async function updateTimetable(
       }
     }
 
-    const preferences = Object.assign(
-      {},
-      UserPreferencesDefaults,
-      user.preferences,
-    );
+    const preferences = getUserPreferences(user);
 
     log.debug(
       `[bot.viewer] Requested schedule ${preferences.theme}/${groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,

@@ -8,12 +8,12 @@ import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
-  DayString,
   formatTimetableDiff,
+  getUserPreferences,
   generateTextLesson,
   scheduleMessage,
-  UserPreferencesDefaults,
 } from "./misc";
+import { DayString } from "@ssau-schedule/shared/utils";
 import type { User } from "@/generated/prisma/client";
 import { lk } from "../ssau/lk";
 import type {
@@ -325,11 +325,7 @@ export async function scheduleDailyNotificationsForUser(
   const today = new Date();
   today.setHours(7, 0); // 7 AM in TZ (Europe/Samara)
   const weekNumber = week ?? getWeekFromDate(today);
-  const preferences = Object.assign(
-    {},
-    UserPreferencesDefaults,
-    user.preferences,
-  );
+  const preferences = getUserPreferences(user);
   const timetable = await schedule.getTimetable(user, weekNumber);
   timetable.days.map(
     (d) => (d.lessons = d.lessons.filter((i) => !i.customized?.hidden)),

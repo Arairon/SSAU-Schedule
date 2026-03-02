@@ -34,6 +34,10 @@ export const UserPreferencesDefaults: UserPreferences = {
   trustedLessonCustomizers: [],
 };
 
+export function getUserPreferences(user: User): UserPreferences {
+  return Object.assign({}, UserPreferencesDefaults, user.preferences ?? {});
+}
+
 export const LessonTypeIcon: Record<LessonType, string> = {
   Lection: "📗",
   Practice: "📕",
@@ -61,16 +65,6 @@ export const LessonTypeName: Record<LessonType, string> = {
   // Test: "Тест",
   Unknown: "Неизвестно",
 };
-
-export const DayString: { normal: string; in: string }[] = [
-  { normal: "воскресенье", in: "в воскресенье" },
-  { normal: "понедельник", in: "в понедельник" },
-  { normal: "вторник", in: "во вторник" },
-  { normal: "среда", in: "в среду" },
-  { normal: "четверг", in: "в четверг" },
-  { normal: "пятница", in: "в пятницу" },
-  { normal: "суббота", in: "в субботу" },
-];
 
 export async function ensureGroupExists(group: {
   id: number;
