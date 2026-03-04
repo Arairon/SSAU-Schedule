@@ -41,7 +41,7 @@ const notificationDefaults = {
   notifyBeforeLessons: 30 * 60,
   notifyAboutNextLesson: true,
   notifyAboutNextDay: true,
-  notifyAboutNextWeek: false,
+  notifyAboutNextWeek: true,
 };
 
 function getCallbackData(update: GrammyContext): string | null {
@@ -792,7 +792,7 @@ async function onboardingConversation(
 Группа: ${finalUser.group?.name ?? "Не выбрана"} (${subgroup || "Обе"})
 Тема: ${stylemaps[theme]?.description ?? theme}
 Уведомления: ${notificationsEnabled ? "включены" : "отключены"}
-${mode === "authed" ? `Анонимный доступ: ${allowsProxy ? "разрешён" : "запрещён"}` : ""}
+${mode === "authed" ? `Анонимный доступ: ${allowsProxy ? "разрешён (Спасибо!)" : "запрещён"}` : ""}
 
 Изменить всё можно через /options
 Спасибо, что используете бота!
