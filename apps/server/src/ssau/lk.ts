@@ -393,6 +393,31 @@ async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
   return { ok: true, data: user };
 }
 
+let lastProxyUserId = 0;
+
+async function getProxyUser(): Promise<User | null> {
+  const where = {
+    authCookie: { not: null },
+    allowsAccountProxyUse: true,
+  };
+
+  let user = await db.user.findFirst({
+    where: {
+      ...where,
+      id: { gt: lastProxyUserId },
+    },
+    orderBy: { id: "asc" },
+  });
+
+  user ??= await db.user.findFirst({
+    where,
+    orderBy: { id: "asc" },
+  });
+
+  if (user) lastProxyUserId = user.id;
+  return user;
+}
+
 export const lk = {
   getTokenUsingCredentials,
   login,
@@ -401,4 +426,5 @@ export const lk = {
   ensureAuth,
   saveCredentials,
   resetAuth,
+  getProxyUser,
 };

@@ -49,9 +49,7 @@ export async function updateWeekForUser(
   if (user.authCookie) {
     lkUser = user;
   } else {
-    lkUser = await db.user.findFirst({
-      where: { authCookie: { not: null }, allowsAccountProxyUse: true },
-    });
+    lkUser = await lk.getProxyUser();
   }
 
   if (!lkUser || !(await lk.ensureAuth(lkUser))) throw new Error("Auth error");
