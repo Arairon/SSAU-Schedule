@@ -60,40 +60,51 @@ async function updateOptionsMsg(ctx: Context) {
     return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
   }
   const preferences = getUserPreferences(user);
-  const newText = `Настройки\n==============================\n${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
+  const newText = `\
+Настройки
+==============================
+${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
   ctx.session.options.updText = null;
   switch (menu) {
     case "": {
       const theme = getStylemap(preferences.theme ?? "default");
+      const keyboard = new InlineKeyboard()
+        .text(`Тема: ${theme.description}`, "options_themes")
+        .row()
+        .text(
+          user.group
+            ? `Группа: ${user.group.name} (${(user.subgroup ?? 0) || "Обе"})`
+            : `Группа: Отсутствует`,
+          "options_group",
+        )
+        .row()
+        .text(
+          `ИОТы: ${preferences.showIet ? "✅" : "❌"}`,
+          "options_toggle_iet",
+        )
+        .text(
+          `Военка: ${preferences.showMilitary ? "✅" : "❌"}`,
+          "options_toggle_military",
+        )
+        .row()
+        .text(`Уведомления`, "options_notifications")
+        .row();
+
+      if (user.authCookie) {
+        keyboard
+          .text(
+            `Анонимный доступ ${user.allowsAccountProxyUse ? "✅" : "❌"}`,
+            "options_proxyaccess",
+          )
+          .row();
+      }
+
+      keyboard.text(`Закрыть`, "options_close").row();
       return ctx.api
         .editMessageText(chat, msgId, newText, {
-          reply_markup: new InlineKeyboard()
-            .text(`Тема: ${theme.description}`, "options_themes")
-            .row()
-            .text(
-              user.group
-                ? `Группа: ${user.group.name} (${(user.subgroup ?? 0) || "Обе"})`
-                : `Группа: Отсутствует`,
-              "options_group",
-            )
-            .row()
-            .text(
-              `ИОТы: ${preferences.showIet ? "✅" : "❌"}`,
-              "options_toggle_iet",
-            )
-            .text(
-              `Военка: ${preferences.showMilitary ? "✅" : "❌"}`,
-              "options_toggle_military",
-            )
-            .row()
-            .text(`Уведомления`, "options_notifications")
-            .row()
-            .text(`Закрыть`, "options_close")
-            .row(),
+          reply_markup: keyboard,
         })
-        .catch(() => {
-          /* ignore */
-        });
+        .catch();
     }
     case "themes": {
       const keyboard = new InlineKeyboard();
@@ -228,6 +239,19 @@ async function updateOptionsMsg(ctx: Context) {
           .text("Перенять группу", "groupchat_changeowner_confirm")
           .row()
           .text("Назад", "options_groupchat_menu"),
+      });
+    }
+    case "proxyaccess": {
+      return ctx.api.editMessageText(chat, msgId, newText, {
+        reply_markup: new InlineKeyboard()
+          .text(
+            "Подтвердить",
+            user.allowsAccountProxyUse
+              ? "options_proxyaccess_disable"
+              : "options_proxyaccess_enable",
+          )
+          .row()
+          .text("Назад", "options_menu"),
       });
     }
     default: {
@@ -797,6 +821,73 @@ export async function initOptions(bot: Bot<Context>) {
     ctx.session.options.updText = `Уведомления о следующей неделе ${preferences.notifyAboutNextWeek ? "включены" : "отключены"}`;
     ctx.session.options.menu = "notifications";
     scheduleUserNotificationsUpdate(ctx, user);
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.callbackQuery("options_proxyaccess", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    ctx.session.options.menu = "proxyaccess";
+    if (!user.allowsAccountProxyUse) {
+      ctx.session.options.updText = `\
+Разрешить использовать ваш аккаунт для анонимных запросов?
+
+Это позволит другим пользователям, которые не вошли в ЛК, получать расписание из API личного кабинета через ваш аккаунт.
+Ваши данные не будут видны други пользователям, а на вашем аккаунте не будет выполняться никаких действий, кроме получения расписания.`;
+    } else {
+      ctx.session.options.updText = `\
+Вы уверены что хотите запретить использовать ваш аккаунт для анонимных запросов?
+
+Если в боте не останется пользователей, разрешивших использовать свои аккаунты для анонимных запросов,
+анонимный доступ перестанет быть доступным для всех.
+`;
+    }
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.callbackQuery("options_proxyaccess_enable", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    if (user.allowsAccountProxyUse) {
+      ctx.session.options.updText = `Ваш аккаунт уже разрешён для анонимных запросов`;
+      ctx.session.options.menu = "";
+      return updateOptionsMsg(ctx);
+    }
+    await db.user.update({
+      where: { id: user.id },
+      data: { allowsAccountProxyUse: true, lastActive: new Date() },
+    });
+    ctx.session.options.updText = `Ваш аккаунт теперь разрешён для анонимных запросов`;
+    ctx.session.options.menu = "";
+    return updateOptionsMsg(ctx);
+  });
+
+  bot.callbackQuery("options_proxyaccess_disable", async (ctx) => {
+    if (!ctx.session.options.message)
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
+    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    if (!user) {
+      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
+    }
+    if (!user.allowsAccountProxyUse) {
+      ctx.session.options.updText = `Ваш аккаунт уже недоступен для анонимных запросов`;
+      ctx.session.options.menu = "";
+      return updateOptionsMsg(ctx);
+    }
+    await db.user.update({
+      where: { id: user.id },
+      data: { allowsAccountProxyUse: false, lastActive: new Date() },
+    });
+    ctx.session.options.updText = `Ваш аккаунт теперь недоступен для анонимных запросов`;
+    ctx.session.options.menu = "";
     return updateOptionsMsg(ctx);
   });
 
