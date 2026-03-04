@@ -13,6 +13,7 @@ import { initOptions, optionsCommands } from "./options";
 import { initAdmin } from "./admin";
 import { configCommands, initConfig } from "./config";
 import { initLogin } from "./conversations/login";
+import { initGroupChange } from "./conversations/groupChange";
 import { accountCommands, initAccount } from "./account";
 import { type BotCommand } from "grammy/types";
 
@@ -26,7 +27,7 @@ export function getDefaultSession(): Session {
       updText: null,
       notificationsRescheduleTimeout: null,
     },
-    runningScheduleUpdate: false,
+    startedScheduleUpdateAt: null,
     scheduleViewer: {
       message: 0,
       chatId: 0,
@@ -81,6 +82,7 @@ async function initBot(bot: GrammyBot<Context>) {
   //bot.use(stage.middleware());
 
   await initLogin(bot);
+  await initGroupChange(bot);
 
   // Do not place before initLogin. Otherwise it will log user's credentials.
   bot.use((ctx: Context, next) => {

@@ -31,7 +31,7 @@ import { type User } from "@/generated/prisma/client";
 const menuText: Record<string, string> = {
   "": "",
   themes: "Выберите новую тему",
-  subgroup: "Выберите подгруппу",
+  group: "Группа и подгруппы",
   notifications: "Уведомления (Применяются только со следующего дня)",
   notifications_daystart:
     "Чтобы установить произвольное время используйте\n/config notify daystart [строка]\nПример строки: 1h 30m 30s",
@@ -54,6 +54,7 @@ async function updateOptionsMsg(ctx: Context) {
   const msgId = ctx.session.options.message;
   const user = await db.user.findUnique({
     where: { tgId: ctx.from?.id ?? ctx.callbackQuery?.from.id },
+    include: { group: true },
   });
   if (!user) {
     return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
@@ -70,8 +71,10 @@ async function updateOptionsMsg(ctx: Context) {
             .text(`Тема: ${theme.description}`, "options_themes")
             .row()
             .text(
-              `Подгруппа: ${(user.subgroup ?? 0) || "Обе"}`,
-              "options_subgroup",
+              user.group
+                ? `Группа: ${user.group.name} (${(user.subgroup ?? 0) || "Обе"})`
+                : `Группа: Отсутствует`,
+              "options_group",
             )
             .row()
             .text(
@@ -104,18 +107,31 @@ async function updateOptionsMsg(ctx: Context) {
         reply_markup: keyboard,
       });
     }
-    case "subgroup": {
-      return ctx.api.editMessageText(chat, msgId, newText, {
-        reply_markup: new InlineKeyboard()
-          .text("Обе", "options_subgroup_0")
-          .row()
-          .text("Первая", "options_subgroup_1")
-          .row()
-          .text("Вторая", "options_subgroup_2")
-          .row()
-          .text("Назад", "options_menu")
-          .row(),
-      });
+    case "group": {
+      if (user.group) {
+        return ctx.api.editMessageText(chat, msgId, newText, {
+          reply_markup: new InlineKeyboard()
+            .text(
+              `${user.group?.name ?? "Выбрать группу"}`,
+              "options_group_change",
+            )
+            .row()
+            .text("Обе", "options_subgroup_0")
+            .text("Первая", "options_subgroup_1")
+            .text("Вторая", "options_subgroup_2")
+            .row()
+            .text("Назад", "options_menu")
+            .row(),
+        });
+      } else {
+        return ctx.api.editMessageText(chat, msgId, newText, {
+          reply_markup: new InlineKeyboard()
+            .text("Выбрать группу", "options_group_change")
+            .row()
+            .text("Назад", "options_menu")
+            .row(),
+        });
+      }
     }
     case "notifications": {
       const notifyBeforeLessonsMinutes = Math.round(
@@ -435,6 +451,19 @@ async function initGroupchatOptions(bot: Bot<Context>) {
 
 export const optionsCommands = new CommandGroup<Context>();
 
+async function closeOptions(ctx: Context) {
+  const target =
+    ctx.session.options.message || ctx.callbackQuery?.message?.message_id;
+  try {
+    if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
+  } catch {
+    await ctx.reply(
+      `Произошла ошибка при попытке удалить сообщение. Сообщения отправленные ранее чем 48 часов назад не могут быть удалены ботом.`,
+    );
+  }
+  ctx.session.options.message = 0;
+}
+
 // Init options features
 export async function initOptions(bot: Bot<Context>) {
   const commands = optionsCommands;
@@ -499,11 +528,19 @@ export async function initOptions(bot: Bot<Context>) {
     return updateOptionsMsg(ctx);
   });
 
-  bot.callbackQuery("options_subgroup", async (ctx) => {
-    ctx.session.options.menu = "subgroup";
+  bot.callbackQuery("options_group", async (ctx) => {
+    ctx.session.options.menu = "group";
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
     return updateOptionsMsg(ctx);
+  });
+
+  bot.callbackQuery("options_group_change", async (ctx) => {
+    await ctx.answerCallbackQuery().catch(() => {
+      /* ignore */
+    });
+    await closeOptions(ctx);
+    return ctx.conversation.enter("GROUP_CHANGE");
   });
 
   bot.callbackQuery(/options_subgroup_\d/, async (ctx) => {
@@ -636,16 +673,7 @@ export async function initOptions(bot: Bot<Context>) {
   });
 
   bot.callbackQuery("options_close", async (ctx) => {
-    const target =
-      ctx.session.options.message || ctx.callbackQuery.message?.message_id;
-    try {
-      if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
-    } catch {
-      await ctx.reply(
-        `Произошла ошибка при попытке удалить сообщение. Сообщения отправленные ранее чем 48 часов назад не могут быть удалены ботом.`,
-      );
-    }
-    ctx.session.options.message = 0;
+    return closeOptions(ctx);
   });
 
   bot.callbackQuery("options_notifications", async (ctx) => {
