@@ -178,7 +178,7 @@ export function formatLesson(lesson: Lesson | TimetableLesson) {
     ? `Online (${lesson.conferenceUrl ?? "ссылка отсутствует"})`
     : `${lesson.building} - ${lesson.room}`;
   return `\
-${date} / ${startTime} - ${endTime}
+📆 ${date} / ${startTime} - ${endTime}
 ${LessonTypeIcon[lesson.type]} ${lesson.discipline} (${place}) ${lesson.isIet ? "[ИОТ]" : ""}`;
 }
 

@@ -104,7 +104,7 @@ export async function updateWeekForUser(
         ignorePreferences: true,
       })
     : await getWeekLessons(user, weekNumber, undefined, {
-        ignoreIet: isUsingProxyUser,
+        ignoreIet: false, // Get known lessons regardless of iet. They will be filtered out later
         ignorePreferences: true,
       });
   const updatedTeachers: number[] = [];
@@ -341,7 +341,9 @@ export async function updateWeekForUser(
       }
     }
   } else {
-    log.info(`Skipping iet lessons for 'common' owned week`, { user: user.id });
+    log.info(`Skipping iet lessons for 'common' owned week or a proxy user`, {
+      user: user.id,
+    });
   }
   //#endregion
 
