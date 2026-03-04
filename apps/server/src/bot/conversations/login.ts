@@ -130,7 +130,13 @@ async function loginConversation(
     );
   }
   if (loginRes.ok) {
-    await lk.updateUserInfo(user);
+    await conversation.external(() => {
+      void db.week.updateMany({
+        where: { owner: userId },
+        data: { cachedUntil: new Date(), updatedAt: new Date(0) },
+      });
+      return lk.updateUserInfo(user);
+    });
     await ctx.api
       .editMessageText(
         msg.chat.id,

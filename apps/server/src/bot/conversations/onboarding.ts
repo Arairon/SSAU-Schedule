@@ -67,7 +67,7 @@ async function cancelOnboarding(
     .editMessageText(
       chatId,
       msgId,
-      "Онбординг отменён. Вы можете начать заново в любой момент через /start",
+      "Начало работы отменено. Вы можете начать заново в любой момент через /start",
     )
     .catch();
 }
@@ -792,7 +792,11 @@ async function onboardingConversation(
 Группа: ${finalUser.group?.name ?? "Не выбрана"} (${subgroup || "Обе"})
 Тема: ${stylemaps[theme]?.description ?? theme}
 Уведомления: ${notificationsEnabled ? "включены" : "отключены"}
-${mode === "authed" ? `Анонимный доступ: ${allowsProxy ? "разрешён (Спасибо!)" : "запрещён"}` : ""}
+${
+  mode === "authed"
+    ? `Анонимный доступ: ${allowsProxy ? "разрешён (Спасибо!)" : "запрещён"}`
+    : "Если вы позже захотите войти в ЛК, используйте /login"
+}
 
 Изменить всё можно через /options
 Спасибо, что используете бота!
