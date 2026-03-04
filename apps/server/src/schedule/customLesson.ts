@@ -53,8 +53,13 @@ export type CustomizationDataPartial = s.infer<
 >;
 
 function normalizeCustomLessonData(data: CustomizationDataPartial) {
+  const normalizedData = Object.assign({}, data);
+  delete normalizedData.targetUserIds;
+  delete normalizedData.targetGroupIds;
+  delete normalizedData.targetFlowIds;
+
   const lessonDate = getLessonDate(data.weekNumber, data.weekday);
-  return Object.assign({}, data, {
+  return Object.assign(normalizedData, {
     date: lessonDate,
     beginTime: new Date(
       lessonDate.getTime() + TimeSlotMap[data.dayTimeSlot].beginDelta,
@@ -74,13 +79,13 @@ export async function addCustomLesson(
     { user: user.id },
   );
 
-  const data = normalizeCustomLessonData(customData);
-  data.userId = user.id;
-
   // Extract target IDs for relations
   const targetUserIds = customData.targetUserIds ?? [];
   const targetGroupIds = customData.targetGroupIds ?? [];
   const targetFlowIds = customData.targetFlowIds ?? [];
+
+  const data = normalizeCustomLessonData(customData);
+  data.userId = user.id;
 
   if (data.lessonInfoId) {
     const lessonsToOverride = await db.lesson.findMany({
@@ -94,9 +99,6 @@ export async function addCustomLesson(
           weekNumber: lesson.weekNumber,
           weekday: lesson.weekday,
           userId: user.id,
-          targetUserIds,
-          targetGroupIds,
-          targetFlowIds,
         }),
       );
       return custom as CustomLesson;
@@ -109,14 +111,29 @@ export async function addCustomLesson(
       data.lessonId = undefined;
   }
 
+  for (const userId of targetUserIds) {
+    if (!(await db.user.findUnique({ where: { id: userId } }))) {
+      throw new Error(`User with id ${userId} not found`);
+    }
+  }
+
+  for (const groupId of targetGroupIds) {
+    if (!(await db.group.findUnique({ where: { id: groupId } }))) {
+      throw new Error(`Group with id ${groupId} not found`);
+    }
+  }
+
+  for (const flowId of targetFlowIds) {
+    if (!(await db.flow.findUnique({ where: { id: flowId } }))) {
+      throw new Error(`Flow with id ${flowId} not found`);
+    }
+  }
+
   return await db.customLesson.create({
     data: Object.assign({}, data, {
       id: undefined,
       type: customData.type ? (customData.type as LessonType) : undefined,
       userId: user.id,
-      targetUserIds: undefined,
-      targetGroupIds: undefined,
-      targetFlowIds: undefined,
       targetUsers: { connect: targetUserIds.map((id) => ({ id })) },
       targetGroups: { connect: targetGroupIds.map((id) => ({ id })) },
       targetFlows: { connect: targetFlowIds.map((id) => ({ id })) },
@@ -154,14 +171,32 @@ export async function editCustomLesson(
     { user: user.id },
   );
 
-  const data = normalizeCustomLessonData(customData);
-  data.id = customData.id;
-  data.userId = user.id;
-
   // Extract target IDs for relations
   const targetUserIds = customData.targetUserIds ?? [];
   const targetGroupIds = customData.targetGroupIds ?? [];
   const targetFlowIds = customData.targetFlowIds ?? [];
+
+  const data = normalizeCustomLessonData(customData);
+  data.id = customData.id;
+  data.userId = user.id;
+
+  for (const userId of targetUserIds) {
+    if (!(await db.user.findUnique({ where: { id: userId } }))) {
+      throw new Error(`User with id ${userId} not found`);
+    }
+  }
+
+  for (const groupId of targetGroupIds) {
+    if (!(await db.group.findUnique({ where: { id: groupId } }))) {
+      throw new Error(`Group with id ${groupId} not found`);
+    }
+  }
+
+  for (const flowId of targetFlowIds) {
+    if (!(await db.flow.findUnique({ where: { id: flowId } }))) {
+      throw new Error(`Flow with id ${flowId} not found`);
+    }
+  }
 
   const target = await db.customLesson.findUnique({
     where: { id: data.id, userId: user.id },
@@ -189,9 +224,6 @@ export async function editCustomLesson(
         await db.customLesson.update({
           where: { id: lesson.id },
           data: Object.assign({}, custom, {
-            targetUserIds: undefined,
-            targetGroupIds: undefined,
-            targetFlowIds: undefined,
             targetUsers: { set: targetUserIds.map((id) => ({ id })) },
             targetGroups: { set: targetGroupIds.map((id) => ({ id })) },
             targetFlows: { set: targetFlowIds.map((id) => ({ id })) },
@@ -213,9 +245,6 @@ export async function editCustomLesson(
       id: undefined,
       type: customData.type ? (customData.type as LessonType) : undefined,
       userId: user.id,
-      targetUserIds: undefined,
-      targetGroupIds: undefined,
-      targetFlowIds: undefined,
       targetUsers: { set: targetUserIds.map((id) => ({ id })) },
       targetGroups: { set: targetGroupIds.map((id) => ({ id })) },
       targetFlows: { set: targetFlowIds.map((id) => ({ id })) },

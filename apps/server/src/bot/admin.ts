@@ -285,6 +285,16 @@ export async function initAdmin(bot: Bot<Context>) {
             },
           },
         )})
+Всего авторизованных: ${await db.user.count({ where: { authCookie: { not: null } } })} (Активных за 30 дней: ${await db.user.count(
+          {
+            where: {
+              authCookie: { not: null },
+              lastActive: {
+                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              },
+            },
+          },
+        )})
 Всего изображений: ${await db.weekImage.count()}
 Всего ICS: ${await db.userIcs.count()}
 Всего уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
