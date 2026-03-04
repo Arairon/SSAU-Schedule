@@ -14,7 +14,6 @@ import {
 } from "@/lib/misc";
 import { handleError } from "./bot";
 import { openSettings } from "./options";
-import { lk } from "@/ssau/lk";
 import type { User } from "@/generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
 import { getUserIcsByUserId } from "@/schedule/ics";
@@ -303,25 +302,9 @@ async function sendUserTimetable(
     }
 
     if (!groupId && !user.groupId) {
-      if (user.authCookie) {
-        const infoupd = await lk.updateUserInfo(user);
-        if (!infoupd.ok) {
-          return ctx.reply(
-            "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПри попытке узнать группу через лк произошла ошибка.\nПопробуйте повторно войти в аккаунт через /login",
-          );
-        } else {
-          Object.assign(user, infoupd.data);
-          if (!user.groupId) {
-            return ctx.reply(
-              "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПопробуйте повторно войти в аккаунт через /login",
-            );
-          }
-        }
-      } else {
-        return ctx.reply(
-          'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nВойдите в лк через /login, настройте группу через "/config group \'6101-090301D\'" или укажите группу в запросе через "/schedule 6101-090301D"',
-        );
-      }
+      return ctx.reply(
+        'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nНастройте группу через /options или укажите группу в запросе через "/schedule 6101-090301D"',
+      );
     }
 
     await sendTimetable(ctx, user, week, groupId, opts);
@@ -398,26 +381,11 @@ export async function updateTimetable(
       ? await db.group.findUnique({ where: { id: groupId } })
       : null;
 
-    if (!group && !user.groupId) {
-      if (user.authCookie) {
-        const infoupd = await lk.updateUserInfo(user);
-        if (!infoupd.ok) {
-          return ctx.reply(
-            "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПри попытке узнать группу через лк произошла ошибка.\nПопробуйте повторно войти в аккаунт через /login или настройте группу через \"/config group '6101-090301D'\"",
-          );
-        } else {
-          Object.assign(user, infoupd.data);
-          if (!user.groupId) {
-            return ctx.reply(
-              "Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nПопробуйте повторно войти в аккаунт через /login или настройте группу через \"/config group '6101-090301D'\"",
-            );
-          }
-        }
-      } else {
-        return ctx.reply(
-          'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nВойдите в лк через /login, настройте группу через "/config group \'6101-090301D\'" или укажите группу в запросе через "/schedule 6101-090301D"',
-        );
-      }
+    if (!groupId && !user.groupId) {
+      await ctx.answerCallbackQuery().catch();
+      return ctx.reply(
+        'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nНастройте группу через /options или укажите группу в запросе через "/schedule 6101-090301D"',
+      );
     }
 
     const preferences = getUserPreferences(user);
