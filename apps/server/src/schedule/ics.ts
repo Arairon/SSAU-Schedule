@@ -99,7 +99,8 @@ export async function generateUserIcs(
   const events: ics.EventAttributes[] = [];
 
   // Process regular lessons with customizations applied
-  for (const lesson of [...normalLessons, ...ietLessons]) {
+  for (const dblesson of [...normalLessons, ...ietLessons]) {
+    const lesson = lessonToTimetableLesson(dblesson);
     if (user.subgroup && lesson.subgroup && user.subgroup !== lesson.subgroup)
       continue;
     if (!preferences.showMilitary && lesson.type === LessonType.Military)
@@ -112,8 +113,7 @@ export async function generateUserIcs(
     if (customLesson?.hideLesson) continue;
 
     // Apply customizations to lesson properties
-    if (customLesson)
-      applyCustomization(lessonToTimetableLesson(lesson), customLesson);
+    if (customLesson) applyCustomization(lesson, customLesson);
 
     let teacherName = "Преподаватель не указан";
     if (customLesson?.teacher) {
