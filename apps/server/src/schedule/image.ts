@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import Puppeteer, { type Browser } from "puppeteer";
 
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
@@ -12,6 +11,11 @@ import { getLessonDate } from "@ssau-schedule/shared/date";
 import log from "@/logger";
 import { env } from "@/env";
 import { getStylemap } from "@ssau-schedule/shared/themes/index";
+import {
+  getBrowser,
+  resetBrowserState,
+  shouldRetryBrowserOperation,
+} from "@/lib/browser";
 
 const CURRENT_DIR = __dirname;
 const GENERATED_CSS_PATH =
@@ -331,24 +335,6 @@ export async function generateTimetableImageHtml(
   return page.join("");
 }
 
-let browser: Browser | null = null;
-let browserPromise: Promise<Browser> | null = null;
-
-function resetBrowserState() {
-  browser = null;
-  browserPromise = null;
-}
-
-function shouldRetryBrowserOperation(error: unknown) {
-  const message = String(error);
-  return (
-    message.includes("Target closed") ||
-    message.includes("Session closed") ||
-    message.includes("Protocol error") ||
-    message.includes("Connection closed")
-  );
-}
-
 export function detectImageMimeType(image: Buffer): "image/png" | "image/jpeg" {
   const isPng =
     image.length >= 8 &&
@@ -366,37 +352,6 @@ export function detectImageMimeType(image: Buffer): "image/png" | "image/jpeg" {
   }
 
   return "image/jpeg";
-}
-
-async function getBrowser() {
-  if (browser?.connected) {
-    return browser;
-  }
-
-  browserPromise ??= Puppeteer.launch({
-    executablePath: env.CHROME_PATH,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--disable-extensions",
-      "--disable-software-rasterizer",
-    ],
-    protocolTimeout: 30_000,
-  })
-    .then((instance) => {
-      browser = instance;
-      instance.on("disconnected", resetBrowserState);
-      return instance;
-    })
-    .catch((error) => {
-      resetBrowserState();
-      log.error(`Puppeteer launch failed: ${String(error)}`, { user: "sys" });
-      throw error;
-    });
-
-  return browserPromise;
 }
 
 async function generateTimetableImageBuffer(
