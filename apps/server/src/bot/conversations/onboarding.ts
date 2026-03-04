@@ -101,7 +101,9 @@ async function askMode(
   msg: { chat: { id: number }; message_id: number },
 ): Promise<"authed" | "unauthed" | null> {
   const proxyUserExists = await conversation.external(() => {
-    return db.user.findFirst({ where: { allowsAccountProxyUse: true } });
+    return db.user.findFirst({
+      where: { authCookie: { not: null }, allowsAccountProxyUse: true },
+    });
   });
 
   const keyboard = new InlineKeyboard()
