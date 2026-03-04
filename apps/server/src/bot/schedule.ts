@@ -778,9 +778,7 @@ ${generateTextLesson(lesson)}
     const week = parseInt(text);
     void ctx.api
       .deleteMessage(ctx.message.chat.id, ctx.message.message_id)
-      .catch(() => {
-        /* ignore */
-      });
+      .catch();
     if (ctx.session.scheduleViewer.message) {
       return updateTimetable(
         ctx,

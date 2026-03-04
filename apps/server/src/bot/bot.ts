@@ -14,6 +14,7 @@ import { initAdmin } from "./admin";
 import { configCommands, initConfig } from "./config";
 import { initLogin } from "./conversations/login";
 import { initGroupChange } from "./conversations/groupChange";
+import { initOnboarding } from "./conversations/onboarding";
 import { accountCommands, initAccount } from "./account";
 import { type BotCommand } from "grammy/types";
 
@@ -83,6 +84,7 @@ async function initBot(bot: GrammyBot<Context>) {
 
   await initLogin(bot);
   await initGroupChange(bot);
+  await initOnboarding(bot);
 
   // Do not place before initLogin. Otherwise it will log user's credentials.
   bot.use((ctx: Context, next) => {

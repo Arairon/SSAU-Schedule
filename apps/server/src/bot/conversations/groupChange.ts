@@ -200,9 +200,7 @@ async function groupChangeConversation(
     }
 
     if (callbackData?.startsWith(GROUP_CHANGE_SELECT_PREFIX)) {
-      await update.answerCallbackQuery().catch(() => {
-        /* ignore */
-      });
+      await update.answerCallbackQuery().catch();
 
       const rawGroupId = callbackData.slice(GROUP_CHANGE_SELECT_PREFIX.length);
       const groupId = Number(rawGroupId);
