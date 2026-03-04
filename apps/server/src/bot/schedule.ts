@@ -127,14 +127,14 @@ async function sendTimetable(
   }
 
   let data;
+  let error = "";
 
   try {
     data = await schedule.getTimetableWithImage(user, weekNumber, {
       groupId: group?.id ?? undefined,
       stylemap: preferences.theme,
       forceUpdate: opts?.forceUpdate ?? undefined,
-      ignoreUpdate: !isAuthed,
-      onUpdate: ({ state }) => {
+      onUpdate: ({ state, message }) => {
         let text = "";
         switch (state) {
           case "updatingWeek":
@@ -147,6 +147,9 @@ async function sendTimetable(
           case "generatingImage":
             text = "Создание изображения...";
             break;
+          case "error":
+            error = message ?? "Произошла ошибка при получении расписания.";
+            return; // prevent updateTempMsg
         }
         updateTempMsg(text);
       },
@@ -188,9 +191,7 @@ async function sendTimetable(
     `Расписание на ${timetable.week} неделю` +
     (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
     (group ? `\nДля группы ${group.name}` : "") +
-    (!isAuthed
-      ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
-      : "") +
+    (error ? `\n${error}` : "") +
     (timetable.diff
       ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
       : "");
@@ -449,13 +450,13 @@ export async function updateTimetable(
     }
 
     let data;
+    let error = "";
     try {
       data = await schedule.getTimetableWithImage(user, weekNumber, {
         groupId: group?.id ?? undefined,
         stylemap: preferences.theme,
         forceUpdate: opts?.forceUpdate ?? undefined,
-        ignoreUpdate: !isAuthed,
-        onUpdate: ({ state }) => {
+        onUpdate: ({ state, message }) => {
           let text = "";
           switch (state) {
             case "updatingWeek":
@@ -468,6 +469,9 @@ export async function updateTimetable(
             case "generatingImage":
               text = "Создание изображения...";
               break;
+            case "error":
+              error = message ?? "Произошла ошибка при получении расписания.";
+              return; // prevent updateTempMsg
           }
           updateTempMsg(text);
         },
@@ -507,9 +511,7 @@ export async function updateTimetable(
         `Расписание на ${timetable.week} неделю` +
         (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
         (group ? `\nДля группы ${group.name}` : "") +
-        (!isAuthed
-          ? "\n⚠️ Не выполнен вход в личный кабинет. Расписание взято из базы данных и может быть неточным."
-          : "") +
+        (error ? `\n${error}` : "") +
         (timetable.diff
           ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
           : "");

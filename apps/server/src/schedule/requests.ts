@@ -64,7 +64,7 @@ async function updateWeekIfNeeded(
     ignoreUpdate?: boolean;
     forceUpdate?: boolean;
   },
-  updateState: (update: RequestStateUpdate<"updatingWeek">) => void,
+  updateState: (update: RequestStateUpdate<"updatingWeek" | "error">) => void,
 ) {
   if (opts.ignoreUpdate) {
     log.debug(
@@ -82,7 +82,18 @@ async function updateWeekIfNeeded(
       state: "updatingWeek",
       message: "Updating week from SSAU",
     });
-    await updateWeekForUser(user, weekNumber, { year, groupId });
+    try {
+      await updateWeekForUser(user, weekNumber, { year, groupId });
+    } catch {
+      log.warn(`Failed to update week during forceUpdate.`, {
+        user: user.id,
+      });
+      updateState({
+        state: "error",
+        message:
+          "Не удалось обновить расписание. Используется устаревшее расписание из базы данных.",
+      });
+    }
     return;
   }
 
@@ -93,7 +104,18 @@ async function updateWeekIfNeeded(
       state: "updatingWeek",
       message: "Updating week from SSAU",
     });
-    await updateWeekForUser(user, weekNumber, { year, groupId });
+    try {
+      await updateWeekForUser(user, weekNumber, { year, groupId });
+    } catch {
+      log.warn(`Failed to update week.`, {
+        user: user.id,
+      });
+      updateState({
+        state: "error",
+        message:
+          "Не удалось обновить расписание. Используется устаревшее расписание из базы данных.",
+      });
+    }
     return;
   }
 
@@ -115,7 +137,9 @@ export async function getTimetable(
     ignoreIet?: boolean;
     ignoreSubroup?: boolean;
     onUpdate?: (
-      update: RequestStateUpdate<"updatingWeek" | "generatingTimetable">,
+      update: RequestStateUpdate<
+        "updatingWeek" | "generatingTimetable" | "error"
+      >,
     ) => void;
   },
 ): Promise<Timetable & { diff?: TimetableDiff }> {
@@ -131,7 +155,9 @@ export async function getTimetable(
   }
 
   function updateState(
-    update: RequestStateUpdate<"updatingWeek" | "generatingTimetable">,
+    update: RequestStateUpdate<
+      "updatingWeek" | "generatingTimetable" | "error"
+    >,
   ) {
     if (opts?.onUpdate) opts.onUpdate(update);
   }
@@ -197,7 +223,7 @@ async function getTimetableWithImage(
     ignoreSubroup?: boolean;
     onUpdate?: (
       update: RequestStateUpdate<
-        "updatingWeek" | "generatingTimetable" | "generatingImage"
+        "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
       >,
     ) => void;
   },
@@ -222,7 +248,7 @@ async function getTimetableWithImage(
 
   function updateState(
     update: RequestStateUpdate<
-      "updatingWeek" | "generatingTimetable" | "generatingImage"
+      "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
     >,
   ) {
     if (opts?.onUpdate) opts.onUpdate(update);

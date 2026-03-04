@@ -30,6 +30,7 @@ async function start(ctx: Context, userId: number) {
     `,
     {
       reply_markup: new InlineKeyboard().text("Начать", "start_onboarding"),
+      link_preview_options: { is_disabled: true },
     },
   );
 }

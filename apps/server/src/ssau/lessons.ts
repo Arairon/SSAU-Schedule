@@ -30,7 +30,6 @@ export async function updateWeekForUser(
   weekN: number,
   opts?: { groupId?: number; year?: number },
 ) {
-  if (!(await lk.ensureAuth(user))) throw new Error("Auth error");
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
   const year = (opts?.year ?? 0) || getCurrentYearId();
@@ -46,11 +45,29 @@ export async function updateWeekForUser(
     { user: user.id },
   );
 
+  let lkUser = null as User | null;
+  if (user.authCookie) {
+    lkUser = user;
+  } else {
+    lkUser = await db.user.findFirst({
+      where: { authCookie: { not: null }, allowsAccountProxyUse: true },
+    });
+  }
+
+  if (!lkUser || !(await lk.ensureAuth(lkUser))) throw new Error("Auth error");
+
+  const isUsingProxyUser = lkUser.id !== user.id;
+  if (isUsingProxyUser) {
+    log.debug(`Using proxy user ${lkUser.id} for ${user.id}`, {
+      user: user.id,
+    });
+  }
+
   const res = await axios.get(
     "https://lk.ssau.ru/api/proxy/timetable/get-timetable",
     {
       headers: {
-        Cookie: user.authCookie,
+        Cookie: lkUser.authCookie,
       },
       params: {
         yearId: week.year,
@@ -89,6 +106,7 @@ export async function updateWeekForUser(
         ignorePreferences: true,
       })
     : await getWeekLessons(user, weekNumber, undefined, {
+        ignoreIet: isUsingProxyUser,
         ignorePreferences: true,
       });
   const updatedTeachers: number[] = [];
@@ -211,7 +229,7 @@ export async function updateWeekForUser(
   //#endregion
 
   //#region Update IET lessons
-  if (week.owner !== 0) {
+  if (week.owner !== 0 && !isUsingProxyUser && !someoneElsesGroup) {
     log.debug("Updating iet lessons", { user: user.id });
     //const flowsToJoin: number[] = [];
     for (const lessonList of weekSched.ietLessons) {
@@ -507,7 +525,10 @@ export async function updateWeekRangeForUser(
   const user =
     opts.user ?? (await db.user.findUnique({ where: { id: opts.userId } }));
   if (!user) throw new Error("User not found");
-  if (!user.groupId) await lk.updateUserInfo(user);
+  if (!user.groupId) {
+    if (user.authCookie) await lk.updateUserInfo(user);
+    else throw new Error("User has no groupId and is not authed");
+  }
 
   const overrideGroup = opts.groupId; // undefined is fine
   for (const week of opts.weeks) {
