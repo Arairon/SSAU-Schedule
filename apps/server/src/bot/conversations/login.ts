@@ -113,6 +113,18 @@ async function loginConversation(
       passwordMsg.chat.id,
       passwordMsg.message.message_id,
     );
+    await ctx.api
+      .editMessageText(
+        msg.chat.id,
+        msg.message_id,
+        `
+Вход в личный кабинет
+Логин: ${username}
+Пароль: \*\*\*\*\*\*\*\*
+Пробуем войти...
+    `,
+      )
+      .catch(); // Ignore "message is not modified" error
     loginRes = await conversation.external(() =>
       lk.login(user, { username, password }),
     );
