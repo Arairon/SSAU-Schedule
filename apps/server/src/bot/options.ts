@@ -284,24 +284,9 @@ function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   ctx.session.options.notificationsRescheduleTimeout = setTimeout(async () => {
     const now = new Date();
-    const year = getCurrentYearId();
     const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0);
-    const week = await db.week.findUnique({
-      where: {
-        owner_groupId_year_number: {
-          owner: user.id,
-          groupId: user.groupId!,
-          year,
-          number: weekNumber,
-        },
-      },
-    });
-    if (!week) return;
-    log.debug("Rescheduling notifications after options change", {
-      user: user.tgId,
-    });
     await invalidateDailyNotificationsForTarget(user.tgId.toString());
-    await scheduleDailyNotificationsForUser(user, week.number);
+    await scheduleDailyNotificationsForUser(user, weekNumber);
   }, 30_000);
 }
 
