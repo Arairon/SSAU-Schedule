@@ -158,7 +158,11 @@ ${subgroupStr}`
   ].join("\n+\n");
 }
 
-export function formatLesson(lesson: Lesson | TimetableLesson) {
+export function formatLesson(
+  lesson: Lesson | TimetableLesson,
+  options?: { showDate?: boolean },
+): string {
+  const opts = Object.assign({ showDate: true }, options);
   const date = formatSentence(
     lesson.beginTime.toLocaleDateString("ru-RU", {
       weekday: "long",
@@ -178,37 +182,108 @@ export function formatLesson(lesson: Lesson | TimetableLesson) {
     ? `Online (${lesson.conferenceUrl ?? "ссылка отсутствует"})`
     : `${lesson.building} - ${lesson.room}`;
   return `\
-📆 ${date} / ${startTime} - ${endTime}
+${opts.showDate ? `📆 ${date} / ` : ""}\
+${startTime} - ${endTime}
 ${LessonTypeIcon[lesson.type]} ${lesson.discipline} (${place}) ${lesson.isIet ? "[ИОТ]" : ""}`;
 }
 
-export function formatTimetableDiff(diff: TimetableDiff, limit = 0): string {
-  const { added, removed } = diff;
-  if (added.length === 0 && removed.length === 0) {
+export function mapLessonsToDays(lessons: TimetableLesson[]) {
+  const days: TimetableLesson[][] = [[], [], [], [], [], []]; // 6 days
+  for (const lesson of lessons) {
+    const weekday = lesson.beginTime.getDay(); // 1-6
+    days[weekday - 1].push(lesson);
+  }
+  return days;
+}
+
+export function formatTimetableDiff(
+  diff: TimetableDiff,
+  type: "short" | "long" = "short",
+  limit = 0,
+): string {
+  if (diff.added.length === 0 && diff.removed.length === 0) {
     return "";
   }
+  const changes = [
+    ...diff.added.map((lesson) => ({ type: "added", lesson })),
+    ...diff.removed.map((lesson) => ({ type: "removed", lesson })),
+  ];
+  changes.sort(
+    (a, b) =>
+      a.lesson.beginTime.getTime() -
+      b.lesson.beginTime.getTime() +
+      (a.type === "removed" ? -1 : 1),
+  ); // Removed lessons first if times are equal
+
   const parts: string[] = [];
 
-  added.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
-  removed.sort((a, b) => a.beginTime.getTime() - b.beginTime.getTime());
+  let limitLeft = limit || -1;
+  let dayIndex = 0;
+  for (; dayIndex < 6; dayIndex++) {
+    const dayChanges = changes.filter(
+      (c) => c.lesson.beginTime.getDay() === dayIndex + 1,
+    );
+    if (dayChanges.length === 0) continue;
 
-  if (added.length > 0) {
-    parts.push(`Добавлены занятия:`);
-    for (const lesson of added.slice(0, limit || undefined)) {
-      parts.push(formatLesson(lesson));
+    const dayName = formatSentence(
+      dayChanges[0].lesson.beginTime.toLocaleDateString("ru-RU", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+      }),
+    );
+
+    parts.push(`${dayIndex > 0 ? "\n" : ""}📅 ${dayName}:`);
+
+    for (const change of dayChanges.slice(
+      0,
+      limitLeft >= 0 ? limitLeft : undefined,
+    )) {
+      const prefix = change.type === "added" ? "+" : "-";
+      const lesson = change.lesson;
+      if (type === "long") {
+        parts.push(`${prefix} ${formatLesson(lesson)}`);
+        continue;
+      }
+      const startTime = lesson.beginTime.toLocaleTimeString("ru-RU", {
+        hour: "numeric",
+        minute: "numeric",
+      });
+      const place = lesson.isOnline
+        ? `Online`
+        : `${lesson.building}-${lesson.room}`;
+      const subgroup = lesson.subgroup ? `👥${lesson.subgroup} ` : "";
+      parts.push(
+        `${prefix} ${startTime} ${LessonTypeIcon[lesson.type]} ${lesson.discipline} ${subgroup} [${place}] `,
+      );
     }
-    if (limit > 0 && added.length > limit) {
-      parts.push(`\n...и ещё ${added.length - limit} занятий`);
+    if (limit && limitLeft < dayChanges.length) {
+      if (dayChanges.length > limitLeft) {
+        parts.push(`... и еще ${dayChanges.length - limitLeft} изменений`);
+      }
+      limitLeft = 0;
+      dayIndex++; // Move to next day for the "remaining changes" section
+      break;
+    } else {
+      limitLeft -= dayChanges.length;
     }
   }
-
-  if (removed.length > 0) {
-    parts.push(`\nУдалены занятия:`);
-    for (const lesson of removed.slice(0, limit || undefined)) {
-      parts.push(formatLesson(lesson));
-    }
-    if (limit > 0 && removed.length > limit) {
-      parts.push(`\n...и ещё ${removed.length - limit} занятий`);
+  const remainingChanges = limit ? changes.slice(limit) : [];
+  if (remainingChanges.length > 0) {
+    parts.push(""); // newline before remaining changes
+    for (; dayIndex < 6; dayIndex++) {
+      const dayChanges = remainingChanges.filter(
+        (c) => c.lesson.beginTime.getDay() === dayIndex + 1,
+      );
+      if (dayChanges.length === 0) continue;
+      const dayName = formatSentence(
+        dayChanges[0].lesson.beginTime.toLocaleDateString("ru-RU", {
+          weekday: "long",
+          day: "2-digit",
+          month: "2-digit",
+        }),
+      );
+      parts.push(`📅 ${dayName}: ${dayChanges.length} изменений`);
     }
   }
 

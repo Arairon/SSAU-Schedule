@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { getUserPreferences } from "@/lib/misc";
 import { stylemaps, getStylemap } from "@ssau-schedule/shared/themes/index";
 import { env } from "@/env";
-import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
+import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import {
   invalidateDailyNotificationsForTarget,

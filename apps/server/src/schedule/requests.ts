@@ -31,6 +31,10 @@ function hydrateTimetableDates(timetable: Timetable): Timetable {
     day.lessons.forEach((lesson) => {
       lesson.beginTime = new Date(lesson.beginTime);
       lesson.endTime = new Date(lesson.endTime);
+      lesson.alts.forEach((alt) => {
+        alt.beginTime = new Date(alt.beginTime);
+        alt.endTime = new Date(alt.endTime);
+      });
     });
   });
   return timetable;
@@ -259,6 +263,9 @@ async function getTimetableWithImage(
     groupId,
     nonPersonal: !!opts?.groupId,
   });
+  if (week.timetable) {
+    week.timetable = hydrateTimetableDates(week.timetable);
+  }
 
   log.debug(
     `Requested Image ${stylemap}/${week.groupId}/${week.year}/${week.number}`,

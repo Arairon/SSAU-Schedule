@@ -119,9 +119,9 @@ export async function scheduleDailyNotificationsForAll() {
   const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0); // if sunday - update next week
   const users = await db.user.findMany({
     where: {
-      groupId: {not: null}
-    }
-  })
+      groupId: { not: null },
+    },
+  });
   let count = 0;
   for (const user of users) {
     try {
@@ -303,7 +303,7 @@ async function scheduleLessonChangeNotifications(
   await scheduleMessage(
     user,
     today,
-    `Обнаружены изменения в расписании!\n\n${formatTimetableDiff(diff, 8)}`,
+    `Обнаружены изменения в расписании!\n\n${formatTimetableDiff(diff, "short", 0)}`,
     { source: "dailyupd/changes" },
   );
 }

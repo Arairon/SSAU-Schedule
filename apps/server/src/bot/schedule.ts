@@ -192,7 +192,7 @@ async function sendTimetable(
     (group ? `\nДля группы ${group.name}` : "") +
     (error ? `\n${error}` : "") +
     (timetable.diff
-      ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
+      ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
       : "");
 
   const sendPhoto = (media: string | InputFile) =>
@@ -435,7 +435,8 @@ export async function updateTimetable(
               // ignored
               break;
             case "generatingImage":
-              text = "Создание изображения...";
+              // text = "Создание изображения...";
+              // ignored
               break;
             case "error":
               error = message ?? "Произошла ошибка при получении расписания.";
@@ -481,7 +482,7 @@ export async function updateTimetable(
         (group ? `\nДля группы ${group.name}` : "") +
         (error ? `\n${error}` : "") +
         (timetable.diff
-          ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, 3)}`
+          ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
           : "");
 
       const editPhoto = (media: string | InputFile) =>
@@ -553,8 +554,11 @@ export async function updateTimetable(
           });
         }
       }
-    } catch {
-      log.debug(`Error: unchanged. Ignoring`, { user: userId });
+    } catch (error) {
+      log.debug(
+        `Error: unchanged or errored. Ignoring. Err: ${JSON.stringify(error)}`,
+        { user: userId },
+      );
       await ctx.answerCallbackQuery("Ничего не изменилось");
     }
     const endTime = process.hrtime.bigint();
