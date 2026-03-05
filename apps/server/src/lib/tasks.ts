@@ -116,30 +116,21 @@ export function invalidateDailyNotificationsForAll() {
 
 export async function scheduleDailyNotificationsForAll() {
   const now = new Date();
-  const year = getCurrentYearId();
   const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0); // if sunday - update next week
-  const weeks = await db.week.findMany({
-    where: { number: weekNumber, owner: { not: 0 }, year },
-  });
+  const users = await db.user.findMany({
+    where: {
+      groupId: {not: null}
+    }
+  })
   let count = 0;
-  for (const week of weeks) {
+  for (const user of users) {
     try {
-      const user = await db.user.findUnique({
-        where: { id: week.owner },
-        include: { ics: true },
-      });
-      if (!user) {
-        log.error(`Found orphaned week #${week.id}`, {
-          user: "dailyNotificationsForAll",
-        });
-        continue;
-      }
-      const res = await scheduleDailyNotificationsForUser(user, week.number);
+      const res = await scheduleDailyNotificationsForUser(user, weekNumber);
       if (!res) continue;
       count += res.count;
     } catch (e) {
       log.error(
-        `Failed to schedule messages for week #${week.id}: ${e as Error}`,
+        `Failed to schedule messages for ${weekNumber}@${user.id}: ${e as Error}`,
         {
           user: "dailyNotificationsForAll",
         },
