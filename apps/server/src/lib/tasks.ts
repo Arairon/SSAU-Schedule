@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { bot } from "@/bot/bot";
 import { env } from "@/env";
 import log from "@/logger";
-import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
+import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
@@ -142,16 +142,19 @@ export async function scheduleDailyNotificationsForAll() {
 
 export async function dailyWeekUpdate() {
   const now = new Date();
-  const weekAgo = new Date(Date.now() - 604800_000);
+  // const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000);
+  const monthAgo = new Date(Date.now() - 30 * 24 * 3600_000);
   const today = new Date(Date.now() + 42200_000); // add half a day to ensure 'today' and not 'tonight'
   today.setHours(7, 0); // 7 AM in Europe/Samara
-  const year = getCurrentYearId();
+  // const year = getCurrentYearId();
   const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0); // if sunday - update next week
   await db.week.updateMany({ data: { cachedUntil: now } }); // Invalidate week caches to avoid confusion
-  const weeks = await db.week.findMany({
-    where: { number: weekNumber, owner: { not: 0 }, year },
+  const users = await db.user.findMany({
+    where: {
+      groupId: { not: null },
+    },
   });
-  log.info(`Running week update for ${weeks.length} weeks`, {
+  log.info(`Running week update for ${users.length} users`, {
     user: "dailyWeekUpdate",
   });
 
@@ -160,88 +163,67 @@ export async function dailyWeekUpdate() {
 
   // TODO: Also check updates for common weeks
   // on todays weeknumber
-  for (const week of weeks) {
+  for (const user of users) {
     try {
-      const user = await db.user.findUnique({
-        where: { id: week.owner },
-        include: { ics: true },
-      });
-      if (!user) {
-        log.error(`Found orphaned week #${week.id}`, {
-          user: "cron/dailyWeekUpdate",
-        });
-        continue;
-      }
+      // const user = await db.user.findUnique({
+      //   where: { id: week.owner },
+      //   include: { ics: true },
+      // });
+      // if (!user) {
+      //   log.error(`Found orphaned week #${week.id}`, {
+      //     user: "dailyWeekUpdate",
+      //   });
+      //   continue;
+      // }
 
       if (!user.authCookie) {
         log.debug(`Skipping unauthenticated user #${user.id}`, {
-          user: "cron/dailyWeekUpdate",
+          user: "dailyWeekUpdate",
         });
         continue;
       }
 
-      const isActive = user.lastActive > weekAgo;
+      const isActive = user.lastActive > monthAgo;
       if (!isActive) {
         log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
-          user: "cron/dailyWeekUpdate",
+          user: "dailyWeekUpdate",
         });
+        continue;
       }
 
+      let isAuthed = false;
       try {
-        const auth = await lk.ensureAuth(user);
-        if (!auth) {
+        isAuthed = await lk.ensureAuth(user);
+        if (!isAuthed) {
           log.warn(
             `Failed to ensure auth for user ${user.id}. Probably a lost session`,
-            { user: "cron/dailyWeekUpdate" },
+            { user: "dailyWeekUpdate" },
           );
-          // TODO: Reset auth?
-
-          //           await scheduleMessage(
-          //             user,
-          //             today,
-          //             `\
-          // Приветствую!
-          // Произошла ошибка авторизации при попытке обновить ваше расписание.
-          // На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
-          // Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
-          //             { source: "dailyupd/error" },
-          //           );
-          await scheduleDailyNotificationsForUser(user, week.number);
-          continue;
+          // await scheduleDailyNotificationsForUser(user, weekNumber);
+          // continue;
         }
       } catch (e) {
         log.error(`Failed to ensure auth for user ${user.id}: ${e as Error}`, {
-          user: "cron/dailyWeekUpdate",
+          user: "dailyWeekUpdate",
         });
-
-        //         await scheduleMessage(
-        //           user,
-        //           today,
-        //           `\
-        // Приветствую!
-        // Произошла ошибка при попытке авторизоваться и обновить ваше расписание.
-        // На данный момент я и сам не уверен почему такое произошло. Можете попробовать перезати в личный кабинет.
-        // Расписание взято из базы данных и может оказаться неточным в случае внезапных изменений.`,
-        // { source: "dailyupd/error" },
-        //         );
-        await scheduleDailyNotificationsForUser(user, week.number);
-        continue;
+        // await scheduleDailyNotificationsForUser(user, weekNumber);
+        // continue;
       }
 
       // Update current and next weeks
       const currentWeek = await schedule.getTimetableWithImage(
         user,
-        week.number,
-        { forceUpdate: true },
+        weekNumber,
+        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed },
       );
       const nextWeek = await schedule.getTimetableWithImage(
         user,
-        week.number + 1,
-        { forceUpdate: true },
+        weekNumber + 1,
+        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed },
       );
 
-      await schedule.pregenerateImagesForUser(user, week.number, 8); // For now generously pregenerate whole 2 months
-      await schedule.pregenerateImagesForUser(user, week.number - 1, -2); // and 2 previous weeks for smoother scroll
+      await schedule.pregenerateImagesForUser(user, weekNumber + 2, 6); // For now generously pregenerate whole 2 months
+      await schedule.pregenerateImagesForUser(user, weekNumber - 1, -2); // and 2 previous weeks for smoother scroll
 
       const diff = {
         added: [
@@ -261,14 +243,14 @@ export async function dailyWeekUpdate() {
         await scheduleLessonChangeNotifications(user, diff);
       }
 
-      await scheduleDailyNotificationsForUser(user, week.number);
+      await scheduleDailyNotificationsForUser(user, weekNumber);
 
       await sleep(3000); // To prevent any fun stuff on ssau's end
     } catch (e) {
       log.error(
-        `Failed to run daily update for week #${week.id}: ${e as Error}`,
+        `Failed to run daily update for user #${user.id}: ${e as Error}`,
         {
-          user: "cron/dailyWeekUpdate",
+          user: "dailyWeekUpdate",
         },
       );
     }
@@ -277,7 +259,7 @@ export async function dailyWeekUpdate() {
   log.debug(
     `Total week changes: +${newLessons.length}, -${removedLessons.length}`,
     {
-      user: "cron/dailyWeekUpdate",
+      user: "dailyWeekUpdate",
     },
   );
 }
@@ -442,7 +424,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
   log.debug(
     `Scheduled ${result.count}/${notifications.length} notifications for user ${user.id}`,
     {
-      user: "cron/dailyNotifs",
+      user: "dailyNotifs",
     },
   );
   return result;
@@ -451,7 +433,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
 export async function dailyCleanup() {
   const weekAgo = new Date(Date.now() - 604800_000);
 
-  log.info(`Started daily cleanup`, { user: "cron/dailyCleanup" });
+  log.info(`Started daily cleanup`, { user: "dailyCleanup" });
 
   const results: number[] = [];
 
@@ -482,7 +464,7 @@ export async function dailyCleanup() {
   log.info(
     `Cleanup complete: ${results.join(", ")} (im, msg, uIcs, gIcs, les)`,
     {
-      user: "cron/dailyCleanup",
+      user: "dailyCleanup",
     },
   );
 }
@@ -493,7 +475,7 @@ export async function uploadWeekImagesWithoutTgId() {
   if (!dumpChatId) {
     log.warn(
       "Skipping week image upload: SCHED_BOT_IMAGE_DUMP_CHATID is not configured",
-      { user: "cron/uploadWeekImagesWithoutTgId" },
+      { user: "uploadWeekImagesWithoutTgId" },
     );
     return {
       total: 0,
@@ -551,7 +533,7 @@ export async function uploadWeekImagesWithoutTgId() {
         } catch (error) {
           log.warn(
             `WeekImage #${weekImage.id}: failed upload via ${preferredMode}, trying ${fallbackMode}: ${String(error)}`,
-            { user: "cron/uploadWeekImagesWithoutTgId" },
+            { user: "uploadWeekImagesWithoutTgId" },
           );
           msg = await sendPhoto(fallbackMode);
         }
@@ -571,7 +553,7 @@ export async function uploadWeekImagesWithoutTgId() {
         log.debug(
           `WeekImage #${weekImage.id}: uploaded in ${formatBigInt(elapsedMs)}ms`,
           {
-            user: "cron/uploadWeekImagesWithoutTgId",
+            user: "uploadWeekImagesWithoutTgId",
           },
         );
       } catch (error) {
@@ -580,7 +562,7 @@ export async function uploadWeekImagesWithoutTgId() {
         totalImageMs += elapsedMs;
         log.error(
           `WeekImage #${weekImage.id}: failed in ${formatBigInt(elapsedMs)}ms. Error: ${String(error)}`,
-          { user: "cron/uploadWeekImagesWithoutTgId" },
+          { user: "uploadWeekImagesWithoutTgId" },
         );
       }
     }
@@ -591,7 +573,7 @@ export async function uploadWeekImagesWithoutTgId() {
 
   if (total === 0) {
     log.debug("No week images without tgId found", {
-      user: "cron/uploadWeekImagesWithoutTgId",
+      user: "uploadWeekImagesWithoutTgId",
     });
     return {
       total: 0,
@@ -605,7 +587,7 @@ export async function uploadWeekImagesWithoutTgId() {
 
   log.info(
     `Week image upload complete. uploaded=${uploaded}, failed=${failed}, total=${total}, totalWallMs=${totalWallMs}, totalImageMs=${totalImageMs}, avgImageMs=${avgImageMs}`,
-    { user: "cron/uploadWeekImagesWithoutTgId" },
+    { user: "uploadWeekImagesWithoutTgId" },
   );
 
   return { total, uploaded, failed, totalWallMs, totalImageMs, avgImageMs };
