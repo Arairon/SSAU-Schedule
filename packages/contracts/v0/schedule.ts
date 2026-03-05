@@ -76,6 +76,18 @@ export const scheduleContract = c.router({
       403: z.string(),
     },
   },
+  getScheduleImageByHash: {
+    method: "GET",
+    path: "/image/:hash/:stylemap",
+    pathParams: z.object({
+      hash: z.string(),
+      stylemap: z.string(),
+    }),
+    responses: {
+      200: z.instanceof(Buffer),
+      404: z.string(),
+    },
+  },
 });
 
 export type ScheduleLessonType = z.infer<typeof ScheduleLessonSchema>;

@@ -1,4 +1,4 @@
-import { type FastifyInstance, type FastifyRequest } from "fastify";
+import { type FastifyInstance } from "fastify";
 import { db } from "@/db";
 import { findGroup } from "@/ssau/search";
 import { schedule } from "@/schedule/requests";
@@ -28,47 +28,28 @@ const router = s.router(scheduleContract, {
 
     return { status: 200, body: timetable };
   },
+  getScheduleImageByHash: async ({ params, reply }) => {
+    const image = await db.weekImage.findUnique({
+      where: {
+        stylemap_timetableHash: {
+          stylemap: params.stylemap,
+          timetableHash: params.hash,
+        },
+        validUntil: { gt: new Date() },
+      },
+    });
+    if (!image) {
+      return { status: 404, body: "Image not found" };
+    }
+    const imageBuffer = Buffer.from(image.data, "base64");
+    reply.header("content-type", detectImageMimeType(imageBuffer));
+    return {
+      status: 200,
+      body: imageBuffer,
+    };
+  },
 });
 
 export async function routesSchedule(fastify: FastifyInstance) {
   s.registerRouter(scheduleContract, router, fastify);
-
-  fastify.get(
-    "/image/:hash/:stylemap",
-    {
-      schema: {
-        params: {
-          type: "object",
-          properties: {
-            hash: { type: "string" },
-            stylemap: { type: "string" },
-          },
-        },
-      },
-    },
-    async (
-      req: FastifyRequest<{
-        Params: { hash: string; stylemap: string };
-      }>,
-      res,
-    ) => {
-      const image = await db.weekImage.findUnique({
-        where: {
-          stylemap_timetableHash: {
-            stylemap: req.params.stylemap,
-            timetableHash: req.params.hash,
-          },
-          validUntil: { gt: new Date() },
-        },
-      });
-      if (!image) {
-        return res.status(404).send();
-      }
-      const imageBuffer = Buffer.from(image.data, "base64");
-      return res
-        .status(200)
-        .headers({ "content-type": detectImageMimeType(imageBuffer) })
-        .send(imageBuffer);
-    },
-  );
 }
