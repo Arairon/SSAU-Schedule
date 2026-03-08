@@ -47,7 +47,7 @@ export const LessonTypeIcon: Record<LessonType, string> = {
   Window: "🏝",
   Exam: "💀",
   Consult: "🗨",
-  // CourseWork: "🤯",
+  CourseWork: "📓",
   // Test: "📝",
   Unknown: "❓",
 };
@@ -61,7 +61,7 @@ export const LessonTypeName: Record<LessonType, string> = {
   Window: "Окно",
   Exam: "Экзамен",
   Consult: "Консультация",
-  // CourseWork: "Курсовая",
+  CourseWork: "Курсовая",
   // Test: "Тест",
   Unknown: "Неизвестно",
 };
