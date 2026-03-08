@@ -77,9 +77,9 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
     },
-    /*CourseWork: {
+    CourseWork: {
       name: "Курсовая",
-      headerStyle: "bg-pink-500 rounded-lg hidden text-lg",
+      headerStyle: "bg-pink-500 rounded-lg text-lg hidden",
       barStyle: "bg-pink-500",
       cardStyle: "bg-white rounded-lg px-1 py-2",
       nameStyle: "font-bold", //capitalize
@@ -91,7 +91,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
-    },*/
+    },
     Consult: {
       name: "Консультация",
       headerStyle: "bg-blue-400 rounded-lg text-lg",

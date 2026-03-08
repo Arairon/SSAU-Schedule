@@ -9,6 +9,7 @@ const LessonTypeMap = [
   LessonType.Other,
   LessonType.Exam,
   LessonType.Consult,
+  LessonType.CourseWork,
 ];
 export function getLessonTypeEnum(type: number) {
   if (type < 0 || type >= LessonTypeMap.length) {

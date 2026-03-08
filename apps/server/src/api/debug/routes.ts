@@ -143,6 +143,7 @@ export async function routesDebug(fastify: FastifyInstance) {
             group: { type: "string", default: "" },
             groupId: { type: "number", default: 0 },
             ignoreCached: { type: "boolean", default: false },
+            stylemap: { type: "string", default: "neon" },
           },
         },
       },
@@ -155,7 +156,7 @@ export async function routesDebug(fastify: FastifyInstance) {
           group: string;
           groupId: number;
           ignoreCached: boolean;
-          theme: string;
+          stylemap: string;
         };
       }>,
       res,
@@ -177,7 +178,7 @@ export async function routesDebug(fastify: FastifyInstance) {
         {
           ignoreCached: req.query.ignoreCached,
           groupId: (group?.id ?? 0) || undefined,
-          stylemap: req.query.theme,
+          stylemap: req.query.stylemap,
         },
       );
       const imageBuffer = Buffer.from(timetable.image.data);

@@ -1,14 +1,15 @@
 // import { type LessonType } from "@prisma/client";
-export type LessonType = "Lection"
+export type LessonType =
+  | "Lection"
   | "Lab"
   | "Practice"
   | "Other"
   | "Exam"
   | "Consult"
   | "Military"
+  | "CourseWork"
   | "Window"
-  | "Unknown"
-
+  | "Unknown";
 
 export type LessonStyleMap = {
   name: string;
@@ -43,4 +44,4 @@ export type StyleMap = {
   lessonTypes: LessonTypeStyleMap;
 };
 
-export type LessonTypeStyleMap = Record<LessonType|string, LessonStyleMap>;
+export type LessonTypeStyleMap = Record<LessonType, LessonStyleMap>;

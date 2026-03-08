@@ -59,7 +59,7 @@ enum LessonType {
   Consult // 6
   Military // 4 Custom: discpipline.id == 496
   Window
-  // CourseWork
+  CourseWork
   // Test
   Unknown
 }
