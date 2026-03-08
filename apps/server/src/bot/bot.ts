@@ -120,7 +120,7 @@ async function initBot(bot: GrammyBot<Context>) {
   await initConfig(bot);
   await initAdmin(bot);
 
-  const hiddenCommands = ["config", "logout", "login", "start"]; // and the whole admin group
+  const hiddenCommands = ["config", "logout", "login", "start", "app"]; // and the whole admin group
   const publicCommands: BotCommand[] = [];
   for (const commandGroup of [
     accountCommands,
