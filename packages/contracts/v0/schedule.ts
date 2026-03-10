@@ -84,7 +84,7 @@ export const scheduleContract = c.router({
       stylemap: z.string(),
     }),
     responses: {
-      200: z.instanceof(Buffer),
+      200: z.instanceof(Uint8Array),
       404: z.string(),
     },
   },
