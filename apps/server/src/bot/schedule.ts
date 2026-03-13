@@ -778,9 +778,6 @@ ${generateTextLesson(lesson)}
     }
     return ctx.reply(
       `\
-Инструкция по установке: https://l9labs.ru/stud_bot/ics.html
-(Украдено у l9 :D)
-
 Ваша ссылка:
 https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
 
