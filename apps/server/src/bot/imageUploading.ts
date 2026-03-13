@@ -169,9 +169,12 @@ export async function uploadImage(opts: UploadImageOpts) {
 
 type UploadScheduleImageToDumpChatOpts = {
   api?: Context["api"];
-  image: Buffer;
-  timetableHash: string;
-  stylemap: string;
+  image: {
+    id: number;
+    data: Buffer;
+    timetableHash: string;
+    stylemap: string;
+  };
   caption?: string;
   userId?: number | bigint | string;
   onFallbackAttempt?: () => void;
@@ -180,12 +183,13 @@ type UploadScheduleImageToDumpChatOpts = {
 export async function uploadScheduleImage(
   opts: UploadScheduleImageToDumpChatOpts,
 ) {
-  const imageUrl = getScheduleImageUrl(opts.timetableHash, opts.stylemap);
-  const caption = opts.caption ?? `${opts.timetableHash}/${opts.stylemap}`;
+  const image = opts.image;
+  const imageUrl = getScheduleImageUrl(image.timetableHash, image.stylemap);
+  const caption = opts.caption ?? `${image.timetableHash}/${image.stylemap}`;
 
   return uploadImage({
     api: opts.api,
-    image: opts.image,
+    image: image.data,
     imageUrl,
     caption,
     userId: opts.userId,

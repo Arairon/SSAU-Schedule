@@ -412,9 +412,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
       let tgId = image.tgId;
       if (!image.tgId) {
         const uploadedImage = await uploadScheduleImage({
-          image: image.data,
-          timetableHash: timetable.hash,
-          stylemap: image.stylemap,
+          image,
           userId: user.id,
           caption: `notifyAboutNextWeek for ${user.id} #${timetable.weekId}\n${timetable.hash}/${image.stylemap}`,
         });
@@ -545,9 +543,10 @@ export async function uploadWeekImagesWithoutTgId() {
       try {
         const uploadedImage = await uploadScheduleImage({
           api: bot.api,
-          image: Buffer.from(weekImage.data, "base64"),
-          timetableHash: weekImage.timetableHash,
-          stylemap: weekImage.stylemap,
+          image: {
+            ...weekImage,
+            data: Buffer.from(weekImage.data, "base64"),
+          },
           userId: "uploadWeekImagesWithoutTgId",
           caption: `preupload of #${weekImage.id}\n${weekImage.timetableHash}/${weekImage.stylemap}`,
           // onFallbackAttempt: () => {

@@ -205,9 +205,7 @@ async function sendTimetable(
 
     const uploaded = await uploadScheduleImage({
       api: ctx.api,
-      image: image.data,
-      timetableHash: image.timetableHash,
-      stylemap: image.stylemap,
+      image,
       caption: `requested by ${ctx?.from?.id ?? "???"} for #${timetable.weekId} (sent new)\n${image.timetableHash}/${image.stylemap}`,
       userId: ctx?.from?.id,
       onFallbackAttempt: () => {
@@ -492,9 +490,7 @@ export async function updateTimetable(
 
         const uploaded = await uploadScheduleImage({
           api: ctx.api,
-          image: image.data,
-          timetableHash: image.timetableHash,
-          stylemap: image.stylemap,
+          image,
           caption: `requested by ${userId} for #${timetable.weekId}\n${image.timetableHash} (updated)/${image.stylemap}`,
           userId,
           onFallbackAttempt: () => {
