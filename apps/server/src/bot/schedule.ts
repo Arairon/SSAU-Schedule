@@ -20,6 +20,20 @@ import { getUserIcsByUserId } from "@/schedule/ics";
 import { findGroupOrOptions } from "@/ssau/search";
 import { uploadScheduleImage } from "./imageUploading";
 
+function answerCallbackQueryOrReply(ctx: Context, text: string) {
+  if (ctx.callbackQuery) {
+    return ctx.answerCallbackQuery(text);
+  }
+
+  if (!ctx.chat) return;
+  return ctx.reply(text);
+}
+
+function answerCallbackQueryIfPresent(ctx: Context, text?: string) {
+  if (!ctx.callbackQuery) return;
+  return text ? ctx.answerCallbackQuery(text) : ctx.answerCallbackQuery();
+}
+
 async function sendGroupTimetable(
   ctx: Context,
   week: number,
@@ -30,7 +44,8 @@ async function sendGroupTimetable(
     ctx.session.startedScheduleUpdateAt &&
     Date.now() - ctx.session.startedScheduleUpdateAt.getTime() < 30_000
   ) {
-    return ctx.answerCallbackQuery(
+    return answerCallbackQueryOrReply(
+      ctx,
       "Обновление уже запущено, пожалуйста подождите.",
     );
   }
@@ -305,7 +320,8 @@ export async function updateTimetable(
     ctx.session.startedScheduleUpdateAt &&
     Date.now() - ctx.session.startedScheduleUpdateAt.getTime() < 30_000
   ) {
-    return ctx.answerCallbackQuery(
+    return answerCallbackQueryOrReply(
+      ctx,
       "Обновление уже запущено, пожалуйста подождите.",
     );
   }
@@ -322,7 +338,8 @@ export async function updateTimetable(
         log.warn(
           `Image viewer update requested in group chat with no admin/groupchat`,
         );
-        return ctx.answerCallbackQuery(
+        return answerCallbackQueryOrReply(
+          ctx,
           "Этот чат не зарегистрирован для получения расписаний или у него нет админа",
         );
       }
@@ -338,7 +355,8 @@ export async function updateTimetable(
       ctx.session.scheduleViewer.message;
     if (!msgId || !chat) {
       log.error(`No message ID in callbackQuery`, { user: userId });
-      return ctx.answerCallbackQuery(
+      return answerCallbackQueryOrReply(
+        ctx,
         "Произошла ошибка, пожалуйста используйте /schedule.",
       );
     }
@@ -355,7 +373,7 @@ export async function updateTimetable(
       : null;
 
     if (!groupId && !user.groupId) {
-      await ctx.answerCallbackQuery().catch();
+      await answerCallbackQueryIfPresent(ctx)?.catch(() => undefined);
       return ctx.reply(
         'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nНастройте группу через /options или укажите группу в запросе через "/schedule 6101-090301D"',
       );
@@ -503,7 +521,7 @@ export async function updateTimetable(
         `Error: unchanged or errored. Ignoring. Err: ${JSON.stringify(error)}`,
         { user: userId },
       );
-      await ctx.answerCallbackQuery("Ничего не изменилось");
+      await answerCallbackQueryOrReply(ctx, "Ничего не изменилось");
     }
     const endTime = process.hrtime.bigint();
     log.debug(
@@ -519,7 +537,7 @@ export async function updateTimetable(
     log.error(`Failed to update timetable msg ${String(e)}`, {
       user: ctx?.from?.id,
     });
-    return ctx.answerCallbackQuery("Произошла ошибка при обновлении.");
+    return answerCallbackQueryOrReply(ctx, "Произошла ошибка при обновлении.");
   } finally {
     ctx.session.startedScheduleUpdateAt = null;
   }
