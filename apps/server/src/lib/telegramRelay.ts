@@ -10,10 +10,29 @@ type RelayResult = {
   fileId: string;
 };
 
+function isLocalRelayHost(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1"
+  );
+}
+
 function getRelayConfig() {
   const baseRaw = env.SCHED_BOT_IMAGE_RELAY_URL;
   if (typeof baseRaw !== "string" || baseRaw.length === 0) {
     return null;
+  }
+
+  const parsedBase = new URL(baseRaw);
+  if (
+    parsedBase.protocol !== "https:" &&
+    !isLocalRelayHost(parsedBase.hostname)
+  ) {
+    throw new Error(
+      "SCHED_BOT_IMAGE_RELAY_URL must use https for non-local relay hosts",
+    );
   }
 
   const relayKeyRaw = env.SCHED_BOT_IMAGE_RELAY_KEY;
@@ -24,6 +43,7 @@ function getRelayConfig() {
   return {
     baseUrl: baseRaw,
     relayKey: relayKeyRaw,
+    telegramToken: env.SCHED_BOT_TOKEN,
   } as const;
 }
 
@@ -38,6 +58,7 @@ const relayClient = relayConfig
       baseUrl: relayConfig.baseUrl,
       baseHeaders: {
         "x-relay-key": relayConfig.relayKey,
+        "x-telegram-token": relayConfig.telegramToken,
       },
       credentials: "omit",
       validateResponse: true,

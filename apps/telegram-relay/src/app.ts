@@ -8,6 +8,12 @@ export async function buildRelayApp() {
   const app = fastify({
     logger: {
       level: env.LOG_LEVEL,
+      redact: [
+        "req.headers.x-relay-key",
+        "req.headers.x-telegram-token",
+        "headers.x-relay-key",
+        "headers.x-telegram-token",
+      ],
     },
   });
 

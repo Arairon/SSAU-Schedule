@@ -6,7 +6,6 @@ configDotenv();
 
 export const env = createEnv({
   server: {
-    SCHED_BOT_TOKEN: z.string().min(1),
     RELAY_KEY: z.string().min(16),
     RELAY_HOST: z.string().default("0.0.0.0"),
     RELAY_PORT: z.coerce.number().int().positive().default(3020),

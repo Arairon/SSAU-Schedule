@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Multipart, MultipartFile } from "@fastify/multipart";
 import { timingSafeEqual } from "node:crypto";
+import { z } from "zod";
 
 import { env } from "../env.js";
 import { sendPhotoFromBuffer, sendPhotoFromUrl } from "../lib/telegram.js";
@@ -11,6 +12,11 @@ import {
   RelayUrlRequestSchema,
   relayContract,
 } from "../contracts/relay.js";
+
+const TelegramBotTokenSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+:[A-Za-z0-9_-]{20,}$/, "Invalid Telegram bot token format");
 
 function isSafeImageMimeType(mimeType: string) {
   return RelayBase64RequestSchema.shape.mimeType.safeParse(mimeType).success;
@@ -30,6 +36,20 @@ function compareRelayKey(incoming: string) {
 function assertRelayKey(request: FastifyRequest) {
   const relayKey = request.headers["x-relay-key"];
   return typeof relayKey === "string" && compareRelayKey(relayKey);
+}
+
+function getTelegramToken(request: FastifyRequest) {
+  const token = request.headers["x-telegram-token"];
+  if (typeof token !== "string") {
+    return null;
+  }
+
+  const parsed = TelegramBotTokenSchema.safeParse(token);
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
 }
 
 function parseTarget(target: string) {
@@ -102,6 +122,15 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
         );
     }
 
+    const telegramToken = getTelegramToken(request);
+    if (!telegramToken) {
+      return reply
+        .status(401)
+        .send(
+          RelayErrorResponseSchema.parse({ ok: false, error: "Unauthorized" }),
+        );
+    }
+
     let file: MultipartFile | undefined;
     try {
       file = await request.file();
@@ -128,7 +157,7 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
       validatePayloadSize(imageBuffer);
 
       const sent = await sendPhotoFromBuffer({
-        token: env.SCHED_BOT_TOKEN,
+        token: telegramToken,
         target,
         image: imageBuffer,
         mimeType: file.mimetype,
@@ -161,6 +190,16 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
     relayContract.sendBase64.path,
     async (request, reply) => {
       if (!assertRelayKey(request)) {
+        return reply.status(401).send(
+          RelayErrorResponseSchema.parse({
+            ok: false,
+            error: "Unauthorized",
+          }),
+        );
+      }
+
+      const telegramToken = getTelegramToken(request);
+      if (!telegramToken) {
         return reply
           .status(401)
           .send(
@@ -190,7 +229,7 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
         validatePayloadSize(imageBuffer);
 
         const sent = await sendPhotoFromBuffer({
-          token: env.SCHED_BOT_TOKEN,
+          token: telegramToken,
           target,
           image: imageBuffer,
           mimeType: parsed.data.mimeType,
@@ -218,6 +257,16 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
     relayContract.sendUrl.path,
     async (request, reply) => {
       if (!assertRelayKey(request)) {
+        return reply.status(401).send(
+          RelayErrorResponseSchema.parse({
+            ok: false,
+            error: "Unauthorized",
+          }),
+        );
+      }
+
+      const telegramToken = getTelegramToken(request);
+      if (!telegramToken) {
         return reply
           .status(401)
           .send(
@@ -243,7 +292,7 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
         await verifyImageUrl(parsed.data.url);
 
         const sent = await sendPhotoFromUrl({
-          token: env.SCHED_BOT_TOKEN,
+          token: telegramToken,
           target,
           imageUrl: parsed.data.url,
           timeoutMs: env.RELAY_REQUEST_TIMEOUT_MS,
