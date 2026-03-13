@@ -59,6 +59,13 @@ const relayClient = relayConfig
       baseHeaders: {
         "x-relay-key": relayConfig.relayKey,
         "x-telegram-token": relayConfig.telegramToken,
+        ...(env.NODE_ENV === "development" &&
+        env.SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS
+          ? {
+              "x-vercel-protection-bypass":
+                env.SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS,
+            }
+          : {}),
       },
       credentials: "omit",
       validateResponse: true,

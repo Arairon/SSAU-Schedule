@@ -18,6 +18,7 @@ export const env = createEnv({
       .default("file"),
     SCHED_BOT_IMAGE_RELAY_URL: z.url().optional(),
     SCHED_BOT_IMAGE_RELAY_KEY: z.string().optional(),
+    SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS: z.string().optional(),
     SCHED_BOT_IMAGE_RELAY_TIMEOUT_MS: z.coerce
       .number()
       .int()
