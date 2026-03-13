@@ -205,9 +205,8 @@ async function sendTimetable(
 
     const uploaded = await uploadScheduleImage({
       api: ctx.api,
-      image: image.data,
-      timetableHash: image.timetableHash,
-      stylemap: image.stylemap,
+      image,
+      caption: `requested by ${ctx?.from?.id ?? "???"} for #${timetable.weekId} (sent new)\n${image.timetableHash}/${image.stylemap}`,
       userId: ctx?.from?.id,
       onFallbackAttempt: () => {
         updateTempMsg(
@@ -223,10 +222,6 @@ async function sendTimetable(
   if (!image.tgId && uploadedFileId) {
     log.debug(`Image had no tgId, uploaded new ${uploadedFileId}`, {
       user: ctx?.from?.id,
-    });
-    await db.weekImage.update({
-      where: { id: image.id },
-      data: { tgId: uploadedFileId },
     });
   }
 
@@ -455,7 +450,7 @@ export async function updateTimetable(
     }
 
     try {
-      const caption =
+      let caption =
         `Расписание на ${timetable.week} неделю` +
         (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
         (group ? `\nДля группы ${group.name}` : "") +
@@ -463,6 +458,9 @@ export async function updateTimetable(
         (timetable.diff
           ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
           : "");
+      if (caption.length > 1024) {
+        caption = caption.slice(0, 1020) + " ...";
+      }
 
       const editPhoto = (media: string) =>
         ctx.api.editMessageMedia(
@@ -488,9 +486,8 @@ export async function updateTimetable(
 
         const uploaded = await uploadScheduleImage({
           api: ctx.api,
-          image: image.data,
-          timetableHash: image.timetableHash,
-          stylemap: image.stylemap,
+          image,
+          caption: `requested by ${userId} for #${timetable.weekId}\n${image.timetableHash} (updated)/${image.stylemap}`,
           userId,
           onFallbackAttempt: () => {
             updateTempMsg(
@@ -500,11 +497,6 @@ export async function updateTimetable(
         });
 
         await editPhoto(uploaded.fileId);
-
-        await db.weekImage.update({
-          where: { id: image.id },
-          data: { tgId: uploaded.fileId },
-        });
       }
     } catch (error) {
       log.debug(
@@ -776,9 +768,6 @@ ${generateTextLesson(lesson)}
     }
     return ctx.reply(
       `\
-Инструкция по установке: https://l9labs.ru/stud_bot/ics.html
-(Украдено у l9 :D)
-
 Ваша ссылка:
 https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
 

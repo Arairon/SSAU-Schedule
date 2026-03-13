@@ -48,6 +48,7 @@ export async function sendScheduledNotifications() {
   const now = new Date();
   const messages = await db.scheduledMessage.findMany({
     where: { sendAt: { lte: now }, wasSentAt: null },
+    orderBy: { sendAt: "asc" },
     take: 600, // docs say 30/s per inactive, but why risk it... https://limits.tginfo.me/en
   });
   if (messages.length === 0) return;
@@ -56,15 +57,20 @@ export async function sendScheduledNotifications() {
   });
   for (const msg of messages) {
     try {
-      if (msg.image) {
-        await bot.api.sendPhoto(
-          msg.chatId,
-          new InputFile(Buffer.from(msg.image, "base64")),
+      if (msg.text.length > 4096) {
+        log.warn(
+          `Message #${msg.id} text length (${msg.text.length}) exceeds Telegram limit. Truncating.`,
           {
-            caption: msg.text,
-            caption_entities: msg.entities as object[] as MessageEntity[],
+            user: "notifications",
           },
         );
+        msg.text = msg.text.slice(0, 4090) + "...";
+      }
+      if (msg.image) {
+        await bot.api.sendPhoto(msg.chatId, new InputFile(msg.image), {
+          caption: msg.text,
+          caption_entities: msg.entities as object[] as MessageEntity[],
+        });
       } else {
         await bot.api.sendMessage(msg.chatId, msg.text, {
           entities: msg.entities as object[] as MessageEntity[],
@@ -223,6 +229,10 @@ export async function dailyWeekUpdate() {
         removed: [
           ...(currentWeek.timetable.diff?.removed ?? []),
           ...(nextWeek.timetable.diff?.removed ?? []),
+        ],
+        modified: [
+          ...(currentWeek.timetable.diff?.modified ?? []),
+          ...(nextWeek.timetable.diff?.modified ?? []),
         ],
       };
 
@@ -394,17 +404,59 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
   }
 
   if (preferences.notifyAboutNextWeek && !nextStudyDay) {
-    const timetable = await schedule.getTimetableWithImage(
+    const { timetable, image } = await schedule.getTimetableWithImage(
       user,
       weekNumber + 1,
     );
-    notifications.push({
-      chatId: `${user.tgId}`,
-      sendAt: day.endTime,
-      text: "На этой неделе больше ничего нет\nНа фото расписание на следующую неделю",
-      image: timetable.image.data.toString("base64"),
-      source: "daily/nextWeek",
-    });
+    try {
+      let tgId = image.tgId;
+      if (!image.tgId) {
+        const uploadedImage = await uploadScheduleImage({
+          image,
+          userId: user.id,
+          caption: `notifyAboutNextWeek for ${user.id} #${timetable.weekId}\n${timetable.hash}/${image.stylemap}`,
+        });
+        tgId = uploadedImage.fileId;
+      }
+      if (!tgId)
+        throw new Error("Failed to upload image for next week notification");
+      notifications.push({
+        chatId: `${user.tgId}`,
+        sendAt: day.endTime,
+        text: "На этой неделе больше ничего нет\nНа фото расписание на следующую неделю",
+        image: tgId,
+        source: "daily/nextWeek",
+      });
+    } catch {
+      log.warn(
+        `Failed to upload next week image for user. Sending text-only notification.`,
+        { user: user.id },
+      );
+      const nextStudyDay = timetable.days.find((day) => day.lessons.length > 0);
+      if (nextStudyDay) {
+        notifications.push({
+          chatId: `${user.tgId}`,
+          sendAt: day.endTime,
+          text: `\
+Сегодня больше ничего нет
+Следующие занятия ${DayString[nextStudyDay.weekday].in}, ${nextStudyDay.beginTime.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}:
+
+${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----\n")}
+`,
+          source: "daily/nextWeek",
+        });
+      } else {
+        notifications.push({
+          chatId: `${user.tgId}`,
+          sendAt: day.endTime,
+          text: `\
+Сегодня больше ничего нет
+На следующей неделе занятий тоже нет :D
+`,
+          source: "daily/nextWeek",
+        });
+      }
+    }
   }
 
   const now = new Date();
@@ -485,12 +537,14 @@ export async function uploadWeekImagesWithoutTgId() {
       const imageStartedAtMs = Date.now();
 
       try {
-        const uploadedImage = await uploadScheduleImage({
+        await uploadScheduleImage({
           api: bot.api,
-          image: Buffer.from(weekImage.data, "base64"),
-          timetableHash: weekImage.timetableHash,
-          stylemap: weekImage.stylemap,
+          image: {
+            ...weekImage,
+            data: Buffer.from(weekImage.data, "base64"),
+          },
           userId: "uploadWeekImagesWithoutTgId",
+          caption: `preupload of #${weekImage.id}\n${weekImage.timetableHash}/${weekImage.stylemap}`,
           // onFallbackAttempt: () => {
           //   log.warn(
           //     `WeekImage #${weekImage.id}: upload mode failed, trying fallback`,
@@ -499,10 +553,6 @@ export async function uploadWeekImagesWithoutTgId() {
           // },
         });
 
-        await db.weekImage.update({
-          where: { id: weekImage.id },
-          data: { tgId: uploadedImage.fileId },
-        });
         uploaded += 1;
         const elapsedMs = Date.now() - imageStartedAtMs;
         totalImageMs += elapsedMs;

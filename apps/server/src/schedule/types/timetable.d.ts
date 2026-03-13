@@ -105,4 +105,5 @@ export type TimetableWithWindows = {
 export type TimetableDiff = {
   added: TimetableLesson[];
   removed: TimetableLesson[];
+  modified: { old: Partial<TimetableLesson>; new: TimetableLesson }[]; // Same name, type and time
 };

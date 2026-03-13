@@ -5,17 +5,9 @@ import log from "@/logger";
 import { detectImageMimeType } from "@/schedule/image";
 import { relayImageByFile } from "@/lib/telegramRelay";
 import type { Context } from "./types";
+import { db } from "@/db";
 
 export type ScheduleUploadMode = "file" | "url" | "relay";
-
-type UploadScheduleImageToDumpChatOpts = {
-  api: Context["api"];
-  image: Buffer;
-  timetableHash: string;
-  stylemap: string;
-  userId?: number | bigint | string;
-  onFallbackAttempt?: () => void;
-};
 
 function getUploadModesOrder(): ScheduleUploadMode[] {
   switch (env.SCHED_BOT_IMAGE_UPLOAD_MODE) {
@@ -53,7 +45,7 @@ function getPhotoFileIdFromMessage(
 
 async function uploadViaRelay(opts: {
   image: Buffer;
-  imageUrl: string;
+  caption?: string;
   userId?: number | bigint | string;
 }) {
   const target = getImageDumpChatId();
@@ -83,6 +75,7 @@ async function uploadViaRelay(opts: {
       image: opts.image,
       mimeType,
       filename: "schedule.jpg",
+      caption: opts.caption,
     });
     return sent.fileId;
   } catch (error) {
@@ -97,51 +90,62 @@ async function uploadViaBotApi(opts: {
   api: Context["api"];
   mode: Exclude<ScheduleUploadMode, "relay">;
   image: Buffer;
-  imageUrl: string;
-  timetableHash: string;
-  stylemap: string;
+  imageUrl?: string;
+  caption: string;
 }) {
+  if (opts.mode === "url" && !opts.imageUrl) {
+    throw new Error("Image URL is required for URL upload mode");
+  }
   const target = getImageDumpChatId();
   const media =
     opts.mode === "url"
-      ? new InputFile({ url: opts.imageUrl })
+      ? new InputFile({ url: opts.imageUrl! })
       : new InputFile(opts.image);
 
   const sent = await opts.api.sendPhoto(target, media, {
-    caption: `schedule_image\n${opts.timetableHash}/${opts.stylemap}`,
+    caption: opts.caption,
   });
 
   return getPhotoFileIdFromMessage(sent);
 }
 
-export async function uploadScheduleImage(
-  opts: UploadScheduleImageToDumpChatOpts,
-) {
-  const imageUrl = getScheduleImageUrl(opts.timetableHash, opts.stylemap);
+type UploadImageOpts = {
+  api?: Context["api"];
+  image: Buffer;
+  imageUrl?: string;
+  caption: string;
+  userId?: number | bigint | string;
+  onFallbackAttempt?: () => void;
+};
+
+export async function uploadImage(opts: UploadImageOpts) {
   const uploadModes = getUploadModesOrder();
 
   let lastError: unknown;
   for (const [index, mode] of uploadModes.entries()) {
     try {
+      if (mode === "url" && !opts.imageUrl) continue;
       if (mode === "relay") {
         const fileId = await uploadViaRelay({
           image: opts.image,
-          imageUrl,
           userId: opts.userId,
+          caption: opts.caption,
         });
         log.debug(`Image uploaded using relay mode. fileId=${fileId}`, {
           user: opts.userId,
         });
         return { fileId, mode };
+      } else if (!opts.api) {
+        // No api instance provided, can't use bot API upload modes
+        continue;
       }
 
       const fileId = await uploadViaBotApi({
         api: opts.api,
         mode,
         image: opts.image,
-        imageUrl,
-        timetableHash: opts.timetableHash,
-        stylemap: opts.stylemap,
+        imageUrl: opts.imageUrl,
+        caption: opts.caption,
       });
       log.debug(`Image uploaded using ${mode} mode. fileId=${fileId}`, {
         user: opts.userId,
@@ -161,5 +165,44 @@ export async function uploadScheduleImage(
 
   throw lastError instanceof Error
     ? lastError
-    : new Error("Failed to upload image to dump chat in any mode");
+    : new Error("No valid mode for uploading found");
+}
+
+type UploadScheduleImageToDumpChatOpts = {
+  api?: Context["api"];
+  image: {
+    id: number;
+    data: Buffer;
+    timetableHash: string;
+    stylemap: string;
+  };
+  caption?: string;
+  userId?: number | bigint | string;
+  dontSaveToDb?: boolean;
+  onFallbackAttempt?: () => void;
+};
+
+export async function uploadScheduleImage(
+  opts: UploadScheduleImageToDumpChatOpts,
+) {
+  const image = opts.image;
+  const imageUrl = getScheduleImageUrl(image.timetableHash, image.stylemap);
+  const caption = opts.caption ?? `${image.timetableHash}/${image.stylemap}`;
+
+  const res = await uploadImage({
+    api: opts.api,
+    image: image.data,
+    imageUrl,
+    caption,
+    userId: opts.userId,
+    onFallbackAttempt: opts.onFallbackAttempt,
+  });
+  if (opts.dontSaveToDb) return res;
+
+  await db.weekImage.update({
+    where: { id: image.id },
+    data: { tgId: res.fileId },
+  });
+
+  return res;
 }
