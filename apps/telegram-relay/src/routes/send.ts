@@ -10,7 +10,7 @@ import {
   RelaySuccessResponseSchema,
   RelayUrlRequestSchema,
   relayContract,
-} from "@ssau-schedule/contracts/v0/relay";
+} from "../contracts/relay.js";
 
 function isSafeImageMimeType(mimeType: string) {
   return RelayBase64RequestSchema.shape.mimeType.safeParse(mimeType).success;
