@@ -330,7 +330,13 @@ async function getTimetableWithImage(
         },
       });
       return {
-        timetable,
+        timetable: {
+          ...timetable,
+          diff:
+            week.timetable && week.timetableHash !== timetable.hash
+              ? (getTimetablesDiff(week.timetable, timetable) ?? undefined)
+              : undefined,
+        },
         image: Object.assign(existingImage, {
           data: Buffer.from(existingImage.data, "base64"),
         }),

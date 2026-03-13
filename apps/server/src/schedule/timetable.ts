@@ -355,66 +355,170 @@ export function getTimetablesDiff(
 ): TimetableDiff | null {
   const added: TimetableLesson[] = [];
   const removed: TimetableLesson[] = [];
+  const modified: { old: Partial<TimetableLesson>; new: TimetableLesson }[] =
+    [];
+
+  const normalizeLesson = (lesson: TimetableLesson) => ({
+    id: lesson.id,
+    infoId: lesson.infoId,
+    type: lesson.type,
+    discipline: lesson.discipline,
+    teacherName: lesson.teacher.name,
+    teacherId: lesson.teacher.id,
+    isOnline: lesson.isOnline,
+    isIet: lesson.isIet,
+    building: lesson.building,
+    room: lesson.room,
+    subgroup: lesson.subgroup,
+    groups: [...lesson.groups].sort(),
+    flows: [...lesson.flows].sort(),
+    dayTimeSlot: lesson.dayTimeSlot,
+    beginTime: new Date(lesson.beginTime).getTime(),
+    endTime: new Date(lesson.endTime).getTime(),
+    conferenceUrl: lesson.conferenceUrl,
+    customized: lesson.customized
+      ? {
+          hidden: lesson.customized.hidden,
+          disabled: lesson.customized.disabled,
+          comment: lesson.customized.comment,
+          customizedBy: lesson.customized.customizedBy,
+        }
+      : null,
+  });
 
   const getLessonKey = (lesson: TimetableLesson) =>
+    JSON.stringify(normalizeLesson(lesson));
+
+  const getModifiedKey = (lesson: TimetableLesson) =>
     JSON.stringify({
-      id: lesson.id,
-      infoId: lesson.infoId,
-      type: lesson.type,
+      // infoId: lesson.infoId,
       discipline: lesson.discipline,
-      teacherName: lesson.teacher.name,
-      teacherId: lesson.teacher.id,
-      isOnline: lesson.isOnline,
-      isIet: lesson.isIet,
-      building: lesson.building,
-      room: lesson.room,
-      subgroup: lesson.subgroup,
-      groups: [...lesson.groups].sort(),
-      flows: [...lesson.flows].sort(),
-      dayTimeSlot: lesson.dayTimeSlot,
+      type: lesson.type,
       beginTime: new Date(lesson.beginTime).getTime(),
       endTime: new Date(lesson.endTime).getTime(),
-      conferenceUrl: lesson.conferenceUrl,
-      customized: lesson.customized
-        ? {
-            hidden: lesson.customized.hidden,
-            disabled: lesson.customized.disabled,
-            comment: lesson.customized.comment,
-            customizedBy: lesson.customized.customizedBy,
-          }
-        : null,
     });
 
-  const oldByKey = new Map<string, TimetableLesson>();
-  const newByKey = new Map<string, TimetableLesson>();
+  const normalizedToLessonKey: Record<string, string> = {
+    teacherName: "teacher",
+    teacherId: "teacher",
+    isOnline: "isOnline",
+  };
+
+  const getChangedOldFields = (
+    oldLesson: TimetableLesson,
+    newLesson: TimetableLesson,
+  ): Partial<TimetableLesson> => {
+    const oldNormalized = normalizeLesson(oldLesson);
+    const newNormalized = normalizeLesson(newLesson);
+    const oldChanged: Partial<TimetableLesson> = {};
+
+    const oldLessonRecord = oldLesson as unknown as Record<string, unknown>;
+    const oldChangedRecord = oldChanged as unknown as Record<string, unknown>;
+
+    for (const [normalizedKey, oldValue] of Object.entries(oldNormalized) as [
+      keyof typeof oldNormalized,
+      unknown,
+    ][]) {
+      const newValue = newNormalized[normalizedKey];
+      if (JSON.stringify(oldValue) === JSON.stringify(newValue)) continue;
+
+      const lessonKey = normalizedToLessonKey[normalizedKey] ?? normalizedKey;
+      oldChangedRecord[lessonKey] = oldLessonRecord[lessonKey];
+    }
+
+    return oldChanged;
+  };
+
+  const oldByKey = new Map<string, TimetableLesson[]>();
+  const newByKey = new Map<string, TimetableLesson[]>();
 
   for (const lesson of flattenTimetable(oldTimetable)) {
     const key = getLessonKey(lesson);
-    oldByKey.set(key, lesson);
+    const bucket = oldByKey.get(key);
+    if (bucket) {
+      bucket.push(lesson);
+    } else {
+      oldByKey.set(key, [lesson]);
+    }
   }
 
   for (const lesson of flattenTimetable(newTimetable)) {
     const key = getLessonKey(lesson);
-    newByKey.set(key, lesson);
+    const bucket = newByKey.get(key);
+    if (bucket) {
+      bucket.push(lesson);
+    } else {
+      newByKey.set(key, [lesson]);
+    }
   }
 
   const keys = new Set([...oldByKey.keys(), ...newByKey.keys()]);
-  for (const key of keys) {
-    const oldLesson = oldByKey.get(key);
-    const newLesson = newByKey.get(key);
+  const unmatchedRemoved: TimetableLesson[] = [];
+  const unmatchedAdded: TimetableLesson[] = [];
 
-    if (!oldLesson && newLesson) {
-      added.push(newLesson);
+  for (const key of keys) {
+    const oldLessons = oldByKey.get(key) ?? [];
+    const newLessons = newByKey.get(key) ?? [];
+    const matchedCount = Math.min(oldLessons.length, newLessons.length);
+
+    for (let i = 0; i < matchedCount; i++) {
+      oldLessons.pop();
+      newLessons.pop();
     }
-    if (oldLesson && !newLesson) {
-      removed.push(oldLesson);
+
+    if (oldLessons.length > 0) {
+      unmatchedRemoved.push(...oldLessons);
+    }
+    if (newLessons.length > 0) {
+      unmatchedAdded.push(...newLessons);
     }
   }
 
-  if (added.length === 0 && removed.length === 0) return null;
+  // Reclassify add/remove pairs as modified when they have the same
+  // discipline, type and start/end time.
+  const addedByModifiedKey = new Map<string, TimetableLesson[]>();
+  for (const lesson of unmatchedAdded) {
+    const key = getModifiedKey(lesson);
+    const bucket = addedByModifiedKey.get(key);
+    if (bucket) {
+      bucket.push(lesson);
+    } else {
+      addedByModifiedKey.set(key, [lesson]);
+    }
+  }
+
+  for (const oldLesson of unmatchedRemoved) {
+    const key = getModifiedKey(oldLesson);
+    const candidates = addedByModifiedKey.get(key);
+
+    if (candidates && candidates.length > 0) {
+      const newLesson = candidates.pop();
+      if (newLesson) {
+        modified.push({
+          old: getChangedOldFields(oldLesson, newLesson),
+          new: newLesson,
+        });
+      }
+      if (candidates.length === 0) {
+        addedByModifiedKey.delete(key);
+      }
+      continue;
+    }
+
+    removed.push(oldLesson);
+  }
+
+  for (const lessons of addedByModifiedKey.values()) {
+    added.push(...lessons);
+  }
+
+  if (added.length === 0 && removed.length === 0 && modified.length === 0) {
+    return null;
+  }
 
   return {
     added,
     removed,
+    modified,
   };
 }

@@ -66,6 +66,28 @@ export const LessonTypeName: Record<LessonType, string> = {
   Unknown: "Неизвестно",
 };
 
+export const LessonFieldsNames = {
+  id: "id",
+  infoId: "infoId",
+  type: "Тип",
+  discipline: "Предмет",
+  teacher: "Преподаватель",
+  isOnline: "Онлайн",
+  building: "Корпус",
+  room: "Аудитория",
+  isIet: "ИОТ",
+  subgroup: "Подгруппа",
+  groups: "Группы",
+  flows: "Потоки",
+  dayTimeSlot: "Номер пары в день",
+  beginTime: "Время начала",
+  endTime: "Время окончания",
+  conferenceUrl: "Ссылка на конференцию",
+  original: "Оригинал",
+  customized: "Настройка",
+  alts: "Альтернативные варианты",
+} as const satisfies Record<keyof TimetableLesson, string>;
+
 export async function ensureGroupExists(group: {
   id: number;
   name: string;
@@ -201,19 +223,38 @@ export function formatTimetableDiff(
   type: "short" | "long" = "short",
   limit = 0,
 ): string {
-  if (diff.added.length === 0 && diff.removed.length === 0) {
+  if (
+    diff.added.length === 0 &&
+    diff.removed.length === 0 &&
+    diff.modified.length === 0
+  ) {
     return "";
   }
-  const changes = [
-    ...diff.added.map((lesson) => ({ type: "added", lesson })),
-    ...diff.removed.map((lesson) => ({ type: "removed", lesson })),
+  const changes: {
+    type: "added" | "removed" | "modified";
+    lesson: TimetableLesson;
+    old?: Partial<TimetableLesson>;
+  }[] = [
+    ...diff.added.map((lesson) => ({ type: "added" as const, lesson })),
+    ...diff.removed.map((lesson) => ({ type: "removed" as const, lesson })),
+    ...diff.modified.map(({ old, new: lesson }) => ({
+      type: "modified" as const,
+      old,
+      lesson,
+    })),
   ];
-  changes.sort(
-    (a, b) =>
-      a.lesson.beginTime.getTime() -
-      b.lesson.beginTime.getTime() +
-      (a.type === "removed" ? -1 : 1),
-  ); // Removed lessons first if times are equal
+  const typePriority: Record<(typeof changes)[number]["type"], number> = {
+    modified: 0,
+    removed: 1,
+    added: 2,
+  };
+  changes.sort((a, b) => {
+    const timeDiff =
+      a.lesson.beginTime.getTime() - b.lesson.beginTime.getTime();
+    if (timeDiff !== 0) return timeDiff;
+
+    return typePriority[a.type] - typePriority[b.type];
+  }); // For equal times: modified first, then removed, then added
 
   const parts: string[] = [];
 
@@ -239,7 +280,11 @@ export function formatTimetableDiff(
       0,
       limitLeft >= 0 ? limitLeft : undefined,
     )) {
-      const prefix = change.type === "added" ? "+" : "-";
+      let prefix = "";
+      if (change.type === "added") prefix = "+";
+      else if (change.type === "removed") prefix = "-";
+      else if (change.type === "modified") prefix = "±";
+
       const lesson = change.lesson;
       if (type === "long") {
         parts.push(`${prefix} ${formatLesson(lesson)}`);
@@ -256,6 +301,40 @@ export function formatTimetableDiff(
       parts.push(
         `${prefix} ${startTime} ${LessonTypeIcon[lesson.type]} ${lesson.discipline} ${subgroup} [${place}] `,
       );
+      if (change.type === "modified" && change.old) {
+        let changedLocationFlag = false;
+        for (const [k, v] of Object.entries(change.old) as [
+          keyof TimetableLesson,
+          TimetableLesson[keyof TimetableLesson],
+        ][]) {
+          if (k === "id" || k === "infoId") continue; // Ignore these fields in modified lessons
+          if (k === "teacher") {
+            const oldName = (v as { id: number; name: string }).name;
+            parts.push(
+              `  - ${LessonFieldsNames.teacher}: ${getPersonShortname(oldName)} → ${getPersonShortname(lesson.teacher.name)}`,
+            );
+          } else if (k === "room" || k === "building") {
+            if (changedLocationFlag) continue;
+            changedLocationFlag = true;
+            const oldPlace = `${change.old.building ?? lesson.building}-${change.old.room ?? lesson.room}`;
+            const newPlace = `${lesson.building}-${lesson.room}`;
+            parts.push(
+              `  - ${LessonFieldsNames.room}: ${oldPlace} → ${newPlace}`,
+            );
+          } else {
+            const fieldName = LessonFieldsNames[k] ?? k;
+            if (typeof v === "boolean") {
+              parts.push(
+                `  - ${fieldName}: ${v ? "Да" : "Нет"} → ${lesson[k] ? "Да" : "Нет"}`,
+              );
+            } else {
+              parts.push(
+                `  - ${fieldName}: ${JSON.stringify(v)} → ${JSON.stringify(lesson[k])}`,
+              );
+            }
+          }
+        }
+      }
     }
     if (limit && limitLeft < dayChanges.length) {
       if (dayChanges.length > limitLeft) {

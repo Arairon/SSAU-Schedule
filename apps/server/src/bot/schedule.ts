@@ -456,7 +456,7 @@ export async function updateTimetable(
     }
 
     try {
-      const caption =
+      let caption =
         `Расписание на ${timetable.week} неделю` +
         (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
         (group ? `\nДля группы ${group.name}` : "") +
@@ -464,6 +464,9 @@ export async function updateTimetable(
         (timetable.diff
           ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
           : "");
+      if (caption.length > 1024) {
+        caption = caption.slice(0, 1020) + " ...";
+      }
 
       const editPhoto = (media: string) =>
         ctx.api.editMessageMedia(
