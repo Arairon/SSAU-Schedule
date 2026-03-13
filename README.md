@@ -94,7 +94,36 @@ PRISMA_LOGS=false # Логи запросов к БД
 
 TZ=Europe/Samara # Часовой пояс. По умолчанию Europe/Samara. Менять не рекомендуется
 NODE_ENV=production # Не рекомендуется менять в продакшене. В разработке можно поставить development.
+
+# Для relay-режима загрузки изображений
+SCHED_BOT_IMAGE_UPLOAD_MODE=relay # file|url|relay
+SCHED_BOT_IMAGE_DUMP_CHATID= # Чат, куда relay будет загружать изображения для получения file_id
+SCHED_BOT_IMAGE_RELAY_URL=http://127.0.0.1:3020 # URL сервиса apps/telegram-relay
+SCHED_BOT_IMAGE_RELAY_KEY= # Shared secret для заголовка X-Relay-Key
+SCHED_BOT_IMAGE_RELAY_TIMEOUT_MS=10000
 ```
+
+### Telegram Image Relay
+
+Для режима `SCHED_BOT_IMAGE_UPLOAD_MODE=relay` добавлено отдельное приложение `apps/telegram-relay`.
+
+- Принимает изображение и `target` от `apps/server`
+- Отправляет изображение в Telegram через тот же `SCHED_BOT_TOKEN`
+- Возвращает `file_id`, который затем повторно используется основным сервером
+
+Быстрый запуск relay:
+
+```sh
+bun --filter @ssau-schedule/telegram-relay dev
+```
+
+Проверка сборки relay:
+
+```sh
+bun --filter @ssau-schedule/telegram-relay build
+```
+
+Решение сделано максимально переносимым для контейнерных хостингов (Fly.io и аналогичных платформ). Для Vercel можно использовать контейнерный/адаптерный путь позже, без изменения API контракта.
 
 ## Команды
 

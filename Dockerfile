@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/client/package.json ./apps/client/package.json
 COPY apps/server/package.json ./apps/server/package.json
+COPY apps/telegram-relay/package.json ./apps/telegram-relay/package.json 
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 
