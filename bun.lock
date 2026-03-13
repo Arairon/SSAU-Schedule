@@ -127,7 +127,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@fastify/multipart": "^9.2.1",
-        "@ssau-schedule/contracts": "workspace:*",
+        "@ssau-schedule/contracts": "file:../../packages/contracts",
         "@t3-oss/env-core": "^0.13.8",
         "dotenv": "^17.2.1",
         "fastify": "^5.5.0",
@@ -1998,6 +1998,8 @@
     "@rollup/pluginutils/estree-walker": ["estree-walker@2.0.2", "", {}, "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w=="],
 
     "@ssau-schedule/server/@types/node": ["@types/node@24.12.0", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ=="],
+
+    "@ssau-schedule/telegram-relay/@ssau-schedule/contracts": ["@ssau-schedule/contracts@file:packages/contracts", { "dependencies": { "@ts-rest/core": "3.53.0-rc.1", "zod": "^4.1.13" } }],
 
     "@ssau-schedule/telegram-relay/@types/node": ["@types/node@24.12.0", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ=="],
 
