@@ -5,6 +5,7 @@ import {
   RelaySuccessResponseSchema,
   relayContract,
 } from "@ssau-schedule/contracts/v0/relay";
+import log from "@/logger";
 
 type RelayResult = {
   fileId: string;
@@ -119,6 +120,9 @@ async function withRelayRetry<T extends { status: number; body: unknown }>(
       parsed.success && typeof parsed.data.retry_after === "number"
         ? Math.max(parsed.data.retry_after * 1000, timeoutMs)
         : timeoutMs;
+    log.warn(
+      `Relay request rate limited (attempt ${attempt + 1}/${maxRetries}). Will retry after ${retryAfterMs}ms.`,
+    );
     await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
     response = await fn();
   }
