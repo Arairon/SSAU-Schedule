@@ -2,8 +2,8 @@ import { InputFile, type MessageEntity } from "grammy/types";
 import { AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "@/db";
 import { bot } from "@/bot/bot";
-import { env } from "@/env";
 import log from "@/logger";
+import { uploadScheduleImage } from "@/bot/imageUploading";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
@@ -24,18 +24,6 @@ import { formatBigInt } from "@ssau-schedule/shared/utils";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-type ScheduleUploadMode = "file" | "url";
-
-function getUploadModesOrder(): [ScheduleUploadMode, ScheduleUploadMode] {
-  return env.SCHED_BOT_IMAGE_UPLOAD_MODE === "url"
-    ? ["url", "file"]
-    : ["file", "url"];
-}
-
-function getScheduleImageUrl(timetableHash: string, stylemap: string) {
-  return `https://${env.SCHED_BOT_DOMAIN}/api/v0/schedule/image/${encodeURIComponent(timetableHash)}/${encodeURIComponent(stylemap)}`;
 }
 
 export type ScheduledMessage = {
@@ -473,23 +461,6 @@ export async function dailyCleanup() {
 
 export async function uploadWeekImagesWithoutTgId() {
   const startedAtMs = Date.now();
-  const dumpChatId = process.env.SCHED_BOT_IMAGE_DUMP_CHATID;
-  if (!dumpChatId) {
-    log.warn(
-      "Skipping week image upload: SCHED_BOT_IMAGE_DUMP_CHATID is not configured",
-      { user: "uploadWeekImagesWithoutTgId" },
-    );
-    return {
-      total: 0,
-      uploaded: 0,
-      failed: 0,
-      totalWallMs: Date.now() - startedAtMs,
-      totalImageMs: 0,
-      avgImageMs: 0,
-    };
-  }
-
-  const [preferredMode, fallbackMode] = getUploadModesOrder();
   let total = 0;
   let uploaded = 0;
   let failed = 0;
@@ -512,52 +483,35 @@ export async function uploadWeekImagesWithoutTgId() {
 
     for (const weekImage of weekImages) {
       const imageStartedAtMs = Date.now();
-      const imageUrl = getScheduleImageUrl(
-        weekImage.timetableHash,
-        weekImage.stylemap,
-      );
-
-      const sendPhoto = (mode: ScheduleUploadMode) =>
-        bot.api.sendPhoto(
-          dumpChatId,
-          mode === "url"
-            ? new InputFile({ url: imageUrl })
-            : new InputFile(Buffer.from(weekImage.data, "base64")),
-          {
-            caption: `weekImage#${weekImage.id}\n${weekImage.timetableHash}/${weekImage.stylemap}`,
-          },
-        );
 
       try {
-        let msg;
-        try {
-          msg = await sendPhoto(preferredMode);
-        } catch (error) {
-          log.warn(
-            `WeekImage #${weekImage.id}: failed upload via ${preferredMode}, trying ${fallbackMode}: ${String(error)}`,
-            { user: "uploadWeekImagesWithoutTgId" },
-          );
-          msg = await sendPhoto(fallbackMode);
-        }
-
-        const photoFileId = msg.photo[msg.photo.length - 1]?.file_id;
-        if (!photoFileId) {
-          throw new Error("Telegram response has no photo file_id");
-        }
+        const uploadedImage = await uploadScheduleImage({
+          api: bot.api,
+          image: Buffer.from(weekImage.data, "base64"),
+          timetableHash: weekImage.timetableHash,
+          stylemap: weekImage.stylemap,
+          userId: "uploadWeekImagesWithoutTgId",
+          // onFallbackAttempt: () => {
+          //   log.warn(
+          //     `WeekImage #${weekImage.id}: upload mode failed, trying fallback`,
+          //     { user: "uploadWeekImagesWithoutTgId" },
+          //   );
+          // },
+        });
 
         await db.weekImage.update({
           where: { id: weekImage.id },
-          data: { tgId: photoFileId },
+          data: { tgId: uploadedImage.fileId },
         });
         uploaded += 1;
         const elapsedMs = Date.now() - imageStartedAtMs;
         totalImageMs += elapsedMs;
-        log.debug(
-          `WeekImage #${weekImage.id}: uploaded in ${formatBigInt(elapsedMs)}ms`,
-          {
-            user: "uploadWeekImagesWithoutTgId",
-          },
-        );
+        // log.debug(
+        //   `WeekImage #${weekImage.id}: uploaded in ${formatBigInt(elapsedMs)}ms using ${uploadedImage.mode}`,
+        //   {
+        //     user: "uploadWeekImagesWithoutTgId",
+        //   },
+        // );
       } catch (error) {
         failed += 1;
         const elapsedMs = Date.now() - imageStartedAtMs;

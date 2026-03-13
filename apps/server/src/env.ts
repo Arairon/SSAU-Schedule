@@ -7,7 +7,12 @@ export const env = createEnv({
   server: {
     SCHED_BOT_TOKEN: z.string(),
     SCHED_BOT_DOMAIN: z.string(),
-    SCHED_BOT_IMAGE_DUMP_CHATID: z.string().optional(),
+    SCHED_BOT_IMAGE_DUMP_CHATID: z
+      .string()
+      .min(
+        1,
+        "SCHED_BOT_IMAGE_DUMP_CHATID is required to send images. Create a private group chat with your bot and put its chat ID here.",
+      ),
     SCHED_BOT_IMAGE_UPLOAD_MODE: z
       .enum(["file", "url", "relay"])
       .default("file"),
