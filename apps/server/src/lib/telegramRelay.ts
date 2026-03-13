@@ -5,6 +5,7 @@ import {
   RelaySuccessResponseSchema,
   relayContract,
 } from "@ssau-schedule/contracts/v0/relay";
+import log from "@/logger";
 
 type RelayResult = {
   fileId: string;
@@ -59,6 +60,13 @@ const relayClient = relayConfig
       baseHeaders: {
         "x-relay-key": relayConfig.relayKey,
         "x-telegram-token": relayConfig.telegramToken,
+        ...(env.NODE_ENV === "development" &&
+        env.SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS
+          ? {
+              "x-vercel-protection-bypass":
+                env.SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS,
+            }
+          : {}),
       },
       credentials: "omit",
       validateResponse: true,
@@ -97,11 +105,38 @@ function ensureRelaySuccessResponse(response: {
   throw new Error(`Relay request failed (${response.status}): unknown error`);
 }
 
+async function withRelayRetry<T extends { status: number; body: unknown }>(
+  fn: () => Promise<T>,
+  { maxRetries, timeoutMs }: { maxRetries: number; timeoutMs: number },
+): Promise<T> {
+  let response = await fn();
+  for (
+    let attempt = 0;
+    attempt < maxRetries && response.status === 429;
+    attempt++
+  ) {
+    const parsed = RelayErrorResponseSchema.safeParse(response.body);
+    const retryAfterMs =
+      parsed.success && typeof parsed.data.retry_after === "number"
+        ? Math.max(parsed.data.retry_after * 1000, timeoutMs)
+        : timeoutMs;
+    log.warn(
+      `Relay request rate limited (attempt ${attempt + 1}/${maxRetries}). Will retry after ${retryAfterMs}ms.`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+    response = await fn();
+  }
+  return response;
+}
+
 export async function relayImageByFile(opts: {
   target: string;
   image: Buffer;
   mimeType: string;
   filename?: string;
+  caption?: string;
+  maxRetries?: number;
+  retryTimeoutMs?: number;
 }) {
   const form = new FormData();
   form.append("target", opts.target);
@@ -111,12 +146,22 @@ export async function relayImageByFile(opts: {
     opts.filename ?? "schedule.jpg",
   );
 
-  const response = await getRelayClient().sendFile({
-    body: form,
-    fetchOptions: {
-      signal: AbortSignal.timeout(getRelayTimeoutMs()),
+  const response = await withRelayRetry(
+    () =>
+      getRelayClient().sendFile({
+        body: form,
+        query: {
+          caption: opts.caption,
+        },
+        fetchOptions: {
+          signal: AbortSignal.timeout(getRelayTimeoutMs()),
+        },
+      }),
+    {
+      maxRetries: opts.maxRetries ?? 3,
+      timeoutMs: opts.retryTimeoutMs ?? 10_000,
     },
-  });
+  );
 
   return ensureRelaySuccessResponse(response);
 }
@@ -126,32 +171,61 @@ export async function relayImageByBase64(opts: {
   imageBase64: string;
   mimeType: string;
   filename?: string;
+  caption?: string;
+  maxRetries?: number;
+  retryTimeoutMs?: number;
 }) {
-  const response = await getRelayClient().sendBase64({
-    body: {
-      target: opts.target,
-      data: opts.imageBase64,
-      mimeType: opts.mimeType,
-      filename: opts.filename ?? "schedule.jpg",
+  const response = await withRelayRetry(
+    () =>
+      getRelayClient().sendBase64({
+        query: {
+          caption: opts.caption,
+        },
+        body: {
+          target: opts.target,
+          data: opts.imageBase64,
+          mimeType: opts.mimeType,
+          filename: opts.filename ?? "schedule.jpg",
+        },
+        fetchOptions: {
+          signal: AbortSignal.timeout(getRelayTimeoutMs()),
+        },
+      }),
+    {
+      maxRetries: opts.maxRetries ?? 3,
+      timeoutMs: opts.retryTimeoutMs ?? 10_000,
     },
-    fetchOptions: {
-      signal: AbortSignal.timeout(getRelayTimeoutMs()),
-    },
-  });
+  );
 
   return ensureRelaySuccessResponse(response);
 }
 
-export async function relayImageByUrl(opts: { target: string; url: string }) {
-  const response = await getRelayClient().sendUrl({
-    body: {
-      target: opts.target,
-      url: opts.url,
+export async function relayImageByUrl(opts: {
+  target: string;
+  url: string;
+  caption?: string;
+  maxRetries?: number;
+  retryTimeoutMs?: number;
+}) {
+  const response = await withRelayRetry(
+    () =>
+      getRelayClient().sendUrl({
+        query: {
+          caption: opts.caption,
+        },
+        body: {
+          target: opts.target,
+          url: opts.url,
+        },
+        fetchOptions: {
+          signal: AbortSignal.timeout(getRelayTimeoutMs()),
+        },
+      }),
+    {
+      maxRetries: opts.maxRetries ?? 3,
+      timeoutMs: opts.retryTimeoutMs ?? 10_000,
     },
-    fetchOptions: {
-      signal: AbortSignal.timeout(getRelayTimeoutMs()),
-    },
-  });
+  );
 
   return ensureRelaySuccessResponse(response);
 }
