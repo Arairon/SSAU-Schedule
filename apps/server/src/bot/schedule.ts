@@ -208,6 +208,7 @@ async function sendTimetable(
       image: image.data,
       timetableHash: image.timetableHash,
       stylemap: image.stylemap,
+      caption: `requested by ${ctx?.from?.id ?? "???"} for #${timetable.weekId} (sent new)\n${image.timetableHash}/${image.stylemap}`,
       userId: ctx?.from?.id,
       onFallbackAttempt: () => {
         updateTempMsg(
@@ -491,6 +492,7 @@ export async function updateTimetable(
           image: image.data,
           timetableHash: image.timetableHash,
           stylemap: image.stylemap,
+          caption: `requested by ${userId} for #${timetable.weekId}\n${image.timetableHash} (updated)/${image.stylemap}`,
           userId,
           onFallbackAttempt: () => {
             updateTempMsg(

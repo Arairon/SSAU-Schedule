@@ -491,6 +491,7 @@ export async function uploadWeekImagesWithoutTgId() {
           timetableHash: weekImage.timetableHash,
           stylemap: weekImage.stylemap,
           userId: "uploadWeekImagesWithoutTgId",
+          caption: `preupload of #${weekImage.id}\n${weekImage.timetableHash}/${weekImage.stylemap}`,
           // onFallbackAttempt: () => {
           //   log.warn(
           //     `WeekImage #${weekImage.id}: upload mode failed, trying fallback`,

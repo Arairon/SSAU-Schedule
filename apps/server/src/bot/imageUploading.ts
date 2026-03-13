@@ -13,6 +13,7 @@ type UploadScheduleImageToDumpChatOpts = {
   image: Buffer;
   timetableHash: string;
   stylemap: string;
+  caption?: string;
   userId?: number | bigint | string;
   onFallbackAttempt?: () => void;
 };
@@ -54,6 +55,7 @@ function getPhotoFileIdFromMessage(
 async function uploadViaRelay(opts: {
   image: Buffer;
   imageUrl: string;
+  caption?: string;
   userId?: number | bigint | string;
 }) {
   const target = getImageDumpChatId();
@@ -83,6 +85,7 @@ async function uploadViaRelay(opts: {
       image: opts.image,
       mimeType,
       filename: "schedule.jpg",
+      caption: opts.caption,
     });
     return sent.fileId;
   } catch (error) {
@@ -98,8 +101,7 @@ async function uploadViaBotApi(opts: {
   mode: Exclude<ScheduleUploadMode, "relay">;
   image: Buffer;
   imageUrl: string;
-  timetableHash: string;
-  stylemap: string;
+  caption: string;
 }) {
   const target = getImageDumpChatId();
   const media =
@@ -108,7 +110,7 @@ async function uploadViaBotApi(opts: {
       : new InputFile(opts.image);
 
   const sent = await opts.api.sendPhoto(target, media, {
-    caption: `schedule_image\n${opts.timetableHash}/${opts.stylemap}`,
+    caption: opts.caption,
   });
 
   return getPhotoFileIdFromMessage(sent);
@@ -128,6 +130,7 @@ export async function uploadScheduleImage(
           image: opts.image,
           imageUrl,
           userId: opts.userId,
+          caption: opts.caption ?? `${opts.timetableHash}/${opts.stylemap}`,
         });
         log.debug(`Image uploaded using relay mode. fileId=${fileId}`, {
           user: opts.userId,
@@ -140,8 +143,7 @@ export async function uploadScheduleImage(
         mode,
         image: opts.image,
         imageUrl,
-        timetableHash: opts.timetableHash,
-        stylemap: opts.stylemap,
+        caption: opts.caption ?? `${opts.timetableHash}/${opts.stylemap}`,
       });
       log.debug(`Image uploaded using ${mode} mode. fileId=${fileId}`, {
         user: opts.userId,
