@@ -1,24 +1,8 @@
-import fastify from "fastify";
-import multipart from "@fastify/multipart";
 import { env } from "./env.js";
-import { registerSendRoutes } from "./routes/send.js";
-
-const server = fastify({
-  logger: {
-    level: env.LOG_LEVEL,
-  },
-});
+import { buildRelayApp } from "./app.js";
 
 async function start() {
-  await server.register(multipart, {
-    limits: {
-      fileSize: env.RELAY_MAX_FILE_SIZE_BYTES,
-      files: 1,
-      parts: 8,
-    },
-  });
-
-  await registerSendRoutes(server);
+  const server = await buildRelayApp();
 
   await server.listen({
     host: env.RELAY_HOST,
@@ -27,6 +11,10 @@ async function start() {
 }
 
 void start().catch((error) => {
-  server.log.error({ err: error }, "Unable to start telegram relay app");
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Unable to start telegram relay app";
+  console.error("[telegram-relay]", message);
   process.exit(1);
 });

@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "api/[...path].ts": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/healthz",
+      "destination": "/api/healthz"
+    },
+    {
+      "source": "/send/:path*",
+      "destination": "/api/send/:path*"
+    }
+  ]
+}

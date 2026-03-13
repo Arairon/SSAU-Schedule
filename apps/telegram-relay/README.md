@@ -32,3 +32,27 @@ bun --filter @ssau-schedule/telegram-relay dev
 ```sh
 bun --filter @ssau-schedule/telegram-relay build
 ```
+
+## Vercel
+
+The app is prepared for Vercel serverless runtime via `api/[...path].ts`.
+
+- `vercel.json` rewrites keep local-style endpoints:
+  - `/healthz` -> `/api/healthz`
+  - `/send/*` -> `/api/send/*`
+- Relay route paths remain unchanged from local runtime.
+
+Deploy from `apps/telegram-relay` and configure these Vercel environment variables:
+
+- `SCHED_BOT_TOKEN`
+- `RELAY_KEY`
+- `RELAY_MAX_FILE_SIZE_BYTES`
+- `RELAY_REQUEST_TIMEOUT_MS`
+- `LOG_LEVEL`
+- `NODE_ENV=production`
+
+After deploy, set `SCHED_BOT_IMAGE_RELAY_URL` in `apps/server` to your Vercel domain, for example:
+
+```dotenv
+SCHED_BOT_IMAGE_RELAY_URL=https://your-relay-app.vercel.app
+```
