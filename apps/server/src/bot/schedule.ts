@@ -223,10 +223,6 @@ async function sendTimetable(
     log.debug(`Image had no tgId, uploaded new ${uploadedFileId}`, {
       user: ctx?.from?.id,
     });
-    await db.weekImage.update({
-      where: { id: image.id },
-      data: { tgId: uploadedFileId },
-    });
   }
 
   if (tempMsgId) {
@@ -501,11 +497,6 @@ export async function updateTimetable(
         });
 
         await editPhoto(uploaded.fileId);
-
-        await db.weekImage.update({
-          where: { id: image.id },
-          data: { tgId: uploaded.fileId },
-        });
       }
     } catch (error) {
       log.debug(

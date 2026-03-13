@@ -5,6 +5,7 @@ import log from "@/logger";
 import { detectImageMimeType } from "@/schedule/image";
 import { relayImageByFile } from "@/lib/telegramRelay";
 import type { Context } from "./types";
+import { db } from "@/db";
 
 export type ScheduleUploadMode = "file" | "url" | "relay";
 
@@ -177,6 +178,7 @@ type UploadScheduleImageToDumpChatOpts = {
   };
   caption?: string;
   userId?: number | bigint | string;
+  dontSaveToDb?: boolean;
   onFallbackAttempt?: () => void;
 };
 
@@ -187,7 +189,7 @@ export async function uploadScheduleImage(
   const imageUrl = getScheduleImageUrl(image.timetableHash, image.stylemap);
   const caption = opts.caption ?? `${image.timetableHash}/${image.stylemap}`;
 
-  return uploadImage({
+  const res = await uploadImage({
     api: opts.api,
     image: image.data,
     imageUrl,
@@ -195,4 +197,12 @@ export async function uploadScheduleImage(
     userId: opts.userId,
     onFallbackAttempt: opts.onFallbackAttempt,
   });
+  if (opts.dontSaveToDb) return res;
+
+  await db.weekImage.update({
+    where: { id: image.id },
+    data: { tgId: res.fileId },
+  });
+
+  return res;
 }

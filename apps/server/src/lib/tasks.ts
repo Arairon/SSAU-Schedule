@@ -427,10 +427,6 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
         image: tgId,
         source: "daily/nextWeek",
       });
-      await db.weekImage.update({
-        where: { id: image.id },
-        data: { tgId },
-      });
     } catch {
       log.warn(
         `Failed to upload next week image for user. Sending text-only notification.`,
@@ -541,7 +537,7 @@ export async function uploadWeekImagesWithoutTgId() {
       const imageStartedAtMs = Date.now();
 
       try {
-        const uploadedImage = await uploadScheduleImage({
+        await uploadScheduleImage({
           api: bot.api,
           image: {
             ...weekImage,
@@ -557,10 +553,6 @@ export async function uploadWeekImagesWithoutTgId() {
           // },
         });
 
-        await db.weekImage.update({
-          where: { id: weekImage.id },
-          data: { tgId: uploadedImage.fileId },
-        });
         uploaded += 1;
         const elapsedMs = Date.now() - imageStartedAtMs;
         totalImageMs += elapsedMs;
