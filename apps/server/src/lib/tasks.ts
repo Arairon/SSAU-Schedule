@@ -143,7 +143,7 @@ export async function scheduleDailyNotificationsForAll() {
 export async function dailyWeekUpdate() {
   const now = new Date();
   // const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000);
-  const monthAgo = new Date(Date.now() - 30 * 24 * 3600_000);
+  // const monthAgo = new Date(Date.now() - 30 * 24 * 3600_000);
   const today = new Date(Date.now() + 42200_000); // add half a day to ensure 'today' and not 'tonight'
   today.setHours(7, 0); // 7 AM in Europe/Samara
   // const year = getCurrentYearId();
@@ -176,20 +176,22 @@ export async function dailyWeekUpdate() {
       //   continue;
       // }
 
-      if (!user.authCookie) {
-        log.debug(`Skipping unauthenticated user #${user.id}`, {
-          user: "dailyWeekUpdate",
-        });
-        continue;
-      }
+      // // Handled in isAuthed
+      // if (!user.authCookie) {
+      //   log.debug(`Skipping unauthenticated user #${user.id}`, {
+      //     user: "dailyWeekUpdate",
+      //   });
+      //   continue;
+      // }
 
-      const isActive = user.lastActive > monthAgo;
-      if (!isActive) {
-        log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
-          user: "dailyWeekUpdate",
-        });
-        continue;
-      }
+      // // Needs reworking
+      // const isActive = user.lastActive > monthAgo;
+      // if (!isActive) {
+      //   log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
+      //     user: "dailyWeekUpdate",
+      //   });
+      //   continue;
+      // }
 
       let isAuthed = false;
       try {
