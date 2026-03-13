@@ -18,17 +18,100 @@ import type { User } from "@/generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
 import { getUserIcsByUserId } from "@/schedule/ics";
 import { findGroupOrOptions } from "@/ssau/search";
+import { detectImageMimeType } from "@/schedule/image";
+import {
+  relayImageByBase64,
+  relayImageByFile,
+  relayImageByUrl,
+} from "@/lib/telegramRelay";
 
-type ScheduleUploadMode = "file" | "url";
+type ScheduleUploadMode = "file" | "url" | "relay";
 
-function getUploadModesOrder(): [ScheduleUploadMode, ScheduleUploadMode] {
-  return env.SCHED_BOT_IMAGE_UPLOAD_MODE === "url"
-    ? ["url", "file"]
-    : ["file", "url"];
+function getUploadModesOrder(): ScheduleUploadMode[] {
+  switch (env.SCHED_BOT_IMAGE_UPLOAD_MODE) {
+    case "url":
+      return ["url", "file"];
+    case "relay":
+      return ["relay", "file", "url"];
+    default:
+      return ["file", "url"];
+  }
 }
 
 function getScheduleImageUrl(timetableHash: string, stylemap: string) {
   return `https://${env.SCHED_BOT_DOMAIN}/api/v0/schedule/image/${encodeURIComponent(timetableHash)}/${encodeURIComponent(stylemap)}`;
+}
+
+function getRelayDumpChatId() {
+  if (!env.SCHED_BOT_IMAGE_DUMP_CHATID) {
+    throw new Error("SCHED_BOT_IMAGE_DUMP_CHATID is not configured");
+  }
+
+  return env.SCHED_BOT_IMAGE_DUMP_CHATID;
+}
+
+async function uploadViaRelay(opts: {
+  image: Buffer;
+  imageUrl: string;
+  userId?: number | bigint;
+}) {
+  const target = getRelayDumpChatId();
+  const mimeType = detectImageMimeType(opts.image);
+
+  const attempts = [
+    () =>
+      relayImageByFile({
+        target,
+        image: opts.image,
+        mimeType,
+        filename: "schedule.jpg",
+      }),
+    () =>
+      relayImageByBase64({
+        target,
+        imageBase64: opts.image.toString("base64"),
+        mimeType,
+        filename: "schedule.jpg",
+      }),
+    () => relayImageByUrl({ target, url: opts.imageUrl }),
+  ];
+
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    try {
+      const sent = await attempt();
+      return sent.fileId;
+    } catch (error) {
+      lastError = error;
+      log.warn(`Relay upload attempt failed: ${String(error)}`, {
+        user: opts.userId,
+      });
+    }
+  }
+
+  throw new Error(`Relay upload failed: ${String(lastError)}`);
+}
+
+async function getPhotoMediaForMode(opts: {
+  mode: ScheduleUploadMode;
+  image: Buffer;
+  imageUrl: string;
+  userId?: number | bigint;
+}) {
+  switch (opts.mode) {
+    case "url":
+      return new InputFile({ url: opts.imageUrl });
+    case "relay": {
+      const fileId = await uploadViaRelay({
+        image: opts.image,
+        imageUrl: opts.imageUrl,
+        userId: opts.userId,
+      });
+      return fileId;
+    }
+    default:
+      return new InputFile(opts.image);
+  }
 }
 
 async function sendGroupTimetable(
@@ -208,38 +291,51 @@ async function sendTimetable(
   } else {
     log.debug("Image has no tgId, will upload new", { user: ctx?.from?.id });
     const imageUrl = getScheduleImageUrl(image.timetableHash, image.stylemap);
-    const [preferredMode, fallbackMode] = getUploadModesOrder();
+    const uploadModes = getUploadModesOrder();
 
-    try {
-      // TODO: Remove "blame on RKN" when the image uploading is no longer fucked
-      updateTempMsg(
-        `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
-      );
-      msg = await sendPhoto(
-        preferredMode === "url"
-          ? new InputFile({ url: imageUrl })
-          : new InputFile(image.data),
-      );
-      log.debug(`Image uploaded using ${preferredMode} mode`, {
-        user: ctx?.from?.id,
-      });
-    } catch (error) {
-      log.warn(
-        `Failed to upload image using ${preferredMode} mode: ${String(error)}`,
-        { user: ctx?.from?.id },
-      );
-      updateTempMsg(
-        `Произошла ошибка при отправке. Пробуем другим способом...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
-      );
-      msg = await sendPhoto(
-        fallbackMode === "url"
-          ? new InputFile({ url: imageUrl })
-          : new InputFile(image.data),
-      );
-      log.debug(`Image uploaded using ${fallbackMode} mode`, {
-        user: ctx?.from?.id,
-      });
+    // TODO: Remove "blame on RKN" when the image uploading is no longer fucked
+    updateTempMsg(
+      `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+    );
+
+    let lastError: unknown;
+    let sent: Awaited<ReturnType<typeof ctx.replyWithPhoto>> | undefined;
+    for (const [index, mode] of uploadModes.entries()) {
+      try {
+        const media = await getPhotoMediaForMode({
+          mode,
+          image: image.data,
+          imageUrl,
+          userId: ctx?.from?.id,
+        });
+        sent = await sendPhoto(media);
+        log.debug(`Image uploaded using ${mode} mode`, {
+          user: ctx?.from?.id,
+        });
+        break;
+      } catch (error) {
+        lastError = error;
+        log.warn(
+          `Failed to upload image using ${mode} mode: ${String(error)}`,
+          {
+            user: ctx?.from?.id,
+          },
+        );
+        if (index < uploadModes.length - 1) {
+          updateTempMsg(
+            `Произошла ошибка при отправке. Пробуем другим способом...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+          );
+        }
+      }
     }
+
+    if (!sent) {
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Failed to upload image in any mode");
+    }
+
+    msg = sent;
   }
 
   if (!image.tgId) {
@@ -508,37 +604,50 @@ export async function updateTimetable(
           image.timetableHash,
           image.stylemap,
         );
-        const [preferredMode, fallbackMode] = getUploadModesOrder();
+        const uploadModes = getUploadModesOrder();
 
-        try {
-          updateTempMsg(
-            `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
-          );
-          msg = await editPhoto(
-            preferredMode === "url"
-              ? new InputFile({ url: imageUrl })
-              : new InputFile(image.data),
-          );
-          log.debug(`Image uploaded using ${preferredMode} mode`, {
-            user: userId,
-          });
-        } catch (error) {
-          log.warn(
-            `Failed to upload image using ${preferredMode} mode: ${String(error)}`,
-            { user: userId },
-          );
-          updateTempMsg(
-            `Произошла ошибка при отправке. Пробуем другим способом...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
-          );
-          msg = await editPhoto(
-            fallbackMode === "url"
-              ? new InputFile({ url: imageUrl })
-              : new InputFile(image.data),
-          );
-          log.debug(`Image uploaded using fallback ${fallbackMode} mode`, {
-            user: userId,
-          });
+        updateTempMsg(
+          `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+        );
+
+        let lastError: unknown;
+        let edited:
+          | Awaited<ReturnType<typeof ctx.api.editMessageMedia>>
+          | undefined;
+        for (const [index, mode] of uploadModes.entries()) {
+          try {
+            const media = await getPhotoMediaForMode({
+              mode,
+              image: image.data,
+              imageUrl,
+              userId,
+            });
+            edited = await editPhoto(media);
+            log.debug(`Image uploaded using ${mode} mode`, {
+              user: userId,
+            });
+            break;
+          } catch (error) {
+            lastError = error;
+            log.warn(
+              `Failed to upload image using ${mode} mode: ${String(error)}`,
+              { user: userId },
+            );
+            if (index < uploadModes.length - 1) {
+              updateTempMsg(
+                `Произошла ошибка при отправке. Пробуем другим способом...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
+              );
+            }
+          }
         }
+
+        if (!edited) {
+          throw lastError instanceof Error
+            ? lastError
+            : new Error("Failed to upload image in any mode");
+        }
+
+        msg = edited;
       }
       if (!image.tgId) {
         if (msg !== true && msg.photo) {

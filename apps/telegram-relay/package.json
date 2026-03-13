@@ -1,0 +1,26 @@
+{
+  "name": "@ssau-schedule/telegram-relay",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch run src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir ./dist",
+    "prod": "bun dist/index.js",
+    "lint": "bunx --bun eslint .",
+    "format": "bunx --bun prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^9.2.1",
+    "@t3-oss/env-core": "^0.13.8",
+    "dotenv": "^17.2.1",
+    "fastify": "^5.5.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "eslint": "^9.34.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0"
+  }
+}

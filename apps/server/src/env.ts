@@ -8,7 +8,16 @@ export const env = createEnv({
     SCHED_BOT_TOKEN: z.string(),
     SCHED_BOT_DOMAIN: z.string(),
     SCHED_BOT_IMAGE_DUMP_CHATID: z.string().optional(),
-    SCHED_BOT_IMAGE_UPLOAD_MODE: z.enum(["file", "url"]).default("file"),
+    SCHED_BOT_IMAGE_UPLOAD_MODE: z
+      .enum(["file", "url", "relay"])
+      .default("file"),
+    SCHED_BOT_IMAGE_RELAY_URL: z.url().optional(),
+    SCHED_BOT_IMAGE_RELAY_KEY: z.string().optional(),
+    SCHED_BOT_IMAGE_RELAY_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(10_000),
     SCHED_BOT_ADMIN_TGID: z.coerce.number().int().default(0),
     SCHED_BOT_ADMIN_CONTACT: z.string().default("[Администратор не задан]"),
     SCHED_DATABASE_URL: z.url(),
@@ -56,3 +65,23 @@ export const env = createEnv({
    */
   emptyStringAsUndefined: true,
 });
+
+if (env.SCHED_BOT_IMAGE_UPLOAD_MODE === "relay") {
+  if (!env.SCHED_BOT_IMAGE_DUMP_CHATID) {
+    throw new Error(
+      "SCHED_BOT_IMAGE_DUMP_CHATID is required when SCHED_BOT_IMAGE_UPLOAD_MODE=relay",
+    );
+  }
+
+  if (!env.SCHED_BOT_IMAGE_RELAY_URL) {
+    throw new Error(
+      "SCHED_BOT_IMAGE_RELAY_URL is required when SCHED_BOT_IMAGE_UPLOAD_MODE=relay",
+    );
+  }
+
+  if (!env.SCHED_BOT_IMAGE_RELAY_KEY) {
+    throw new Error(
+      "SCHED_BOT_IMAGE_RELAY_KEY is required when SCHED_BOT_IMAGE_UPLOAD_MODE=relay",
+    );
+  }
+}
