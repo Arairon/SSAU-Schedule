@@ -1,8 +1,7 @@
 {
   "functions": {
     "api/[...path].ts": {
-      "maxDuration": 30,
-      "includeFiles": "node_modules/@ssau-schedule/contracts/**/*"
+      "maxDuration": 30
     }
   },
   "rewrites": [
