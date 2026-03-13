@@ -1,70 +1,79 @@
 import { env } from "@/env";
-
-type RelaySendResponse = {
-  ok: boolean;
-  fileId?: string;
-  error?: string;
-};
+import { initClient } from "@ts-rest/core";
+import {
+  RelayErrorResponseSchema,
+  RelaySuccessResponseSchema,
+  relayContract,
+} from "@ssau-schedule/contracts/v0/relay";
 
 type RelayResult = {
   fileId: string;
 };
 
-function getRelayUrl(path: string) {
+function getRelayConfig() {
   const baseRaw = env.SCHED_BOT_IMAGE_RELAY_URL;
   if (typeof baseRaw !== "string" || baseRaw.length === 0) {
-    throw new Error("SCHED_BOT_IMAGE_RELAY_URL is not configured");
+    return null;
   }
 
-  if (
-    typeof env.SCHED_BOT_IMAGE_RELAY_KEY !== "string" ||
-    env.SCHED_BOT_IMAGE_RELAY_KEY.length === 0
-  ) {
-    throw new Error("SCHED_BOT_IMAGE_RELAY_KEY is not configured");
-  }
-
-  const base = baseRaw;
-  return new URL(path, base.endsWith("/") ? base : `${base}/`).toString();
-}
-
-function getRelayKey() {
   const relayKeyRaw = env.SCHED_BOT_IMAGE_RELAY_KEY;
   if (typeof relayKeyRaw !== "string" || relayKeyRaw.length === 0) {
-    throw new Error("SCHED_BOT_IMAGE_RELAY_KEY is not configured");
+    return null;
   }
 
-  return relayKeyRaw;
+  return {
+    baseUrl: baseRaw,
+    relayKey: relayKeyRaw,
+  } as const;
 }
 
 function getRelayTimeoutMs() {
   return Number(env.SCHED_BOT_IMAGE_RELAY_TIMEOUT_MS);
 }
 
-async function parseRelayResponse(response: Response): Promise<RelayResult> {
-  const payload = (await response.json()) as RelaySendResponse;
-  if (!response.ok || !payload.ok || !payload.fileId) {
+const relayConfig = getRelayConfig();
+
+const relayClient = relayConfig
+  ? initClient(relayContract, {
+      baseUrl: relayConfig.baseUrl,
+      baseHeaders: {
+        "x-relay-key": relayConfig.relayKey,
+      },
+      credentials: "omit",
+      validateResponse: true,
+      throwOnUnknownStatus: true,
+    })
+  : null;
+
+function getRelayClient() {
+  if (!relayClient) {
     throw new Error(
-      `Relay request failed (${response.status}): ${payload.error ?? "unknown error"}`,
+      "Relay client is not configured: set SCHED_BOT_IMAGE_RELAY_URL and SCHED_BOT_IMAGE_RELAY_KEY",
     );
   }
 
-  return { fileId: payload.fileId };
+  return relayClient;
 }
 
-async function postRelay(
-  path: string,
-  init: RequestInit,
-): Promise<RelayResult> {
-  const response = await fetch(getRelayUrl(path), {
-    ...init,
-    headers: {
-      "x-relay-key": getRelayKey(),
-      ...init.headers,
-    },
-    signal: AbortSignal.timeout(getRelayTimeoutMs()),
-  });
+function ensureRelaySuccessResponse(response: {
+  status: number;
+  body: unknown;
+}): RelayResult {
+  if (response.status === 200) {
+    const parsed = RelaySuccessResponseSchema.safeParse(response.body);
+    if (parsed.success) {
+      return { fileId: parsed.data.fileId };
+    }
+  }
 
-  return parseRelayResponse(response);
+  const parsedError = RelayErrorResponseSchema.safeParse(response.body);
+  if (parsedError.success) {
+    throw new Error(
+      `Relay request failed (${response.status}): ${parsedError.data.error}`,
+    );
+  }
+
+  throw new Error(`Relay request failed (${response.status}): unknown error`);
 }
 
 export async function relayImageByFile(opts: {
@@ -81,10 +90,14 @@ export async function relayImageByFile(opts: {
     opts.filename ?? "schedule.jpg",
   );
 
-  return postRelay("/send/file", {
-    method: "POST",
+  const response = await getRelayClient().sendFile({
     body: form,
+    fetchOptions: {
+      signal: AbortSignal.timeout(getRelayTimeoutMs()),
+    },
   });
+
+  return ensureRelaySuccessResponse(response);
 }
 
 export async function relayImageByBase64(opts: {
@@ -93,29 +106,31 @@ export async function relayImageByBase64(opts: {
   mimeType: string;
   filename?: string;
 }) {
-  return postRelay("/send/base64", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
+  const response = await getRelayClient().sendBase64({
+    body: {
       target: opts.target,
       data: opts.imageBase64,
       mimeType: opts.mimeType,
       filename: opts.filename ?? "schedule.jpg",
-    }),
+    },
+    fetchOptions: {
+      signal: AbortSignal.timeout(getRelayTimeoutMs()),
+    },
   });
+
+  return ensureRelaySuccessResponse(response);
 }
 
 export async function relayImageByUrl(opts: { target: string; url: string }) {
-  return postRelay("/send/url", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
+  const response = await getRelayClient().sendUrl({
+    body: {
       target: opts.target,
       url: opts.url,
-    }),
+    },
+    fetchOptions: {
+      signal: AbortSignal.timeout(getRelayTimeoutMs()),
+    },
   });
+
+  return ensureRelaySuccessResponse(response);
 }

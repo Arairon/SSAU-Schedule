@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fastify/multipart": "^9.2.1",
+    "@ssau-schedule/contracts": "workspace:*",
     "@t3-oss/env-core": "^0.13.8",
     "dotenv": "^17.2.1",
     "fastify": "^5.5.0",

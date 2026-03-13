@@ -37,6 +37,7 @@
     "@ssau-schedule/shared": "workspace:*",
     "@t3-oss/env-core": "^0.13.8",
     "@tma.js/init-data-node": "^2.0.5",
+    "@ts-rest/core": "3.53.0-rc.1",
     "@ts-rest/fastify": "3.53.0-rc.1",
     "ajv-ts": "^0.9.0",
     "axios": "^1.11.0",
