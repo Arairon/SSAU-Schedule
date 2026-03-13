@@ -4,9 +4,14 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import { env } from "../env.js";
-import { sendPhotoFromBuffer, sendPhotoFromUrl } from "../lib/telegram.js";
+import {
+  RateLimitError,
+  sendPhotoFromBuffer,
+  sendPhotoFromUrl,
+} from "../lib/telegram.js";
 import {
   RelayBase64RequestSchema,
+  RelayCaptionQuerySchema,
   RelayErrorResponseSchema,
   RelaySuccessResponseSchema,
   RelayUrlRequestSchema,
@@ -61,7 +66,7 @@ function parseTarget(target: string) {
   return normalized;
 }
 
-async function verifyImageUrl(url: string) {
+async function verifyImageUrl(url: string, timeoutMs: number) {
   const parsed = new URL(url);
   if (!["http:", "https:"].includes(parsed.protocol)) {
     throw new Error("Only http/https image urls are supported");
@@ -69,7 +74,7 @@ async function verifyImageUrl(url: string) {
 
   const headResponse = await fetch(parsed, {
     method: "HEAD",
-    signal: AbortSignal.timeout(env.RELAY_REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!headResponse.ok) {
@@ -110,83 +115,120 @@ function validatePayloadSize(buffer: Buffer) {
   }
 }
 
+function parseRelayQuery(query: unknown) {
+  const parsedQuery = RelayCaptionQuerySchema.safeParse(query);
+  if (!parsedQuery.success) {
+    throw new Error(parsedQuery.error.message);
+  }
+
+  return {
+    caption: parsedQuery.data?.caption,
+    timeoutMs: parsedQuery.data?.timeout ?? env.RELAY_REQUEST_TIMEOUT_MS,
+  };
+}
+
+function statusByError(error: unknown) {
+  return error instanceof RateLimitError ? 429 : 400;
+}
+
+function relayErrorPayload(error: unknown, fallbackMessage: string) {
+  const errorMessage = error instanceof Error ? error.message : fallbackMessage;
+
+  if (
+    error instanceof RateLimitError &&
+    typeof error.retryAfterSeconds === "number"
+  ) {
+    return RelayErrorResponseSchema.parse({
+      ok: false,
+      error: errorMessage,
+      retry_after: error.retryAfterSeconds,
+    });
+  }
+
+  return RelayErrorResponseSchema.parse({
+    ok: false,
+    error: errorMessage,
+  });
+}
+
 export async function registerSendRoutes(fastify: FastifyInstance) {
   fastify.get(relayContract.healthz.path, async () => ({ ok: true }));
 
-  fastify.post(relayContract.sendFile.path, async (request, reply) => {
-    if (!assertRelayKey(request)) {
-      return reply
-        .status(401)
-        .send(
-          RelayErrorResponseSchema.parse({ ok: false, error: "Unauthorized" }),
-        );
-    }
-
-    const telegramToken = getTelegramToken(request);
-    if (!telegramToken) {
-      return reply
-        .status(401)
-        .send(
-          RelayErrorResponseSchema.parse({ ok: false, error: "Unauthorized" }),
-        );
-    }
-
-    let file: MultipartFile | undefined;
-    try {
-      file = await request.file();
-      if (!file) {
-        return reply.status(400).send(
+  fastify.post<{ Querystring: unknown }>(
+    relayContract.sendFile.path,
+    async (request, reply) => {
+      if (!assertRelayKey(request)) {
+        return reply.status(401).send(
           RelayErrorResponseSchema.parse({
             ok: false,
-            error: "No image file provided",
+            error: "Unauthorized",
           }),
         );
       }
 
-      const target = getTargetFromMultipart(file);
-      if (!isSafeImageMimeType(file.mimetype)) {
-        return reply.status(400).send(
+      const telegramToken = getTelegramToken(request);
+      if (!telegramToken) {
+        return reply.status(401).send(
           RelayErrorResponseSchema.parse({
             ok: false,
-            error: "Unsupported image mime type",
+            error: "Unauthorized",
           }),
         );
       }
 
-      const imageBuffer = await file.toBuffer();
-      validatePayloadSize(imageBuffer);
+      let file: MultipartFile | undefined;
+      try {
+        const { caption, timeoutMs } = parseRelayQuery(request.query);
+        file = await request.file();
+        if (!file) {
+          return reply.status(400).send(
+            RelayErrorResponseSchema.parse({
+              ok: false,
+              error: "No image file provided",
+            }),
+          );
+        }
 
-      const sent = await sendPhotoFromBuffer({
-        token: telegramToken,
-        target,
-        image: imageBuffer,
-        mimeType: file.mimetype,
-        filename: file.filename || "image.jpg",
-        timeoutMs: env.RELAY_REQUEST_TIMEOUT_MS,
-      });
+        const target = getTargetFromMultipart(file);
+        if (!isSafeImageMimeType(file.mimetype)) {
+          return reply.status(400).send(
+            RelayErrorResponseSchema.parse({
+              ok: false,
+              error: "Unsupported image mime type",
+            }),
+          );
+        }
 
-      return reply.send(
-        RelaySuccessResponseSchema.parse({ ok: true, fileId: sent.fileId }),
-      );
-    } catch (error) {
-      request.log.error({ err: error }, "Failed to relay multipart image");
-      return reply.status(400).send(
-        RelayErrorResponseSchema.parse({
-          ok: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Invalid multipart request",
-        }),
-      );
-    } finally {
-      if (file) {
-        file.file.resume();
+        const imageBuffer = await file.toBuffer();
+        validatePayloadSize(imageBuffer);
+
+        const sent = await sendPhotoFromBuffer({
+          token: telegramToken,
+          target,
+          image: imageBuffer,
+          mimeType: file.mimetype,
+          filename: file.filename || "image.jpg",
+          caption,
+          timeoutMs,
+        });
+
+        return reply.send(
+          RelaySuccessResponseSchema.parse({ ok: true, fileId: sent.fileId }),
+        );
+      } catch (error) {
+        request.log.error({ err: error }, "Failed to relay multipart image");
+        return reply
+          .status(statusByError(error))
+          .send(relayErrorPayload(error, "Invalid multipart request"));
+      } finally {
+        if (file) {
+          file.file.resume();
+        }
       }
-    }
-  });
+    },
+  );
 
-  fastify.post<{ Body: unknown }>(
+  fastify.post<{ Body: unknown; Querystring: unknown }>(
     relayContract.sendBase64.path,
     async (request, reply) => {
       if (!assertRelayKey(request)) {
@@ -200,14 +242,12 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
 
       const telegramToken = getTelegramToken(request);
       if (!telegramToken) {
-        return reply
-          .status(401)
-          .send(
-            RelayErrorResponseSchema.parse({
-              ok: false,
-              error: "Unauthorized",
-            }),
-          );
+        return reply.status(401).send(
+          RelayErrorResponseSchema.parse({
+            ok: false,
+            error: "Unauthorized",
+          }),
+        );
       }
 
       const parsed = RelayBase64RequestSchema.safeParse(request.body);
@@ -221,6 +261,7 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
       }
 
       try {
+        const { caption, timeoutMs } = parseRelayQuery(request.query);
         const target = parseTarget(parsed.data.target);
         const imageBuffer = Buffer.from(parsed.data.data, "base64");
         if (imageBuffer.length === 0) {
@@ -234,7 +275,8 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
           image: imageBuffer,
           mimeType: parsed.data.mimeType,
           filename: parsed.data.filename,
-          timeoutMs: env.RELAY_REQUEST_TIMEOUT_MS,
+          caption,
+          timeoutMs,
         });
 
         return reply.send(
@@ -242,18 +284,14 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
         );
       } catch (error) {
         request.log.error({ err: error }, "Failed to relay base64 image");
-        return reply.status(400).send(
-          RelayErrorResponseSchema.parse({
-            ok: false,
-            error:
-              error instanceof Error ? error.message : "Invalid base64 request",
-          }),
-        );
+        return reply
+          .status(statusByError(error))
+          .send(relayErrorPayload(error, "Invalid base64 request"));
       }
     },
   );
 
-  fastify.post<{ Body: unknown }>(
+  fastify.post<{ Body: unknown; Querystring: unknown }>(
     relayContract.sendUrl.path,
     async (request, reply) => {
       if (!assertRelayKey(request)) {
@@ -267,14 +305,12 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
 
       const telegramToken = getTelegramToken(request);
       if (!telegramToken) {
-        return reply
-          .status(401)
-          .send(
-            RelayErrorResponseSchema.parse({
-              ok: false,
-              error: "Unauthorized",
-            }),
-          );
+        return reply.status(401).send(
+          RelayErrorResponseSchema.parse({
+            ok: false,
+            error: "Unauthorized",
+          }),
+        );
       }
 
       const parsed = RelayUrlRequestSchema.safeParse(request.body);
@@ -288,14 +324,16 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
       }
 
       try {
+        const { caption, timeoutMs } = parseRelayQuery(request.query);
         const target = parseTarget(parsed.data.target);
-        await verifyImageUrl(parsed.data.url);
+        await verifyImageUrl(parsed.data.url, timeoutMs);
 
         const sent = await sendPhotoFromUrl({
           token: telegramToken,
           target,
           imageUrl: parsed.data.url,
-          timeoutMs: env.RELAY_REQUEST_TIMEOUT_MS,
+          caption,
+          timeoutMs,
         });
 
         return reply.send(
@@ -303,13 +341,9 @@ export async function registerSendRoutes(fastify: FastifyInstance) {
         );
       } catch (error) {
         request.log.error({ err: error }, "Failed to relay image by url");
-        return reply.status(400).send(
-          RelayErrorResponseSchema.parse({
-            ok: false,
-            error:
-              error instanceof Error ? error.message : "Invalid url request",
-          }),
-        );
+        return reply
+          .status(statusByError(error))
+          .send(relayErrorPayload(error, "Invalid url request"));
       }
     },
   );

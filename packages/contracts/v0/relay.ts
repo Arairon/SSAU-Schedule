@@ -24,6 +24,13 @@ export const RelayUrlRequestSchema = z.object({
   url: z.url(),
 });
 
+export const RelayCaptionQuerySchema = z
+  .object({
+    caption: z.string().trim().min(1).max(1024).optional(),
+    timeout: z.coerce.number().int().positive().max(120_000).optional(),
+  })
+  .optional();
+
 export const RelaySuccessResponseSchema = z.object({
   ok: z.literal(true),
   fileId: z.string().min(1),
@@ -32,6 +39,7 @@ export const RelaySuccessResponseSchema = z.object({
 export const RelayErrorResponseSchema = z.object({
   ok: z.literal(false),
   error: z.string(),
+  retry_after: z.number().int().positive().optional(),
 });
 
 export const relayContract = c.router({
@@ -40,10 +48,12 @@ export const relayContract = c.router({
     path: "/send/file",
     contentType: "multipart/form-data",
     body: z.any(),
+    query: RelayCaptionQuerySchema,
     responses: {
       200: RelaySuccessResponseSchema,
       400: RelayErrorResponseSchema,
       401: RelayErrorResponseSchema,
+      429: RelayErrorResponseSchema,
       500: RelayErrorResponseSchema,
     },
   },
@@ -51,10 +61,12 @@ export const relayContract = c.router({
     method: "POST",
     path: "/send/base64",
     body: RelayBase64RequestSchema,
+    query: RelayCaptionQuerySchema,
     responses: {
       200: RelaySuccessResponseSchema,
       400: RelayErrorResponseSchema,
       401: RelayErrorResponseSchema,
+      429: RelayErrorResponseSchema,
       500: RelayErrorResponseSchema,
     },
   },
@@ -62,10 +74,12 @@ export const relayContract = c.router({
     method: "POST",
     path: "/send/url",
     body: RelayUrlRequestSchema,
+    query: RelayCaptionQuerySchema,
     responses: {
       200: RelaySuccessResponseSchema,
       400: RelayErrorResponseSchema,
       401: RelayErrorResponseSchema,
+      429: RelayErrorResponseSchema,
       500: RelayErrorResponseSchema,
     },
   },

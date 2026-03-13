@@ -21,6 +21,13 @@ export const RelayUrlRequestSchema = z.object({
   url: z.url(),
 });
 
+export const RelayCaptionQuerySchema = z
+  .object({
+    caption: z.string().trim().min(1).max(1024).optional(),
+    timeout: z.coerce.number().int().positive().max(120_000).optional(),
+  })
+  .optional();
+
 export const RelaySuccessResponseSchema = z.object({
   ok: z.literal(true),
   fileId: z.string().min(1),
@@ -29,17 +36,21 @@ export const RelaySuccessResponseSchema = z.object({
 export const RelayErrorResponseSchema = z.object({
   ok: z.literal(false),
   error: z.string(),
+  retry_after: z.number().int().positive().optional(),
 });
 
 export const relayContract = {
   sendFile: {
     path: "/send/file",
+    query: RelayCaptionQuerySchema,
   },
   sendBase64: {
     path: "/send/base64",
+    query: RelayCaptionQuerySchema,
   },
   sendUrl: {
     path: "/send/url",
+    query: RelayCaptionQuerySchema,
   },
   healthz: {
     path: "/healthz",
