@@ -90,7 +90,12 @@ async function sendTimetable(
   opts?: { forceUpdate?: boolean },
 ) {
   const isAuthed = !!user.authCookie;
-  const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
+  let weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
+  const now = new Date();
+  const currentWeek = getWeekFromDate(now);
+  if (weekNumber === 0 && now.getDay() === 0) {
+    weekNumber = currentWeek + 1;
+  }
   const preferences = getUserPreferences(user);
 
   const group = groupId
@@ -190,9 +195,16 @@ async function sendTimetable(
       .row();
   }
 
+  let weekNumberModifier = "";
+  if (timetable.week === currentWeek) weekNumberModifier = " (текущая)";
+  else if (timetable.week === currentWeek + 1)
+    weekNumberModifier = " (следующая)";
+  else if (timetable.week === currentWeek - 1)
+    weekNumberModifier = " (предыдущая)";
+
   const caption =
     `Расписание на ${timetable.week} неделю` +
-    (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
+    weekNumberModifier +
     (group ? `\nДля группы ${group.name}` : "") +
     (error ? `\n${error}` : "") +
     (timetable.diff
@@ -221,7 +233,7 @@ async function sendTimetable(
     const uploaded = await uploadScheduleImage({
       api: ctx.api,
       image,
-      caption: `requested by ${ctx?.from?.id ?? "???"} for #${timetable.weekId} (sent new)\n${image.timetableHash}/${image.stylemap}`,
+      caption: `requested by ${ctx?.from?.id ?? "???"} for #${timetable.weekId}\n${image.timetableHash}/${image.stylemap} (sent new)`,
       userId: ctx?.from?.id,
       onFallbackAttempt: () => {
         updateTempMsg(
@@ -468,9 +480,17 @@ export async function updateTimetable(
     }
 
     try {
+      const currentWeek = getWeekFromDate(new Date());
+      let weekNumberModifier = "";
+      if (timetable.week === currentWeek) weekNumberModifier = " (текущая)";
+      else if (timetable.week === currentWeek + 1)
+        weekNumberModifier = " (следующая)";
+      else if (timetable.week === currentWeek - 1)
+        weekNumberModifier = " (предыдущая)";
+
       let caption =
         `Расписание на ${timetable.week} неделю` +
-        (timetable.week === getWeekFromDate(new Date()) ? " (текущая)" : "") +
+        weekNumberModifier +
         (group ? `\nДля группы ${group.name}` : "") +
         (error ? `\n${error}` : "") +
         (timetable.diff
@@ -505,7 +525,7 @@ export async function updateTimetable(
         const uploaded = await uploadScheduleImage({
           api: ctx.api,
           image,
-          caption: `requested by ${userId} for #${timetable.weekId}\n${image.timetableHash} (updated)/${image.stylemap}`,
+          caption: `requested by ${userId} for #${timetable.weekId}\n${image.timetableHash}/${image.stylemap}  (upd)`,
           userId,
           onFallbackAttempt: () => {
             updateTempMsg(
