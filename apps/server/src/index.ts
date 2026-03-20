@@ -10,6 +10,7 @@ import { intervaljobs, cronjobs } from "./lib/tasks";
 import { routesv0 } from "./api/v0/routes";
 import { routesDebug } from "./api/debug/routes";
 import path from "node:path";
+import { routesInternal } from "./api/internal/routes";
 
 // TODO: Automatic notifications rescheduling
 
@@ -39,6 +40,7 @@ async function start() {
     credentials: true,
   });
 
+  server.register(routesInternal, { prefix: "/api/internal" });
   server.register(routesv0, { prefix: "/api/v0" });
   if (env.NODE_ENV === "development")
     server.register(routesDebug, { prefix: "/api/debug" });

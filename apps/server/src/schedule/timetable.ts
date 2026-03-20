@@ -70,7 +70,7 @@ export async function generateTimetable(
     year?: number;
     dontCache?: boolean;
     ignoreIet?: boolean;
-    ignoreSubroup?: boolean;
+    ignoreSubgroup?: boolean;
   },
 ): Promise<Timetable> {
   const startTime = process.hrtime.bigint();
@@ -91,7 +91,7 @@ export async function generateTimetable(
     nonPersonal: !!opts?.groupId,
   });
   const isNonPersonal = week.owner === 0; // NonPersonal -> ignore iets and subgroup options
-  const subgroup = isNonPersonal || opts?.ignoreSubroup ? null : user.subgroup;
+  const subgroup = isNonPersonal || opts?.ignoreSubgroup ? null : user.subgroup;
 
   log.debug(
     `Week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number}) Generating timetable`,

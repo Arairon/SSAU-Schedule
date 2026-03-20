@@ -20,7 +20,7 @@ export type UserPreferences = {
   notifyAboutNextLesson: boolean;
   notifyAboutNextDay: boolean;
   notifyAboutNextWeek: boolean;
-  trustedLessonCustomizers?: number[]; // User IDs whose shared custom lessons this user wants to see
+  trustedLessonCustomizers: number[]; // User IDs whose shared custom lessons this user wants to see
 };
 
 export const UserPreferencesDefaults: UserPreferences = {
