@@ -58,17 +58,24 @@ const app = new Elysia()
       `-> ${request.method} ${request.url} – ${Date.now() - requestTime}ms`,
       { user: requestId, tag: "Ely" },
     );
-  });
-
-if (env.NODE_ENV === "development") app.use(openapi());
-
-app // api routes
+  })
+  .guard(
+    {
+      beforeHandle: async ({ request, status }) => {
+        const url = new URL(request.url);
+        console.log(url);
+        if (url.hostname !== "localhost" || env.NODE_ENV !== "development")
+          return status(404);
+      },
+    },
+    (app) => app.use(openapi()),
+  )
+  // api routes
   .use(test)
   .get("/test", ({ test }) => test ?? "N/A")
   .use(test2)
-  .use(apiApp);
-
-app // Static file serving
+  .use(apiApp)
+  // Static file serving
   .get("/*", async ({ request, status }) => {
     const url = new URL(request.url).pathname;
     if (url.startsWith("/api"))
@@ -87,6 +94,8 @@ app // Static file serving
     }
     return file;
   });
+
+export type ScheduleServerApp = typeof app;
 
 console.log(`Started Elysia at ${app.server?.hostname}:${app.server?.port}`);
 

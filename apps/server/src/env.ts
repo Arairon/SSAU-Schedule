@@ -37,6 +37,7 @@ export const env = createEnv({
     SCHED_BOT_INTERNAL_API_SECRET: z
       .string()
       .min(64, "The internal API secret must be at least 64 characters long"),
+    SCHED_BOT_DISPATCH_URL: z.url(),
     SCHED_BOT_PROXY_URL: z.url().optional(),
     SCHED_BOT_PROXY_TYPE: z.enum(["socks", "https"]).optional(),
     SCHED_BOT_USE_WEBHOOK: z

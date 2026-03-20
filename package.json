@@ -10,13 +10,16 @@
     "dev": "bun run dev:server & bun run dev:client",
     "dev:client": "bun --filter @ssau-schedule/client dev",
     "dev:server": "bun --filter @ssau-schedule/server dev",
+    "dev:bot": "bun --filter @ssau-schedule/telegram-bot dev",
     "dev:relay": "bun --filter @ssau-schedule/telegram-relay dev",
     "build": "bun --filter @ssau-schedule/client build && bun --filter @ssau-schedule/server build",
+    "build:bot": "bun --filter @ssau-schedule/telegram-bot build",
     "build:relay": "bun --filter @ssau-schedule/telegram-relay build",
     "build:container": "docker build -t ghcr.io/arairon/ssau-schedule -f Dockerfile .",
     "db:generate": "bun --filter @ssau-schedule/server db:generate",
     "db:migrate": "bun --filter @ssau-schedule/server db:migrate",
     "lint": "bun --filter @ssau-schedule/client lint & bun --filter @ssau-schedule/server lint",
+    "lint:bot": "bun --filter @ssau-schedule/telegram-bot lint",
     "lint:relay": "bun --filter @ssau-schedule/telegram-relay lint"
   }
 }
