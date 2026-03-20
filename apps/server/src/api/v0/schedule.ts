@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { findGroup } from "@/ssau/search";
 import { schedule } from "@/schedule/requests";
-import { detectImageMimeType } from "@/schedule/image";
+import { detectImageMimeType } from "@ssau-schedule/shared/utils";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";
 import z from "zod";

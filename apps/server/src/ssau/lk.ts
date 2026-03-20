@@ -9,10 +9,10 @@ import { type ReturnObj } from "@ssau-schedule/shared/utils";
 import { ensureGroupExists } from "../lib/misc";
 
 function resetAuth(
-  user: User,
+  userId: number,
   opts?: { dontUpdateDb?: boolean; resetCredentials?: boolean },
 ) {
-  log.debug("Reset auth for user", { user: user.id });
+  log.debug("Reset auth for user", { user: userId });
   const upd = {
     username: undefined as undefined | null,
     password: undefined as undefined | null,
@@ -26,10 +26,9 @@ function resetAuth(
   }
   upd.authCookie = null;
   upd.authCookieExpiresAt = new Date(0);
-  upd.sessionExpiresAt = user.authCookieExpiresAt;
-  Object.assign(user, upd);
+  upd.sessionExpiresAt = new Date(0);
   if (!opts?.dontUpdateDb)
-    return db.user.update({ where: { id: user.id }, data: upd });
+    return db.user.update({ where: { id: userId }, data: upd });
 }
 
 async function saveCredentials(
@@ -336,15 +335,18 @@ async function ensureAuth(user: User) {
 async function axiosReqForbiddenHandler(err: AxiosError, user: User) {
   const status = err.response?.status ?? 0;
   if (status >= 400 && status < 500) {
-    await resetAuth(user);
+    await resetAuth(user.id);
   }
 }
 
-async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
+async function updateUserInfo(
+  user: User,
+  opts?: { overrideGroup?: boolean },
+): Promise<ReturnObj<User>> {
   log.info("Updating user info", { user: user.id });
   if (!(await ensureAuth(user)))
     return {
-      ok: false,
+      ok: false as const,
       error: "Unauthorized",
       message: "Failed to get access to lk.ssau.ru",
     };
@@ -390,7 +392,7 @@ async function updateUserInfo(user: User, opts?: { overrideGroup?: boolean }) {
   if (opts?.overrideGroup || !user.groupId) upd.groupId = group.id;
   Object.assign(user, upd);
   await db.user.update({ where: { id: user.id }, data: upd });
-  return { ok: true, data: user };
+  return { ok: true as const, data: user };
 }
 
 let lastProxyUserId = 0;

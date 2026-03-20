@@ -3,6 +3,13 @@ import z from "zod";
 
 import { db } from "@/db";
 import { schedule } from "@/schedule/requests";
+import type { Timetable, TimetableDiff } from "@ssau-schedule/shared/timetable";
+
+const stringBool = z
+  .string()
+  .toLowerCase()
+  .transform((val) => val === "true")
+  .optional();
 
 export const app = new Elysia()
   .get(
@@ -22,9 +29,10 @@ export const app = new Elysia()
         dontCache: query.dontCache,
         ignoreIet: query.ignoreIet,
         ignoreSubgroup: query.ignoreSubgroup,
+        forceUpdate: query.forceUpdate,
       });
 
-      return timetable;
+      return timetable as Timetable & { diff: TimetableDiff | null };
     },
     {
       query: z.object({
@@ -34,11 +42,12 @@ export const app = new Elysia()
         groupId: z.coerce.number().int().optional(),
         year: z.coerce.number().int().optional(),
         // opts
-        ignoreCached: z.boolean().optional(),
-        ignoreUpdate: z.boolean().optional(),
-        dontCache: z.boolean().optional(),
-        ignoreIet: z.boolean().optional(),
-        ignoreSubgroup: z.boolean().optional(),
+        ignoreCached: stringBool,
+        ignoreUpdate: stringBool,
+        dontCache: stringBool,
+        ignoreIet: stringBool,
+        ignoreSubgroup: stringBool,
+        forceUpdate: stringBool,
       }),
     },
   )
@@ -63,12 +72,22 @@ export const app = new Elysia()
           dontCache: query.dontCache,
           ignoreIet: query.ignoreIet,
           ignoreSubgroup: query.ignoreSubgroup,
+          forceUpdate: query.forceUpdate,
         },
       );
 
       return {
         timetable,
         image: Object.assign(image, { data: image.data.toString("base64") }),
+      } as {
+        timetable: Timetable & { diff: TimetableDiff | null };
+        image: {
+          id: number;
+          tgId: string | null;
+          data: string; // base64
+          timetableHash: string;
+          stylemap: string;
+        };
       };
     },
     {
@@ -80,11 +99,12 @@ export const app = new Elysia()
         year: z.coerce.number().int().optional(),
         stylemap: z.string().optional(),
         // opts
-        ignoreCached: z.boolean().optional(),
-        ignoreUpdate: z.boolean().optional(),
-        dontCache: z.boolean().optional(),
-        ignoreIet: z.boolean().optional(),
-        ignoreSubgroup: z.boolean().optional(),
+        ignoreCached: stringBool,
+        ignoreUpdate: stringBool,
+        dontCache: stringBool,
+        ignoreIet: stringBool,
+        ignoreSubgroup: stringBool,
+        forceUpdate: stringBool,
       }),
     },
   );

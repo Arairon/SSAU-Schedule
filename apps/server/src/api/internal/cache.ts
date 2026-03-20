@@ -6,6 +6,7 @@ import {
   invalidateDailyNotificationsForAll,
   invalidateDailyNotificationsForTarget,
 } from "@/lib/tasks";
+import type { WeekImageWhereInput } from "@/generated/prisma/models";
 
 const InvalidateWeekSchema = z
   .object({
@@ -46,10 +47,23 @@ const InvalidateUserIcsSchema = z
     message: "Provide all=true or userId",
   });
 
-const UpdateWeekImageTgIdSchema = z.object({
-  id: z.coerce.number().int(),
-  tgId: z.string().nullable(),
-});
+const UpdateWeekImageTgIdSchema = z
+  .object({
+    all: z.boolean().optional(),
+    id: z.coerce.number().int().optional(),
+    hash: z.string().optional(),
+    stylemap: z.string().optional(),
+    hard: z.boolean().optional().default(false),
+  })
+  .refine(
+    (data) =>
+      data.all === true ||
+      data.id !== undefined ||
+      (data.hash && data.stylemap),
+    {
+      message: "Provide all=true or id or hash+stylemap",
+    },
+  );
 
 export const app = new Elysia()
   .patch(
@@ -104,19 +118,31 @@ export const app = new Elysia()
     },
   )
   .patch(
-    "/week-image/tgid",
-    async ({ body, status }) => {
-      const existing = await db.weekImage.findUnique({
-        where: { id: body.id },
-      });
-      if (!existing) return status(404, "WeekImage not found");
+    "/week-image/invalidate",
+    async ({ body }) => {
+      const action = body.hard
+        ? (filter: WeekImageWhereInput) =>
+            db.weekImage.deleteMany({ where: filter })
+        : (filter: WeekImageWhereInput) =>
+            db.weekImage.updateMany({
+              where: filter,
+              data: { validUntil: new Date() },
+            });
+      let res: Awaited<ReturnType<typeof action>>;
+      if (body.all) {
+        res = await action({});
+      } else {
+        if (body.id) {
+          res = await action({ id: body.id });
+        } else {
+          res = await action({
+            timetableHash: body.hash!,
+            stylemap: body.stylemap!,
+          });
+        }
+      }
 
-      await db.weekImage.update({
-        where: { id: existing.id },
-        data: { tgId: body.tgId },
-      });
-
-      return "ok";
+      return res as { count: number };
     },
     {
       body: UpdateWeekImageTgIdSchema,

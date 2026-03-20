@@ -2,11 +2,9 @@ import { InlineKeyboard, type Bot } from "grammy";
 import type { Context } from "./types";
 
 import log from "@/logger";
-import { db } from "@/db";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
-import { schedule } from "@/schedule/requests";
 import {
   formatTimetableDiff,
   generateTextLesson,
@@ -14,11 +12,9 @@ import {
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { handleError } from ".";
 import { openSettings } from "./options";
-import type { User } from "@/generated/prisma/client";
 import { CommandGroup } from "@grammyjs/commands";
-import { getUserIcsByUserId } from "@/schedule/ics";
-import { findGroupOrOptions } from "@/ssau/search";
 import { uploadScheduleImage } from "./imageUploading";
+import { api } from "@/serverClient";
 
 function answerCallbackQueryOrReply(ctx: Context, text: string) {
   if (ctx.callbackQuery) {
@@ -34,53 +30,61 @@ function answerCallbackQueryIfPresent(ctx: Context, text?: string) {
   return text ? ctx.answerCallbackQuery(text) : ctx.answerCallbackQuery();
 }
 
-async function sendGroupTimetable(
-  ctx: Context,
-  week: number,
-  opts?: { forceUpdate?: boolean },
-) {
-  if (!ctx.chat || !ctx.from) return;
-  if (
-    ctx.session.startedScheduleUpdateAt &&
-    Date.now() - ctx.session.startedScheduleUpdateAt.getTime() < 30_000
-  ) {
-    return answerCallbackQueryOrReply(
-      ctx,
-      "Обновление уже запущено, пожалуйста подождите.",
-    );
-  }
-  ctx.session.startedScheduleUpdateAt = new Date();
-  const groupChat = await db.groupChat.findUnique({
-    where: { tgId: ctx.chat.id },
-    include: { user: true },
-  });
+// async function sendGroupTimetable(
+//   ctx: Context,
+//   week: number,
+//   opts?: { forceUpdate?: boolean },
+// ) {
+//   if (!ctx.chat || !ctx.from) return;
+//   if (
+//     ctx.session.startedScheduleUpdateAt &&
+//     Date.now() - ctx.session.startedScheduleUpdateAt.getTime() < 30_000
+//   ) {
+//     return answerCallbackQueryOrReply(
+//       ctx,
+//       "Обновление уже запущено, пожалуйста подождите.",
+//     );
+//   }
+//   ctx.session.startedScheduleUpdateAt = new Date();
+//   const groupChat = await db.groupChat.findUnique({
+//     where: { tgId: ctx.chat.id },
+//     include: { user: true },
+//   });
 
-  if (!groupChat) {
-    return ctx.reply(
-      `Этот чат не зарегистрирован для получения расписаний. Администратор чата должен быть зарегистрирован в боте и использовать команду /options@${ctx.me.username} в этом чате.`,
-    );
-  }
-  if (!groupChat.groupId) {
-    return ctx.reply(
-      `В этом чате не закреплена группа. Администратор чата должен закрепить группу через /options@${ctx.me.username}.`,
-    );
-  }
-  if (!groupChat.user) {
-    return ctx.reply(
-      `Ответственный за обновления не назначен. Администратор чата должен назначить себя ответственным через /options@${ctx.me.username}.`,
-    );
-  }
+//   if (!groupChat) {
+//     return ctx.reply(
+//       `Этот чат не зарегистрирован для получения расписаний. Администратор чата должен быть зарегистрирован в боте и использовать команду /options@${ctx.me.username} в этом чате.`,
+//     );
+//   }
+//   if (!groupChat.groupId) {
+//     return ctx.reply(
+//       `В этом чате не закреплена группа. Администратор чата должен закрепить группу через /options@${ctx.me.username}.`,
+//     );
+//   }
+//   if (!groupChat.user) {
+//     return ctx.reply(
+//       `Ответственный за обновления не назначен. Администратор чата должен назначить себя ответственным через /options@${ctx.me.username}.`,
+//     );
+//   }
 
-  log.debug(`User requested group#${groupChat.id} schedule`, {
-    user: ctx.from.id,
-  });
+//   log.debug(`User requested group#${groupChat.id} schedule`, {
+//     user: ctx.from.id,
+//   });
 
-  try {
-    return sendTimetable(ctx, groupChat.user, week, groupChat.groupId, opts);
-  } finally {
-    ctx.session.startedScheduleUpdateAt = null;
-  }
-}
+//   try {
+//     return sendTimetable(ctx, groupChat.user, week, groupChat.groupId, opts);
+//   } finally {
+//     ctx.session.startedScheduleUpdateAt = null;
+//   }
+// }
+
+type User = {
+  id: number;
+  tgId: bigint;
+  groupId: number | null;
+  authCookie: boolean;
+  preferences: object;
+};
 
 async function sendTimetable(
   ctx: Context,
@@ -89,7 +93,7 @@ async function sendTimetable(
   groupId?: number,
   opts?: { forceUpdate?: boolean },
 ) {
-  const isAuthed = !!user.authCookie;
+  const isAuthed = user.authCookie;
   let weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
   const now = new Date();
   const currentWeek = getWeekFromDate(now);
@@ -99,7 +103,11 @@ async function sendTimetable(
   const preferences = getUserPreferences(user);
 
   const group = groupId
-    ? await db.group.findUnique({ where: { id: groupId } })
+    ? await api.group
+        .id({ id: groupId })
+        .get()
+        .then((res) => res.data)
+        .catch(() => null)
     : null;
 
   log.debug(
@@ -135,33 +143,45 @@ async function sendTimetable(
   }
 
   let data;
-  let error = "";
+  // let error = "";
 
   try {
-    data = await schedule.getTimetableWithImage(user, weekNumber, {
-      groupId: group?.id ?? undefined,
-      stylemap: preferences.theme,
-      forceUpdate: opts?.forceUpdate ?? undefined,
-      onUpdate: ({ state, message }) => {
-        let text = "";
-        switch (state) {
-          case "updatingWeek":
-            text = "Обновление расписания...";
-            break;
-          case "generatingTimetable":
-            // text = "Генерация расписания...";
-            // ignored
-            break;
-          case "generatingImage":
-            text = "Создание изображения...";
-            break;
-          case "error":
-            error = message ?? "Произошла ошибка при получении расписания.";
-            return; // prevent updateTempMsg
-        }
-        updateTempMsg(text);
-      },
-    });
+    data = await api.schedule.image
+      .get({
+        query: {
+          userId: user.id,
+          week: weekNumber,
+          groupId: group?.id ?? undefined,
+          stylemap: preferences.theme,
+          forceUpdate: !!opts?.forceUpdate,
+        },
+      })
+      .then((res) => res.data);
+    // data = await schedule.getTimetableWithImage(user, weekNumber, {
+    //   groupId: group?.id ?? undefined,
+    //   stylemap: preferences.theme,
+    //   forceUpdate: opts?.forceUpdate ?? undefined,
+    //   onUpdate: ({ state, message }) => {
+    //     let text = "";
+    //     switch (state) {
+    //       case "updatingWeek":
+    //         text = "Обновление расписания...";
+    //         break;
+    //       case "generatingTimetable":
+    //         // text = "Генерация расписания...";
+    //         // ignored
+    //         break;
+    //       case "generatingImage":
+    //         text = "Создание изображения...";
+    //         break;
+    //       case "error":
+    //         error = message ?? "Произошла ошибка при получении расписания.";
+    //         return; // prevent updateTempMsg
+    //     }
+    //     updateTempMsg(text);
+    //   },
+    // });
+    if (!data) throw new Error("No data received from API");
   } catch (e) {
     log.error(`Failed to get timetable ${String(e)}`, {
       user: ctx?.from?.id,
@@ -206,7 +226,7 @@ async function sendTimetable(
     `Расписание на ${timetable.week} неделю` +
     weekNumberModifier +
     (group ? `\nДля группы ${group.name}` : "") +
-    (error ? `\n${error}` : "") +
+    // (error ? `\n${error}` : "") +
     (timetable.diff
       ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
       : "");
@@ -232,7 +252,10 @@ async function sendTimetable(
 
     const uploaded = await uploadScheduleImage({
       api: ctx.api,
-      image,
+      image: {
+        ...image,
+        data: Buffer.from(image.data, "base64"),
+      },
       caption: `requested by ${ctx?.from?.id ?? "???"} for #${timetable.weekId}\n${image.timetableHash}/${image.stylemap} (sent new)`,
       userId: ctx?.from?.id,
       onFallbackAttempt: () => {
@@ -294,7 +317,10 @@ async function sendUserTimetable(
   }
   ctx.session.startedScheduleUpdateAt = new Date();
   try {
-    const user = await db.user.findUnique({ where: { tgId: ctx?.from?.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from!.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(
         "Вы не найдены в базе данных. Пожалуйста пропишите /start",
@@ -307,7 +333,7 @@ async function sendUserTimetable(
       );
     }
 
-    await sendTimetable(ctx, user, week, groupId, opts);
+    await sendTimetable(ctx, user as unknown as User, week, groupId, opts);
   } catch (e) {
     log.error(`Failed to send timetable ${String(e)}`, { user: ctx?.from?.id });
     return ctx.reply(
@@ -340,26 +366,27 @@ export async function updateTimetable(
   if (!ctx.from) return;
   ctx.session.startedScheduleUpdateAt = new Date();
   try {
-    let userId = ctx.from.id as unknown as bigint;
+    const userId = ctx.from.id; // let
     if (ctx.chat?.type !== "private") {
-      const groupchat = await db.groupChat.findUnique({
-        where: { tgId: ctx.chat?.id },
-        include: { user: true },
-      });
-      if (!groupchat?.user) {
-        log.warn(
-          `Image viewer update requested in group chat with no admin/groupchat`,
-        );
-        return answerCallbackQueryOrReply(
-          ctx,
-          "Этот чат не зарегистрирован для получения расписаний или у него нет админа",
-        );
-      }
-      log.debug(
-        `Image viewer update requested in group chat ${ctx.chat?.id} as ${groupchat.user.tgId}`,
-        { user: ctx.from.id },
-      );
-      userId = groupchat.user.tgId;
+      return ctx.reply(`Групповые чаты временно недоступны.`);
+      // const groupchat = await db.groupChat.findUnique({
+      //   where: { tgId: ctx.chat?.id },
+      //   include: { user: true },
+      // });
+      // if (!groupchat?.user) {
+      //   log.warn(
+      //     `Image viewer update requested in group chat with no admin/groupchat`,
+      //   );
+      //   return answerCallbackQueryOrReply(
+      //     ctx,
+      //     "Этот чат не зарегистрирован для получения расписаний или у него нет админа",
+      //   );
+      // }
+      // log.debug(
+      //   `Image viewer update requested in group chat ${ctx.chat?.id} as ${groupchat.user.tgId}`,
+      //   { user: ctx.from.id },
+      // );
+      // userId = groupchat.user.tgId;
     }
     const chat = ctx.chat;
     const msgId =
@@ -372,7 +399,10 @@ export async function updateTimetable(
         "Произошла ошибка, пожалуйста используйте /schedule.",
       );
     }
-    const user = await db.user.findUnique({ where: { tgId: userId } });
+    const user = await api.user
+      .tgid({ id: userId })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(
         "Вы не найдены в базе данных. Пожалуйста пропишите /start",
@@ -381,9 +411,11 @@ export async function updateTimetable(
     const isAuthed = !!user.authCookie;
     const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
     const group = groupId
-      ? await db.group.findUnique({ where: { id: groupId } })
+      ? await api.group
+          .id({ id: groupId })
+          .get()
+          .then((res) => res.data)
       : null;
-
     if (!groupId && !user.groupId) {
       await answerCallbackQueryIfPresent(ctx)?.catch(() => undefined);
       return ctx.reply(
@@ -406,7 +438,7 @@ export async function updateTimetable(
 
       function requestUpdate(): Promise<unknown> {
         return ctx.api
-          .editMessageCaption(chat!.id, msgId, {
+          .editMessageCaption(chat.id, msgId, {
             caption: text,
             reply_markup: new InlineKeyboard(),
           })
@@ -421,33 +453,45 @@ export async function updateTimetable(
     }
 
     let data;
-    let error = "";
+    // let error = "";
     try {
-      data = await schedule.getTimetableWithImage(user, weekNumber, {
-        groupId: group?.id ?? undefined,
-        stylemap: preferences.theme,
-        forceUpdate: opts?.forceUpdate ?? undefined,
-        onUpdate: ({ state, message }) => {
-          let text = "";
-          switch (state) {
-            case "updatingWeek":
-              text = "Обновление расписания...";
-              break;
-            case "generatingTimetable":
-              // text = "Генерация расписания...";
-              // ignored
-              break;
-            case "generatingImage":
-              // text = "Создание изображения...";
-              // ignored
-              break;
-            case "error":
-              error = message ?? "Произошла ошибка при получении расписания.";
-              return; // prevent updateTempMsg
-          }
-          updateTempMsg(text);
-        },
-      });
+      data = await api.schedule.image
+        .get({
+          query: {
+            userId: user.id,
+            week: weekNumber,
+            groupId: group?.id ?? undefined,
+            stylemap: preferences.theme,
+            forceUpdate: !!opts?.forceUpdate,
+          },
+        })
+        .then((res) => res.data);
+      if (!data) throw new Error("No data received from API");
+      // data = await schedule.getTimetableWithImage(user, weekNumber, {
+      //   groupId: group?.id ?? undefined,
+      //   stylemap: preferences.theme,
+      //   forceUpdate: opts?.forceUpdate ?? undefined,
+      //   onUpdate: ({ state, message }) => {
+      //     let text = "";
+      //     switch (state) {
+      //       case "updatingWeek":
+      //         text = "Обновление расписания...";
+      //         break;
+      //       case "generatingTimetable":
+      //         // text = "Генерация расписания...";
+      //         // ignored
+      //         break;
+      //       case "generatingImage":
+      //         // text = "Создание изображения...";
+      //         // ignored
+      //         break;
+      //       case "error":
+      //         error = message ?? "Произошла ошибка при получении расписания.";
+      //         return; // prevent updateTempMsg
+      //     }
+      //     updateTempMsg(text);
+      //   },
+      // });
     } catch (e) {
       log.error(`Failed to get timetable ${String(e)}`, { user: userId });
       return ctx.reply(`
@@ -492,7 +536,7 @@ export async function updateTimetable(
         `Расписание на ${timetable.week} неделю` +
         weekNumberModifier +
         (group ? `\nДля группы ${group.name}` : "") +
-        (error ? `\n${error}` : "") +
+        // (error ? `\n${error}` : "") +
         (timetable.diff
           ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
           : "");
@@ -524,7 +568,10 @@ export async function updateTimetable(
 
         const uploaded = await uploadScheduleImage({
           api: ctx.api,
-          image,
+          image: {
+            ...image,
+            data: Buffer.from(image.data, "base64"),
+          },
           caption: `requested by ${userId} for #${timetable.weekId}\n${image.timetableHash}/${image.stylemap}  (upd)`,
           userId,
           onFallbackAttempt: () => {
@@ -598,7 +645,10 @@ export async function initSchedule(bot: Bot<Context>) {
       .exec(ctx.message.text)
       ?.at(1);
     const groupIds = group
-      ? await findGroupOrOptions({ groupName: group })
+      ? await api.ssau.findGroupOrOptions
+          .get({ query: { name: group } })
+          .then((res) => res.data)
+          .catch(() => null)
       : undefined;
     let groupId: number | undefined = undefined;
     if (group || groupIds) {
@@ -617,9 +667,9 @@ export async function initSchedule(bot: Bot<Context>) {
     if (weekArg && !Number.isNaN(Number(weekArg.trim())))
       week = Number(weekArg);
 
-    if (!groupId && ctx.chat.type !== "private") {
-      return sendGroupTimetable(ctx, week);
-    }
+    // if (!groupId && ctx.chat.type !== "private") {
+    //   return sendGroupTimetable(ctx, week);
+    // }
     sendUserTimetable(ctx, week, groupId ?? undefined).catch((e) => {
       return handleError(ctx, e as Error);
     });
@@ -663,14 +713,19 @@ export async function initSchedule(bot: Bot<Context>) {
     "Расписание на сегодня (с ссылками на пары)",
     async (ctx) => {
       if (!ctx.from || !ctx.message) return;
-      const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+      const user = await api.user
+        .tgid({ id: ctx.from.id })
+        .get()
+        .then((res) => res.data);
       if (!user) {
         return ctx.reply(
           "Вы не найдены в базе данных. Пожалуйста пропишите /start",
         );
       }
       const now = new Date();
-      const timetable = await schedule.getTimetable(user, 0);
+      const timetable = (await api.schedule.json
+        .get({ query: { userId: user.id, week: 0 } })
+        .then((res) => res.data))!;
       const day = timetable.days.at(now.getDay() - 1);
 
       if (
@@ -698,14 +753,19 @@ ${day.lessons.map(generateTextLesson).join("\n=====\n")}
 
   commands.command("now", "Ближайшая пара", async (ctx) => {
     if (!ctx.from || !ctx.message) return;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(
         "Вы не найдены в базе данных. Пожалуйста пропишите /start",
       );
     }
     const now = new Date();
-    const timetable = await schedule.getTimetable(user, 0);
+    const timetable = (await api.schedule.json
+      .get({ query: { userId: user.id, week: 0 } })
+      .then((res) => res.data))!;
     const day = timetable.days.at(now.getDay() - 1);
     if (!day?.lessons.length || now.getDay() === 0) {
       return ctx.reply("Сегодня занятий нет :D");
@@ -751,9 +811,10 @@ ${generateTextLesson(lesson)}
     if (ctx.chat?.type !== "private") {
       return;
     }
-    const groups = await findGroupOrOptions({
-      groupName: ctx.message.text.trim(),
-    });
+    const groups = await api.ssau.findGroupOrOptions
+      .get({ query: { name: ctx.message.text.trim() } })
+      .then((res) => res.data)
+      .catch(() => null);
     if (!groups || (Array.isArray(groups) && groups.length === 0)) {
       return ctx.reply("Группа или похожие на неё группы не найдены");
     }
@@ -791,13 +852,20 @@ ${generateTextLesson(lesson)}
         parse_mode: "HTML",
       });
     }
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(
         "Вас не существует в базе данных. Пожалуйста пропишите /start",
       );
     }
-    const cal = await getUserIcsByUserId(user.id);
+    const cal = await api.user
+      .id({ id: user.id })
+      .ics.get()
+      .then((res) => res.data)
+      .catch(() => null);
     if (!cal) {
       return ctx.reply(
         `Произошла ошибка при попытке создать календарь.\nПожалуйста попробуйте позже или свяжитесь с администратором бота`,

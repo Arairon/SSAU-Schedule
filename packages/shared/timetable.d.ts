@@ -1,4 +1,14 @@
-import type { LessonType } from "@/generated/prisma/enums";
+type LessonType =
+  | "Lection"
+  | "Lab"
+  | "Practice"
+  | "Other"
+  | "Exam"
+  | "Consult"
+  | "Military"
+  | "Window"
+  | "CourseWork"
+  | "Unknown";
 
 export type TimetableLesson = {
   id: number;

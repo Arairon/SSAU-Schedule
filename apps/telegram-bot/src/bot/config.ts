@@ -1,11 +1,10 @@
 import type { Bot } from "grammy";
 import timestring from "timestring";
 import { type Context } from "./types";
-import { db } from "@/db";
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { stylemaps } from "@ssau-schedule/shared/themes/index";
 import { CommandGroup } from "@grammyjs/commands";
-import { findGroup } from "@/ssau/search";
+import { api } from "@/serverClient";
 
 // config.ts refers to the /config command, not the bot configuration :]
 const config_field_names: Record<string, string> = {
@@ -25,10 +24,10 @@ export async function initConfig(bot: Bot<Context>) {
     if (ctx.chat.type !== "private") return;
     const args = ctx.message.text.trim().split(" ");
     args.shift(); // remove command
-    const user = await db.user.findUnique({
-      where: { tgId: ctx.from.id },
-      include: { group: true },
-    });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user)
       return ctx.reply(
         "Вас не существует в базе данных. Пожалуйста пропишите /start",
@@ -61,9 +60,8 @@ ${Object.entries(preferences)
           );
         }
         preferences.theme = target;
-        await db.user.update({
-          where: { id: user.id },
-          data: { preferences, lastActive: new Date() },
+        await api.user.id({ id: user.id }).patch({
+          preferences,
         });
         //if (ctx.session.scheduleViewer.message)
         //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
@@ -77,24 +75,10 @@ ${Object.entries(preferences)
             `Вы можете установить себе подгруппу 1 или 2.\nПодгруппа 0 - обе\nВаша подгруппа: ${user.subgroup ?? 0}`,
           );
         }
-        const now = new Date();
-        await db.user.update({
-          where: { id: user.id },
-          data: {
-            subgroup: target,
-            lastActive: now,
-            ics: {
-              upsert: {
-                create: { validUntil: now },
-                update: { validUntil: now },
-              },
-            },
-          },
+        await api.user.id({ id: user.id }).patch({
+          subgroup: target,
         });
-        await db.week.updateMany({
-          where: { owner: user.id },
-          data: { cachedUntil: now },
-        });
+        await api.cache["user-ics"].invalidate.patch({ userId: user.id });
         return ctx.reply(`Подгруппа успешно изменена на ${target}`);
       }
       case "notify": {
@@ -118,12 +102,8 @@ ${Object.entries(preferences)
             );
           }
           preferences.notifyBeforeLessons = time;
-          await db.user.update({
-            where: { id: user.id },
-            data: {
-              preferences,
-              lastActive: new Date(),
-            },
+          await api.user.id({ id: user.id }).patch({
+            preferences,
           });
           return ctx.reply(
             `Установлено время: ${time}с (${(time / 3600).toFixed(2)}ч)`,
@@ -137,26 +117,25 @@ ${Object.entries(preferences)
             `Ваша текущая группа: ${user.group?.name ?? "не установлена"}`,
           );
         }
-        const newgroup = await findGroup({ groupName: arg });
+        const newgroup = await api.ssau.findGroupOrOptions
+          .get({ query: { name: arg } })
+          .then((res) => res.data?.[0]);
         if (!newgroup) {
           return ctx.reply(
             `Не удалось найти группу по запросу '${arg}'. Попробуйте более точно указать название группы.`,
           );
         }
-        const updated = await db.user.update({
-          where: { id: user.id },
-          data: { groupId: newgroup.id, lastActive: new Date() },
-          include: { group: true },
-        });
-        await db.week.updateMany({
-          where: { owner: user.id },
-          data: { cachedUntil: new Date() },
-        });
-        await db.userIcs.updateMany({
-          where: { id: user.id },
-          data: { validUntil: new Date() },
-        });
-        return ctx.reply(`Группа успешно изменена на '${updated.group!.name}'`);
+        const updated = await api.user
+          .id({ id: user.id })
+          .patch({
+            groupId: newgroup.id,
+          })
+          .then((res) => res.data);
+        await api.cache.week.invalidate.patch({ owner: user.id });
+        await api.cache["user-ics"].invalidate.patch({ userId: user.id });
+        return ctx.reply(
+          `Группа успешно изменена на '${updated!.group!.name}'`,
+        );
       }
       default: {
         return ctx.reply("Поле не найдено");

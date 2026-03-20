@@ -1,10 +1,10 @@
 import { db } from "@/db";
 import { LessonType, type User, type Week } from "@/generated/prisma/client";
 import log from "@/logger";
-import type { Timetable } from "@/schedule/types/timetable";
+import type { Timetable } from "@ssau-schedule/shared/timetable";
 import { lk } from "@/ssau/lk";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { getUserPreferences } from "./misc";
+import { getUserPreferences } from "@ssau-schedule/shared/utils";
 
 export async function getWeek(
   user: User,

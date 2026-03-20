@@ -5,7 +5,7 @@ import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
 import {
   type TimetableLesson,
   type Timetable,
-} from "@/schedule/types/timetable";
+} from "@ssau-schedule/shared/timetable";
 import { formatBigInt, getPersonShortname } from "@ssau-schedule/shared/utils";
 import { getLessonDate } from "@ssau-schedule/shared/date";
 import log from "@/logger";
@@ -333,25 +333,6 @@ export async function generateTimetableImageHtml(
   }
   page.push(HTML_END);
   return page.join("");
-}
-
-export function detectImageMimeType(image: Buffer): "image/png" | "image/jpeg" {
-  const isPng =
-    image.length >= 8 &&
-    image[0] === 0x89 &&
-    image[1] === 0x50 &&
-    image[2] === 0x4e &&
-    image[3] === 0x47 &&
-    image[4] === 0x0d &&
-    image[5] === 0x0a &&
-    image[6] === 0x1a &&
-    image[7] === 0x0a;
-
-  if (isPng) {
-    return "image/png";
-  }
-
-  return "image/jpeg";
 }
 
 async function generateTimetableImageBuffer(

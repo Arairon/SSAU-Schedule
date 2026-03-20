@@ -15,10 +15,10 @@ import type {
   TimetableDay,
   TimetableDiff,
   TimetableLesson,
-} from "@/schedule/types/timetable";
+} from "@ssau-schedule/shared/timetable";
 import { getWeek, getWeekLessons } from "@/lib/week";
 import { applyCustomization } from "./customLesson";
-import { lessonToTimetableLesson } from "@/lib/misc";
+import { lessonToTimetableLesson } from "@ssau-schedule/shared/misc";
 
 function compareLessonSubgroup(
   left: TimetableLesson,

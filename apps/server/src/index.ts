@@ -4,7 +4,7 @@ import { cors } from "@elysiajs/cors";
 import { env } from "./env";
 import log from "./logger";
 // import init_redis from "./redis";
-import init_bot from "./bot/bot";
+import init_bot from "./bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
 import path from "node:path";
 import { apiApp } from "./api";
@@ -37,6 +37,7 @@ const test2 = new Elysia<"", WithTest>().get(
 );
 
 const app = new Elysia()
+  .use(openapi())
   .use(
     cors({
       credentials: true,
@@ -59,17 +60,6 @@ const app = new Elysia()
       { user: requestId, tag: "Ely" },
     );
   })
-  .guard(
-    {
-      beforeHandle: async ({ request, status }) => {
-        const url = new URL(request.url);
-        console.log(url);
-        if (url.hostname !== "localhost" || env.NODE_ENV !== "development")
-          return status(404);
-      },
-    },
-    (app) => app.use(openapi()),
-  )
   // api routes
   .use(test)
   .get("/test", ({ test }) => test ?? "N/A")
@@ -103,7 +93,7 @@ const scheduler = new ToadScheduler();
 
 async function start() {
   // await init_redis(server);
-  await init_bot();
+  // await init_bot();
 
   app.listen(env.SCHED_PORT, () => {
     log.info("Elysia server started", { tag: "Ely", user: 0 });

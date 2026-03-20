@@ -5,7 +5,7 @@ import log from "@/logger";
 import { detectImageMimeType } from "@ssau-schedule/shared/utils";
 import { relayImageByFile } from "@/lib/telegramRelay";
 import type { Context } from "./types";
-import { db } from "@/db";
+import { api } from "@/serverClient";
 
 export type ScheduleUploadMode = "file" | "url" | "relay";
 
@@ -199,10 +199,7 @@ export async function uploadScheduleImage(
   });
   if (opts.dontSaveToDb) return res;
 
-  await db.weekImage.update({
-    where: { id: image.id },
-    data: { tgId: res.fileId },
-  });
+  await api.misc.uploadedImage({ id: image.id }).post(res.fileId);
 
   return res;
 }

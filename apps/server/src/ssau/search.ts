@@ -109,10 +109,10 @@ export async function findGroupOrOptions(
     | { groupName: string }
     | { groupId: number }
   ),
-) {
+): Promise<Omit<GroupTeacherSearchResponse, "type">[]> {
   if (inp.groupId) {
     const group = await db.group.findUnique({ where: { id: inp.groupId } });
-    if (group) return group;
+    if (group) return [group];
   }
   if (inp.groupName) {
     const name = inp.groupName.trim();
@@ -121,15 +121,15 @@ export async function findGroupOrOptions(
       const existingGroup = await db.group.findFirst({
         where: { name: { startsWith: name } },
       });
-      if (existingGroup) return existingGroup;
+      if (existingGroup) return [existingGroup];
     } else {
       const existingGroup = await db.group.findFirst({
         where: { name: name },
       });
-      if (existingGroup) return existingGroup;
+      if (existingGroup) return [existingGroup];
     }
     const possibleGroups = await findGroupsOrTeachersInSsau(name);
     return possibleGroups;
   }
-  return null;
+  return [];
 }

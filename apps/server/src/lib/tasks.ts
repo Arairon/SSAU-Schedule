@@ -1,25 +1,24 @@
 import { InputFile, type MessageEntity } from "grammy/types";
 import { AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "@/db";
-import { bot } from "@/bot/bot";
+import { bot } from "@/bot";
 import log from "@/logger";
 import { uploadScheduleImage } from "@/bot/imageUploading";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
+import { scheduleMessage } from "./misc";
 import {
   formatTimetableDiff,
-  getUserPreferences,
   generateTextLesson,
-  scheduleMessage,
-} from "./misc";
-import { DayString } from "@ssau-schedule/shared/utils";
+} from "@ssau-schedule/shared/misc";
+import { DayString, getUserPreferences } from "@ssau-schedule/shared/utils";
 import type { User } from "@/generated/prisma/client";
 import { lk } from "../ssau/lk";
 import type {
   TimetableDiff,
   TimetableLesson,
-} from "@/schedule/types/timetable";
+} from "@ssau-schedule/shared/timetable";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
 
 function sleep(ms: number) {

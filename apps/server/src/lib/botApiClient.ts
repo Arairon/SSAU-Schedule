@@ -9,4 +9,4 @@ const app = treaty<ScheduleTelegramBotApp>(env.SCHED_BOT_DISPATCH_URL, {
   },
 });
 
-export const serverApi = app;
+export const botApi = app;

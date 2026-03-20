@@ -11,7 +11,7 @@ import log from "@/logger";
 import { db } from "@/db";
 import { getLessonDate } from "@ssau-schedule/shared/date";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
-import type { TimetableLesson } from "./types/timetable";
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
 
 export const CustomizationDataSchema = s.object({
   id: s.number(),

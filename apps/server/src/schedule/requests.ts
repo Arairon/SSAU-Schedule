@@ -10,9 +10,10 @@ import {
   getTimetableHash,
   getTimetablesDiff,
 } from "./timetable";
-import { getUserPreferences, type RequestStateUpdate } from "@/lib/misc";
+import { type RequestStateUpdate } from "@/lib/misc";
+import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { db } from "@/db";
-import type { Timetable, TimetableDiff } from "./types/timetable";
+import type { Timetable, TimetableDiff } from "@ssau-schedule/shared/timetable";
 import { generateTimetableImage } from "./image";
 
 type TimetableWeekLike = {

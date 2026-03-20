@@ -1,20 +1,22 @@
 import { InlineKeyboard, type Bot } from "grammy";
 import { type Context } from "./types";
-import { db } from "@/db";
 import { CommandGroup } from "@grammyjs/commands";
 import { env } from "@/env";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import log from "@/logger";
-import { getUserIcsByUserId } from "@/schedule/ics";
-import { lk } from "@/ssau/lk";
 import { getDefaultSession } from ".";
+import { api } from "@/serverClient";
 
 async function reset(_ctx: Context, userId: number) {
-  await db.user.delete({ where: { tgId: userId } });
+  const user = await api.user
+    .tgid({ id: userId })
+    .get()
+    .then((res) => res.data);
+  if (user) await api.user.id({ id: user.id }).delete();
 }
 
-async function start(ctx: Context, userId: number) {
-  await db.user.create({ data: { tgId: userId } });
+async function start(ctx: Context, userId: number | bigint) {
+  await api.user.new.post({ tgId: userId as unknown as bigint });
   Object.assign(ctx.session, getDefaultSession());
   await ctx.reply(
     `\
@@ -48,15 +50,22 @@ export async function initAccount(bot: Bot<Context>) {
         parse_mode: "HTML",
       });
     }
-    const existingUser = await db.user.findUnique({
-      where: { tgId: userId },
-    });
+    const existingUser = await api.user
+      .tgid({ id: userId })
+      .get()
+      .then((res) => res.data);
     if (!existingUser) {
-      return start(ctx, userId);
+      return start(ctx, userId as unknown as bigint);
     } else {
       return ctx.reply(
         `\
 Вы уверены что хотите сбросить все настройки?
+Если вы хотите поменять настройки - используйте /options
+${
+  existingUser.authCookie
+    ? "Если вы хотите просто выйти из аккаунта - используйте /logout"
+    : "Если вы хотите войти в личный кабинет - используйте /login"
+}
 Будет сброшено всё: Календари, настроки, данные для входа, группы и т.п.
         `,
         {
@@ -98,7 +107,10 @@ export async function initAccount(bot: Bot<Context>) {
   commands.command("login", "Вход в личный кабинет", async (ctx) => {
     if (!ctx.from) return;
     if (ctx.chat.type !== "private") return;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (user) {
       ctx.session.loggedIn = true;
       if (user.username && user.password) {
@@ -128,14 +140,17 @@ export async function initAccount(bot: Bot<Context>) {
         parse_mode: "HTML",
       });
     }
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(
         "Вас не существует в базе данных. Пожалуйста пропишите /start",
       );
     }
     const hadCredentials = user.username && user.password;
-    await lk.resetAuth(user, { resetCredentials: true });
+    await api.user.id({ id: user.id }).lk.clearCredentials.post();
     return ctx.reply(
       `
 Сессия завершена. ${hadCredentials ? "Данные для входа удалены." : ""}
@@ -153,13 +168,19 @@ export async function initAccount(bot: Bot<Context>) {
         parse_mode: "HTML",
       });
     }
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(
         "Вас не существует в базе данных. Пожалуйста пропишите /start",
       );
     }
-    const cal = await getUserIcsByUserId(user.id);
+    const cal = await api.user
+      .id({ id: user.id })
+      .ics.get()
+      .then((res) => res.data);
     if (!cal) {
       return ctx.reply(
         `Произошла ошибка при попытке создать календарь.\nПожалуйста попробуйте позже или свяжитесь с администратором бота`,
@@ -185,7 +206,10 @@ https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
         parse_mode: "HTML",
       });
     }
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user)
       return ctx.reply(
         `\
