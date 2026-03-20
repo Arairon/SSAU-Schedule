@@ -36,6 +36,13 @@ export const env = createEnv({
       .min(64, "The JWT secret must be at least 64 characters long"), // Also used as cookie secret
     SCHED_BOT_PROXY_URL: z.url().optional(),
     SCHED_BOT_PROXY_TYPE: z.enum(["socks", "https"]).optional(),
+    SCHED_BOT_USE_WEBHOOK: z
+      .string()
+      .transform((val) => ["true", "1"].includes(val.trim().toLowerCase()))
+      .default(false),
+    SCHED_BOT_WEBHOOK_PATH: z.string().default("/api/bot/webhook"),
+    SCHED_BOT_WEBHOOK_URL: z.url().optional(),
+    SCHED_BOT_WEBHOOK_SECRET: z.string().optional(),
     SCHED_PORT: z.coerce.number().int().default(3000),
     SCHED_HOST: z.string().default("0.0.0.0"),
     CHROME_PATH: z.string().optional(),
@@ -98,4 +105,8 @@ if (env.SCHED_BOT_PROXY_TYPE && !env.SCHED_BOT_PROXY_URL) {
   throw new Error(
     "SCHED_BOT_PROXY_URL is required when SCHED_BOT_PROXY_TYPE is set",
   );
+}
+
+if (env.SCHED_BOT_USE_WEBHOOK && !env.SCHED_BOT_WEBHOOK_PATH.startsWith("/")) {
+  throw new Error("SCHED_BOT_WEBHOOK_PATH must start with '/'");
 }

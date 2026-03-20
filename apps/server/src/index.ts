@@ -73,11 +73,13 @@ async function start() {
   });
 
   process.once("SIGINT", () => {
+    log.info("Received SIGINT, shutting down...");
     void server.close();
     void server.botHandle.stop();
   });
 
   process.once("SIGTERM", () => {
+    log.info("Received SIGTERM, shutting down...");
     void server.close();
     void server.botHandle.stop();
   });
