@@ -147,6 +147,7 @@ export async function dailyWeekUpdate() {
     where: {
       groupId: { not: null },
     },
+    orderBy: { id: "asc" },
   });
   log.info(`Running week update for ${users.length} users`, {
     user: "dailyWeekUpdate",

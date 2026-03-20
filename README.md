@@ -87,6 +87,9 @@ SCHED_DATABASE_URL=postgresql://pg:pg@db/ssausched # URL базы данных
 SCHED_CREDENTIALS_KEY= #Длинная, случайная строка. 64 или более символов. Используется для шифрования паролей
 
 #Необязательные поля
+SCHED_BOT_PROXY_URL= # socks5://127.0.0.1:1080 или http://127.0.0.1:8080
+SCHED_BOT_PROXY_TYPE= # socks|https. Если не указано, определяется по URL
+
 SCHED_PORT=3000 # Порт внутри контейнера. Можно не менять
 LOG_LEVEL=info # Уровень логов. debug, info, warn, error
 FASTIFY_LOG_LEVEL=error # Уровень логов Fastify. debug, info, warn, error

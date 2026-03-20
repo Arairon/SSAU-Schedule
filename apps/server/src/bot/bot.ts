@@ -3,6 +3,8 @@ import fp from "fastify-plugin";
 import { Bot as GrammyBot, session } from "grammy";
 import { run, type RunnerHandle } from "@grammyjs/runner";
 import { conversations } from "@grammyjs/conversations";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import { SocksProxyAgent } from "socks-proxy-agent";
 
 import { env } from "@/env";
 import { type Context, type Session } from "./types";
@@ -17,6 +19,62 @@ import { initGroupChange } from "./conversations/groupChange";
 import { initOnboarding } from "./conversations/onboarding";
 import { accountCommands, initAccount } from "./account";
 import { type BotCommand } from "grammy/types";
+
+function resolveProxyKind(proxyUrl: URL): "socks" | "https" {
+  const protocol = proxyUrl.protocol.replace(":", "").toLowerCase();
+  const configuredType = env.SCHED_BOT_PROXY_TYPE;
+
+  if (configuredType === "socks") {
+    if (!protocol.startsWith("socks")) {
+      throw new Error(
+        "SCHED_BOT_PROXY_TYPE=socks requires a socks:// proxy URL",
+      );
+    }
+    return "socks";
+  }
+
+  if (configuredType === "https") {
+    if (!["http", "https"].includes(protocol)) {
+      throw new Error(
+        "SCHED_BOT_PROXY_TYPE=https requires a http:// or https:// proxy URL",
+      );
+    }
+    return "https";
+  }
+
+  if (protocol.startsWith("socks")) return "socks";
+  if (["http", "https"].includes(protocol)) return "https";
+
+  throw new Error(
+    `Unsupported SCHED_BOT_PROXY_URL protocol: ${proxyUrl.protocol}`,
+  );
+}
+
+function createBot(): GrammyBot<Context> {
+  if (!env.SCHED_BOT_PROXY_URL) {
+    return new GrammyBot<Context>(env.SCHED_BOT_TOKEN);
+  }
+
+  const proxyUrl = new URL(env.SCHED_BOT_PROXY_URL);
+  const proxyKind = resolveProxyKind(proxyUrl);
+  const proxyAgent =
+    proxyKind === "socks"
+      ? new SocksProxyAgent(proxyUrl)
+      : new HttpsProxyAgent(proxyUrl);
+
+  log.info(`Telegram API proxy enabled (${proxyUrl})`, {
+    user: "sys",
+  });
+
+  return new GrammyBot<Context>(env.SCHED_BOT_TOKEN, {
+    client: {
+      baseFetchConfig: {
+        agent: proxyAgent,
+        compress: true,
+      },
+    },
+  });
+}
 
 export function getDefaultSession(): Session {
   return {
@@ -136,15 +194,19 @@ async function initBot(bot: GrammyBot<Context>) {
       });
     }
   }
-  void bot.api.setMyCommands(
-    [
-      { command: "options", description: "Настройки" },
-      { command: "schedule", description: "Расписание" },
-    ],
-    { scope: { type: "all_group_chats" } },
-  );
-  void bot.api.setMyCommands(publicCommands, {
-    scope: { type: "all_private_chats" },
+  void Promise.all([
+    bot.api.setMyCommands(
+      [
+        { command: "options", description: "Настройки" },
+        { command: "schedule", description: "Расписание" },
+      ],
+      { scope: { type: "all_group_chats" } },
+    ),
+    bot.api.setMyCommands(publicCommands, {
+      scope: { type: "all_private_chats" },
+    }),
+  ]).then(() => {
+    log.info("Bot commands set", { user: "sys" });
   });
   // Too lazy to use proper groups. Unsure how to separate them and where to switch the user between them
 
@@ -163,7 +225,7 @@ async function initBot(bot: GrammyBot<Context>) {
   // });
 }
 
-export const bot = new GrammyBot<Context>(env.SCHED_BOT_TOKEN);
+export const bot = createBot();
 
 async function init(fastify: FastifyInstance) {
   const TOKEN = env.SCHED_BOT_TOKEN;
