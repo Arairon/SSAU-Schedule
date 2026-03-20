@@ -1,161 +1,97 @@
+import Elysia from "elysia";
+import z from "zod";
+
 import { db } from "@/db";
-
-import type { internalContract } from "@ssau-schedule/contracts/internal";
-import type { RouterImplementation } from "@ts-rest/fastify";
-
-import { getUserPreferences } from "@/lib/misc";
 import type { User } from "@/generated/prisma/client";
-import { lk } from "@/ssau/lk";
+import { UserPreferencesSchema } from "@/lib/misc";
 
 function redactUser(user: User) {
   return {
     ...user,
     tgId: user.tgId.toString(),
+    password: user.password ? "redacted" : null,
     authCookie: !!user.authCookie,
-    password: "********",
-    preferences: getUserPreferences(user),
   };
 }
 
-export const userRoutes: RouterImplementation<
-  (typeof internalContract)["user"]
-> = {
-  getUser: async ({ params }) => {
-    const user = await db.user.findUnique({
-      where: { id: params.id },
-    });
+export const UserUpdateRequestSchema = z.object({
+  groupId: z.number().nullable(),
+  preferences: UserPreferencesSchema,
+  subgroup: z.number().nullable(),
+});
 
-    if (!user) {
-      return {
-        status: 404,
-        body: "User not found",
-      };
-    }
-
-    user.preferences = getUserPreferences(user);
-
-    return {
-      status: 200,
-      body: redactUser(user),
-    };
-  },
-
-  getUserByTgId: async ({ params }) => {
-    const user = await db.user.findUnique({
-      where: { tgId: params.id },
-    });
-
-    if (!user) {
-      return {
-        status: 404,
-        body: "User not found",
-      };
-    }
-
-    user.preferences = getUserPreferences(user);
-
-    return {
-      status: 200,
-      body: redactUser(user),
-    };
-  },
-
-  deleteUser: async ({ params }) => {
-    const user = await db.user.findUnique({
-      where: { id: params.id },
-    });
-
-    if (!user) {
-      return {
-        status: 404,
-        body: "User not found",
-      };
-    }
-
-    await db.user.delete({
-      where: { id: params.id },
-    });
-
-    return {
-      status: 200,
-      body: "User deleted",
-    };
-  },
-
-  updateUser: async ({ params, body }) => {
-    const user = await db.user.findUnique({
-      where: { id: params.id },
-    });
-
-    if (!user) {
-      return {
-        status: 404,
-        body: "User not found",
-      };
-    }
-
-    const updatedUser = await db.user.update({
-      where: { id: params.id },
-      data: {
-        groupId: body.groupId ?? undefined,
-        preferences: body.preferences ?? undefined,
-        subgroup: body.subgroup ?? undefined,
-        lastActive: body.lastActive ?? undefined,
-      },
-    });
-
-    return {
-      status: 200,
-      body: redactUser(updatedUser),
-    };
-  },
-
-  lk: {
-    login: async ({ params, body }) => {
+export const app = new Elysia()
+  .get(
+    "/id/:id",
+    async ({ params, status }) => {
       const user = await db.user.findUnique({
         where: { id: params.id },
       });
+      if (!user) return status(404, "User not found");
 
-      if (!user) {
-        return {
-          status: 404,
-          body: "User not found",
-        };
-      }
-
-      const res = await lk.login(user, body);
-
-      if (res.ok) {
-        return {
-          status: 200,
-          body: redactUser(res.data),
-        };
-      } else {
-        return {
-          status: 401,
-          body: res.error,
-        };
-      }
+      return redactUser(user);
     },
+    {
+      params: z.object({
+        id: z.coerce.number().int(),
+      }),
+    },
+  )
+  .get(
+    "/tgid/:id",
+    async ({ params, status }) => {
+      const user = await db.user.findUnique({
+        where: { tgId: params.id },
+      });
+      if (!user) return status(404, "User not found");
 
-    logout: async ({ params }) => {
+      return redactUser(user);
+    },
+    {
+      params: z.object({
+        id: z.coerce.bigint(),
+      }),
+    },
+  )
+  .patch(
+    "/id/:id",
+    async ({ params, body, status }) => {
       const user = await db.user.findUnique({
         where: { id: params.id },
       });
+      if (!user) return status(404, "User not found");
 
-      if (!user) {
-        return {
-          status: 404,
-          body: "User not found",
-        };
-      }
+      const updatedUser = await db.user.update({
+        where: { id: user.id },
+        data: body,
+      });
 
-      await lk.resetAuth(user);
-
-      return {
-        status: 200,
-        body: "User logged out",
-      };
+      return redactUser(updatedUser);
     },
-  },
-};
+    {
+      params: z.object({
+        id: z.coerce.number().int(),
+      }),
+      body: UserUpdateRequestSchema.partial(),
+    },
+  )
+  .delete(
+    "/id/:id",
+    async ({ params, status }) => {
+      const user = await db.user.findUnique({
+        where: { id: params.id },
+      });
+      if (!user) return status(404, "User not found");
+
+      await db.user.delete({
+        where: { id: user.id },
+      });
+
+      return "User deleted";
+    },
+    {
+      params: z.object({
+        id: z.coerce.number().int(),
+      }),
+    },
+  );

@@ -5,11 +5,20 @@ import { env } from "./env";
 const f = format.combine(
   format.colorize(),
   format.timestamp(),
-  format.align(),
+  // format.align(),
   format.printf((info) => {
-    if (typeof info.user === "number" || typeof info.user === "bigint")
-      return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${info.user.toString().padStart(12, " ")}]: ${info.message as string}`;
-    return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${(info.user as string) ?? "unk"}]: ${info.message as string}`;
+    if (info.user !== undefined) {
+      const user = (info.user as string | number | bigint).toString();
+      const tag = info.tag as string;
+      const extraSpace = tag && user ? " " : "";
+      return `\
+${info.timestamp as string} | \
+${info.level.padEnd(16, " ")} \
+[${tag}${extraSpace}${user.padStart(12 - (tag.length ? tag.length + 1 : 0), " ")}]: \
+${info.message as string}\
+`;
+    }
+    return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${(info.tag as string) || "unk"}]: ${info.message as string}`;
   }),
 );
 
@@ -26,7 +35,7 @@ const rotatingLogFile = new winston.transports.DailyRotateFile({
 const log = winston.createLogger({
   level: env.LOG_LEVEL.toLowerCase(),
   format: f,
-  defaultMeta: { user: "sys" },
+  defaultMeta: { user: "", tag: "" },
   transports: [new winston.transports.Console(), rotatingLogFile],
 });
 

@@ -1,3 +1,4 @@
+import z from "zod";
 import { type Lesson, LessonType, type User } from "@/generated/prisma/client";
 import type { MessageEntity } from "grammy/types";
 import { db } from "@/db";
@@ -12,16 +13,18 @@ import type {
   TimetableLesson,
 } from "@/schedule/types/timetable";
 
-export type UserPreferences = {
-  theme: string;
-  showIet: boolean;
-  showMilitary: boolean;
-  notifyBeforeLessons: number;
-  notifyAboutNextLesson: boolean;
-  notifyAboutNextDay: boolean;
-  notifyAboutNextWeek: boolean;
-  trustedLessonCustomizers: number[]; // User IDs whose shared custom lessons this user wants to see
-};
+export const UserPreferencesSchema = z.object({
+  theme: z.string().default("default"),
+  showIet: z.boolean().default(true),
+  showMilitary: z.boolean().default(true),
+  notifyBeforeLessons: z.number().default(0),
+  notifyAboutNextLesson: z.boolean().default(false),
+  notifyAboutNextDay: z.boolean().default(false),
+  notifyAboutNextWeek: z.boolean().default(false),
+  trustedLessonCustomizers: z.number().array().default([]),
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
 export const UserPreferencesDefaults: UserPreferences = {
   theme: "neon",

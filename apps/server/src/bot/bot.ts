@@ -1,7 +1,5 @@
-import type { FastifyInstance } from "fastify";
-import fp from "fastify-plugin";
-import { Bot as GrammyBot, session, webhookCallback } from "grammy";
-import { run, type RunnerHandle } from "@grammyjs/runner";
+import { Bot as GrammyBot, session } from "grammy";
+import { run } from "@grammyjs/runner";
 import { conversations } from "@grammyjs/conversations";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -20,18 +18,10 @@ import { initOnboarding } from "./conversations/onboarding";
 import { accountCommands, initAccount } from "./account";
 import { type BotCommand } from "grammy/types";
 
-type BotHandle = {
-  stop: () => void | Promise<void>;
-};
-
-function getWebhookPath(): string {
-  return env.SCHED_BOT_WEBHOOK_PATH;
-}
-
-function getWebhookUrl(path: string): string {
-  if (env.SCHED_BOT_WEBHOOK_URL) return env.SCHED_BOT_WEBHOOK_URL;
-  return `https://${env.SCHED_BOT_DOMAIN}${path}`;
-}
+// function getWebhookUrl(path: string): string {
+//   if (env.SCHED_BOT_WEBHOOK_URL) return env.SCHED_BOT_WEBHOOK_URL;
+//   return `https://${env.SCHED_BOT_DOMAIN}${path}`;
+// }
 
 function resolveProxyKind(proxyUrl: URL): "socks" | "https" {
   const protocol = proxyUrl.protocol.replace(":", "").toLowerCase();
@@ -240,80 +230,107 @@ async function initBot(bot: GrammyBot<Context>) {
 
 export const bot = createBot();
 
-async function init(fastify: FastifyInstance) {
-  const TOKEN = env.SCHED_BOT_TOKEN;
+async function init() {
+  log.debug("Registering bot..", { tag: "init", user: "bot" });
 
-  await fastify.register(
-    fp<{ token: string }>(
-      async (fastify) => {
-        log.debug("Registering bot..");
+  await initBot(bot);
 
-        await initBot(bot);
+  if (env.SCHED_BOT_USE_WEBHOOK) {
+    throw new Error("Webhook mode is not yet supported.");
+  } else {
+    await bot.api.deleteWebhook();
 
-        let handle: BotHandle;
-        if (env.SCHED_BOT_USE_WEBHOOK) {
-          const webhookPath = getWebhookPath();
-          const webhookUrl = getWebhookUrl(webhookPath);
-          const webhookHandler = webhookCallback(bot, "fastify", {
-            onTimeout: "return",
-            timeoutMilliseconds: 9000,
-            secretToken: env.SCHED_BOT_WEBHOOK_SECRET,
-          });
+    const runnerHandle = run(bot);
 
-          fastify.post(webhookPath, async (request, reply) => {
-            log.debug("Received webhook update");
-            await webhookHandler(request, reply);
-            log.debug("Handled webhook update");
-          });
+    log.info("Bot started in long-polling mode", { tag: "init", user: "bot" });
 
-          await bot.api.setWebhook(
-            webhookUrl,
-            env.SCHED_BOT_WEBHOOK_SECRET
-              ? { secret_token: env.SCHED_BOT_WEBHOOK_SECRET }
-              : undefined,
-          );
+    process.once("SIGINT", () => {
+      log.info("Received SIGINT, shutting down...");
+      void runnerHandle.stop();
+    });
 
-          await bot.init();
-
-          handle = {
-            stop: async () => {
-              await bot.api.deleteWebhook();
-            },
-          };
-
-          log.info(`Bot started in webhook mode: ${webhookUrl}`);
-        } else {
-          await bot.api.deleteWebhook();
-
-          const runnerHandle: RunnerHandle = run(bot);
-          handle = {
-            stop: () => runnerHandle.stop(),
-          };
-          log.info("Bot started in long-polling mode");
-        }
-
-        log.debug("Bot registered");
-
-        fastify.decorate("bot", bot);
-        fastify.decorate("botHandle", handle);
-      },
-      {
-        name: "arais-sched-bot",
-      },
-    ),
-    {
-      token: TOKEN,
-    },
-  );
-
-  return fastify;
-}
-
-declare module "fastify" {
-  interface FastifyInstance {
-    bot: GrammyBot<Context>;
-    botHandle: BotHandle;
+    process.once("SIGTERM", () => {
+      log.info("Received SIGTERM, shutting down...");
+      void runnerHandle.stop();
+    });
   }
+  log.debug("Bot registered", { tag: "init", user: "bot" });
 }
+
+// async function initFastify(fastify: FastifyInstance) {
+//   const TOKEN = env.SCHED_BOT_TOKEN;
+
+//   await fastify.register(
+//     fp<{ token: string }>(
+//       async (fastify) => {
+//         log.debug("Registering bot..");
+
+//         await initBot(bot);
+
+//         let handle: BotHandle;
+//         if (env.SCHED_BOT_USE_WEBHOOK) {
+//           const webhookPath = getWebhookPath();
+//           const webhookUrl = getWebhookUrl(webhookPath);
+//           const webhookHandler = webhookCallback(bot, "fastify", {
+//             onTimeout: "return",
+//             timeoutMilliseconds: 9000,
+//             secretToken: env.SCHED_BOT_WEBHOOK_SECRET,
+//           });
+
+//           fastify.post(webhookPath, async (request, reply) => {
+//             log.debug("Received webhook update");
+//             await webhookHandler(request, reply);
+//             log.debug("Handled webhook update");
+//           });
+
+//           await bot.api.setWebhook(
+//             webhookUrl,
+//             env.SCHED_BOT_WEBHOOK_SECRET
+//               ? { secret_token: env.SCHED_BOT_WEBHOOK_SECRET }
+//               : undefined,
+//           );
+
+//           await bot.init();
+
+//           handle = {
+//             stop: async () => {
+//               await bot.api.deleteWebhook();
+//             },
+//           };
+
+//           log.info(`Bot started in webhook mode: ${webhookUrl}`);
+//         } else {
+//           await bot.api.deleteWebhook();
+
+//           const runnerHandle: RunnerHandle = run(bot);
+//           handle = {
+//             stop: () => runnerHandle.stop(),
+//           };
+//           log.info("Bot started in long-polling mode");
+//         }
+
+//         log.debug("Bot registered");
+
+//         fastify.decorate("bot", bot);
+//         fastify.decorate("botHandle", handle);
+//       },
+//       {
+//         name: "arais-sched-bot",
+//       },
+//     ),
+//     {
+//       token: TOKEN,
+//     },
+//   );
+
+//   return fastify;
+// }
+
+// declare module "fastify" {
+//   interface FastifyInstance {
+//     bot: GrammyBot<Context>;
+//     botHandle: BotHandle;
+//   }
+// }
 
 export default init;
