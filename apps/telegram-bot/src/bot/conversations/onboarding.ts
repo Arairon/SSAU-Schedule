@@ -265,7 +265,8 @@ async function runLkLogin(
       await conversation.external(() =>
         api.user
           .id({ id: user.id })
-          .lk.saveCredentials.post({ username, password }),
+          .lk.saveCredentials.post({ username, password })
+          .then(() => null),
       );
       return { ok: true as const, savedCredentials: true as const };
     }

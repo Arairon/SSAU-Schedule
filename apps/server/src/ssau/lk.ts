@@ -129,7 +129,7 @@ async function getTokenUsingCredentials(
       Accept: "text/x-component",
       "Accept-Language": "en-US,en;q=0.9",
       "Accept-Encoding": "gzip, deflate, br, zstd",
-      "Next-Action": "44356a41b38ba4bc7eb4b2a1a18092edced4d6d4",
+      "Next-Action": "6057f1293257a9a97bc650654963f1e9c17c351853",
       "Next-Router-State-Tree":
         "%5B%22%22%2C%7B%22children%22%3A%5B%22account%22%2C%7B%22children%22%3A%5B%22login%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fapi%2Faccount%2Flogout%22%2C%22refresh%22%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
       Origin: "https://lk.ssau.ru",
