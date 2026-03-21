@@ -43,7 +43,7 @@ COPY packages/contracts ./packages/contracts
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_DISABLE_DEV_SHM_USAGE=true
 ENV CHROME_PATH=/usr/bin/chromium-browser
-ENV SCHED_DATABASE_URL=localhost
+ENV SCHED_SERVER_DATABASE_URL=localhost
 
 WORKDIR /app/apps/server
 RUN bun install;

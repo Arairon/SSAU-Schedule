@@ -208,9 +208,16 @@ async function initBot(bot: GrammyBot<Context>) {
     bot.api.setMyCommands(publicCommands, {
       scope: { type: "all_private_chats" },
     }),
-  ]).then(() => {
-    log.info("Bot commands set", { user: "sys" });
-  });
+  ])
+    .then(() => {
+      log.info("Bot commands set", { user: "init", tag: "Bot" });
+    })
+    .catch((err) => {
+      log.error(`Failed to set bot commands: ${JSON.stringify(err)}`, {
+        user: "init",
+        tag: "Bot",
+      });
+    });
   // Too lazy to use proper groups. Unsure how to separate them and where to switch the user between them
 
   bot.on("message:text", async (ctx) => {
