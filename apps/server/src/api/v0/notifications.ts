@@ -1,33 +1,24 @@
-import { type FastifyInstance } from "fastify";
 import { db } from "@/db";
-import { type AuthData } from "./auth";
+import type { WithAuth } from "./auth";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
 } from "@/lib/tasks";
-import { initServer } from "@ts-rest/fastify";
-import { notificationsContract } from "@ssau-schedule/contracts/v0/notifications";
+import Elysia from "elysia";
 
-const s = initServer();
+export const app = new Elysia<"/notifications", WithAuth>({
+  prefix: "/notifications",
+}).post("/reschedule", async ({ auth, status }) => {
+  if (!auth) {
+    return status(403, "Unauthorized");
+  }
 
-const router = s.router(notificationsContract, {
-  reschedule: async ({ request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
-    if (!auth) {
-      return { status: 403, body: "Unauthorized" };
-    }
+  const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+  const invResult = await invalidateDailyNotificationsForTarget(auth.tgId);
+  const updResult = await scheduleDailyNotificationsForUser(user);
 
-    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-    const invResult = await invalidateDailyNotificationsForTarget(auth.tgId);
-    const updResult = await scheduleDailyNotificationsForUser(user);
-
-    return {
-      status: 200,
-      body: { removed: invResult.count, added: updResult?.count ?? -1 },
-    };
-  },
+  return {
+    removed: invResult.count,
+    added: updResult?.count ?? -1,
+  };
 });
-
-export async function routesNotifications(fastify: FastifyInstance) {
-  s.registerRouter(notificationsContract, router, fastify);
-}

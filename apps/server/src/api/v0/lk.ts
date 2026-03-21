@@ -1,36 +1,30 @@
-import { type FastifyInstance } from "fastify";
 import { lk } from "@/ssau/lk";
 import { db } from "@/db";
-import { type AuthData } from "./auth";
-import { initServer } from "@ts-rest/fastify";
-import { lkContract } from "@ssau-schedule/contracts/v0/lk";
+import type { WithAuth } from "./auth";
+import Elysia from "elysia";
+import { LkLoginBodySchema } from "@ssau-schedule/contracts/v0/lk";
 
-const s = initServer();
-
-const router = s.router(lkContract, {
-  login: async ({ body, request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
+export const app = new Elysia<"/lk", WithAuth>({ prefix: "/lk" }).post(
+  "/login",
+  async ({ body, auth, status }) => {
     if (!auth) {
-      return { status: 403, body: "Unauthorized" };
+      return status(403, "Unauthorized");
     }
 
     const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
     const result = await lk.login(user, body);
+
     if (result.ok) {
       await lk.updateUserInfo(user);
-      return { status: 200, body: { success: true, error: null } };
+      return { success: true, error: null };
     }
 
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: `${result.error}: ${result.message}`,
-      },
-    };
+    return status(400, {
+      success: false,
+      error: `${result.error}: ${result.message}`,
+    });
   },
-});
-
-export async function routesLk(fastify: FastifyInstance) {
-  s.registerRouter(lkContract, router, fastify);
-}
+  {
+    body: LkLoginBodySchema,
+  },
+);

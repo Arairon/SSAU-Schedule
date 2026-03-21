@@ -7,7 +7,7 @@ const IV_LENGTH = 16;
 
 function getKey(salt: Buffer, key?: string) {
   return crypto.pbkdf2Sync(
-    key ?? env.SCHED_CREDENTIALS_KEY,
+    key ?? env.SCHED_SERVER_CREDENTIALS_KEY,
     salt,
     100000,
     KEY_LENGTH,

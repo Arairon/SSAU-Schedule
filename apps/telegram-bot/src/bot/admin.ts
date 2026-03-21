@@ -1,18 +1,20 @@
 import type { Bot } from "grammy";
 import { type Context } from "./types";
 import log from "@/logger";
-import { db } from "@/db";
 import { env } from "@/env";
-import {
-  dailyWeekUpdate,
-  invalidateDailyNotificationsForAll,
-  scheduleDailyNotificationsForAll,
-  uploadWeekImagesWithoutTgId,
-  type DbScheduledMessage,
-  type ScheduledMessage,
-} from "@/lib/tasks";
 import { CommandGroup } from "@grammyjs/commands";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
+import { api } from "@/serverClient";
+import type { MessageEntity } from "grammy/types";
+
+export type ScheduledMessage = {
+  chatId: string;
+  text: string;
+  entities?: MessageEntity[];
+  sendAt: Date;
+  source?: string;
+  image?: string; // base64
+};
 
 // Task for any testing that needs to happen
 async function taskTest() {
@@ -35,7 +37,7 @@ export async function initAdmin(bot: Bot<Context>) {
         const msg = await ctx.reply(
           "Запущено ежедневное обновление недель и постановка уведомлений в очередь",
         );
-        await dailyWeekUpdate();
+        await api.tasks.dailyWeekUpdate.post();
         await ctx.api.editMessageText(
           msg.chat.id,
           msg.message_id,
@@ -48,36 +50,52 @@ export async function initAdmin(bot: Bot<Context>) {
         return taskTest();
       }
       case "renotifs": {
-        const res = await invalidateDailyNotificationsForAll();
-        await ctx.reply(`Отменена отправка ${res.count} уведомлений`);
+        const res = await api.tasks.invalidateDailyNotificationsForAll
+          .post()
+          .then((res) => res.data);
+        await ctx.reply(`Отменена отправка ${res?.count} уведомлений`);
         // Fall through to 'notifs'
       }
       case "notifs": {
         const msg = await ctx.reply(
           "Запущена постановка уведомлений в очередь",
         );
-        const updResult = await scheduleDailyNotificationsForAll();
+        const updResult = await api.tasks.scheduleDailyNotificationsForAll
+          .post()
+          .then((res) => res.data);
         await ctx.api.editMessageText(
           msg.chat.id,
           msg.message_id,
-          `${updResult} Уведомлений поставлено в очередь.`,
+          `${updResult?.count} Уведомлений поставлено в очередь.`,
         );
         break;
       }
       case "preuploadimages": {
-        const imageCount = await db.weekImage.count({ where: { tgId: null } });
+        const imageCount = await api.tasks.unoploadedWeekImagesCount
+          .get()
+          .then((res) => res.data?.count ?? 0);
         if (imageCount === 0) {
           return ctx.reply("Нет изображений для загрузки");
         }
         const msg = await ctx.reply(
           `Запущена предзагрузка изображений расписаний. Всего: ${imageCount}`,
         );
-        const res = await uploadWeekImagesWithoutTgId();
-        await ctx.api.editMessageText(
-          msg.chat.id,
-          msg.message_id,
-          `Предзагрузка завершена. Всего: ${res.total}, загружено: ${res.uploaded}, ошибок: ${res.failed}, время: ${formatBigInt(res.totalWallMs)}мс (сумма по изображениям: ${formatBigInt(res.totalImageMs)}мс, среднее: ${formatBigInt(res.avgImageMs)}мс/изобр.)`,
-        );
+        const res = await api.tasks.uploadWeekImagesWithoutTgId
+          .post()
+          .then((res) => res.data);
+        if (!res) {
+          await ctx.api.editMessageText(
+            msg.chat.id,
+            msg.message_id,
+            `Сервер вернул некорректный ответ.`,
+          );
+        } else {
+          await ctx.api.editMessageText(
+            msg.chat.id,
+            msg.message_id,
+            `Предзагрузка завершена. Всего: ${res.total}, загружено: ${res.uploaded}, ошибок: ${res.failed}, время: ${formatBigInt(res.totalWallMs)}мс (сумма по изображениям: ${formatBigInt(res.totalImageMs)}мс, среднее: ${formatBigInt(res.avgImageMs)}мс/изобр.)`,
+          );
+        }
         break;
       }
       default: {
@@ -97,41 +115,26 @@ export async function initAdmin(bot: Bot<Context>) {
       const args = ctx.message.text.split(" ");
       args.shift();
       const arg = args[0]?.trim().toLowerCase();
-      const user = await db.user.findUnique({
-        where: { tgId: ctx.from.id },
-        include: { ics: true },
-      });
+      const user = await api.user
+        .tgid({ id: ctx.from.id })
+        .get()
+        .then((res) => res.data);
       if (!user)
         return ctx.reply(
           `Вас не существует в базе данных, пожалуйста пропишите /start`,
         );
       if (arg === "cache") {
-        const now = new Date();
         const target =
           ctx.from.id === env.SCHED_BOT_ADMIN_TGID && args.includes("all")
             ? undefined
             : user.id;
-        await db.week.updateMany({
-          where: { owner: target },
-          data: { cachedUntil: now },
-        });
+        await api.cache.week.invalidate.patch(
+          target ? { owner: target } : { all: true },
+        );
         if (target) {
-          await db.user.update({
-            where: { id: target },
-            data: {
-              lastActive: now,
-              ics: {
-                upsert: {
-                  create: { validUntil: now },
-                  update: { validUntil: now },
-                },
-              },
-            },
-          });
+          await api.cache["user-ics"].invalidate.patch({ userId: target });
         } else {
-          await db.userIcs.updateMany({
-            data: { validUntil: now },
-          });
+          await api.cache["user-ics"].invalidate.patch({ all: true });
         }
         log.debug(
           `Invalidated cached timetables, images and ics for #${target ?? "all"}`,
@@ -144,28 +147,28 @@ export async function initAdmin(bot: Bot<Context>) {
         if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
           return ctx.reply("Нет, спасибо.");
         if (args.includes("hard")) {
-          const result = await db.weekImage.deleteMany();
+          const result = await api.cache["week-image"].invalidate
+            .patch({ all: true, hard: true })
+            .then((res) => res.data);
           return ctx.reply(
-            `Сброшены все ${result.count} изображений. <i>Как жестоко...</i>`,
+            `Сброшены все ${result?.count} изображений. <i>Как жестоко...</i>`,
             { parse_mode: "HTML" },
           );
         } else {
-          const result = await db.weekImage.updateMany({
-            data: { validUntil: new Date() },
-          });
+          const result = await api.cache["week-image"].invalidate
+            .patch({ all: true, hard: false })
+            .then((res) => res.data);
           return ctx.reply(
-            `${result.count} изображений были отмечены невалидными`,
+            `${result?.count} изображений были отмечены невалидными`,
           );
         }
       } else if (arg === "notifs") {
         if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
           return ctx.reply("Нет, спасибо.");
-        const epoch = new Date(0);
-        const result = await db.scheduledMessage.updateMany({
-          where: { wasSentAt: null },
-          data: { wasSentAt: epoch },
-        });
-        return ctx.reply(`Отменена отправка ${result.count} сообщений`);
+        const result = await api.tasks.clearNotifications
+          .post()
+          .then((res) => res.data);
+        return ctx.reply(`Отменена отправка ${result?.count} сообщений`);
       }
 
       return ctx.reply("Опции: cache, images, notifs");
@@ -194,15 +197,14 @@ export async function initAdmin(bot: Bot<Context>) {
         return ctx.reply("Получено пустое сообщение. Отправка отменена");
       const entities = ctx.message.entities?.slice(1);
       entities?.map((e) => (e.offset -= ctx.message.text.length - text.length));
-      await db.scheduledMessage.createMany({
-        data: {
-          chatId: `${ctx.chat.id}`,
-          text,
-          entities: entities as object[],
-          sendAt: new Date(),
-          source: "broadcast",
-        },
-      });
+      const msg = {
+        chatId: `${ctx.chat.id}`,
+        text,
+        entities: entities as object[],
+        sendAt: new Date(),
+        source: "broadcast",
+      };
+      await api.tasks.scheduleMessages.post([msg]);
       const replyHeader = `1 Сообщение следующего содержания\n---\n`;
       entities?.map((e) => (e.offset += replyHeader.length));
       return ctx.reply(
@@ -223,7 +225,7 @@ export async function initAdmin(bot: Bot<Context>) {
         return ctx.reply("Получено пустое сообщение. Отправка отменена");
       const entities = ctx.message.entities?.slice(1);
       entities?.map((e) => (e.offset -= ctx.message.text.length - text.length));
-      const users = await db.user.findMany();
+      const users = await api.user.all.get().then((res) => res.data ?? []);
       const msgs: ScheduledMessage[] = [];
       const asap = new Date();
       for (const user of users) {
@@ -235,9 +237,15 @@ export async function initAdmin(bot: Bot<Context>) {
           source: "broadcast",
         });
       }
-      await db.scheduledMessage.createMany({
-        data: msgs as DbScheduledMessage[],
-      });
+      await api.tasks.scheduleMessages.post(
+        msgs as {
+          chatId: string;
+          text: string;
+          entities: object[];
+          sendAt: Date;
+          source: string;
+        }[],
+      );
       const replyHeader = `${msgs.length} Сообщений следующего содержания\n---\n`;
       entities?.map((e) => (e.offset += replyHeader.length));
       return ctx.reply(
@@ -252,10 +260,10 @@ export async function initAdmin(bot: Bot<Context>) {
     "Returns various info about user/bot",
     async (ctx) => {
       if (!ctx.from || !ctx.message) return;
-      const user = await db.user.findUnique({
-        where: { tgId: ctx.from.id },
-        include: { group: true },
-      });
+      const user = await api.user
+        .tgid({ id: ctx.from.id })
+        .get()
+        .then((res) => res.data);
       if (!user)
         return ctx.reply(
           `Вас не существует в базе данных, пожалуйста пропишите /start`,
@@ -263,53 +271,22 @@ export async function initAdmin(bot: Bot<Context>) {
       if (ctx.message.text.includes("admin")) {
         if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
           return ctx.reply("Вы не администратор");
-        const notifications = await db.scheduledMessage.groupBy({
-          by: ["source"],
-          where: { wasSentAt: null },
-          _count: {
-            _all: true,
-          },
-        });
-        const notificationsCount = notifications.reduce(
-          (a: number, b) => a + b._count._all,
+        const stats = await api.tasks.stats.get().then((res) => res.data);
+        if (!stats) {
+          return ctx.reply("Сервер вернул некорректный ответ.");
+        }
+        const notificationsCount = stats.notifications.reduce(
+          (a: number, b) => a + b.count,
           0,
         );
         return ctx.reply(`\
-Всего пользователей: ${await db.user.count()} (Активных за 30 дней: ${await db.user.count(
-          {
-            where: {
-              lastActive: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-              },
-            },
-          },
-        )})
-Всего авторизованных: ${await db.user.count({ where: { authCookie: { not: null } } })} (Активных за 30 дней: ${await db.user.count(
-          {
-            where: {
-              authCookie: { not: null },
-              lastActive: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-              },
-            },
-          },
-        )})
-Всего изображений: ${await db.weekImage.count()}
-Всего ICS: ${await db.userIcs.count()}
-Всего уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
+Всего пользователей: ${stats.usersCount} (Активных за 30 дней: ${stats.usersActiveInLastMonth})
+Всего авторизованных: ${stats.usersLoggedIn} (Активных за 30 дней: ${stats.usersLoggedInInLastMonth})
+Всего изображений: ${stats.weekImageCount} на ${stats.weekCount} недель
+Всего ICS: ${stats.userIcsCount} + ${stats.groupIcsCount}
+Всего уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${stats.notifications.map((i) => `${i.source}: ${i.count}`).join("\n  - ")}` : ""}
         `);
       }
-      const notifications = await db.scheduledMessage.groupBy({
-        by: ["source"],
-        where: { chatId: `${user.tgId}`, wasSentAt: null },
-        _count: {
-          _all: true,
-        },
-      });
-      const notificationsCount = notifications.reduce(
-        (a: number, b) => a + b._count._all,
-        0,
-      );
       return ctx.reply(`\
 Вы: ${user.fullname ?? "Неизвестный Пользователь"}
 Ваша группа: ${user.group?.name ?? "Отсутствует"} ${user.subgroup ? `(Подгруппа: ${user.subgroup})` : ""}
@@ -318,8 +295,8 @@ ${
     ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
     : `Вы не вошли в ЛК`
 }
-Уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
 `);
+      // Уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
     },
   );
 

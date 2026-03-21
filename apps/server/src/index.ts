@@ -1,85 +1,116 @@
-import fastify from "fastify";
-import fastifySchedule from "@fastify/schedule";
-import fastifyStatic from "@fastify/static";
-import cors from "@fastify/cors";
+import { Elysia } from "elysia";
+import { openapi } from "@elysiajs/openapi";
+import { cors } from "@elysiajs/cors";
 import { env } from "./env";
 import log from "./logger";
-// import init_redis from "./redis";
-import init_bot from "./bot/bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
-import { routesv0 } from "./api/v0/routes";
-import { routesDebug } from "./api/debug/routes";
 import path from "node:path";
+import { apiApp } from "./api";
+import { ToadScheduler } from "toad-scheduler";
+import { botApi } from "./lib/botApiClient";
 
-// TODO: Automatic notifications rescheduling
+//TODO: Elysia.cron
 
-const server = fastify({
-  logger:
-    env.NODE_ENV === "development"
-      ? {
-          transport: {
-            target: "pino-pretty",
-            options: {
-              ignore: "pid,hostname",
-            },
-          },
-          level: env.FASTIFY_LOG_LEVEL ?? env.LOG_LEVEL,
-        }
-      : {
-          level: env.FASTIFY_LOG_LEVEL ?? env.LOG_LEVEL,
-        },
-});
+const publicPath =
+  env.NODE_ENV === "development"
+    ? path.resolve("../client/dist")
+    : path.resolve("/app/public");
+
+const app = new Elysia()
+  .use(openapi())
+  .use(
+    cors({
+      credentials: true,
+    }),
+  )
+  .state("requestId", 0)
+  .derive(({ store }) => ({
+    requestTime: Date.now(),
+    requestId: store.requestId++,
+  }))
+  .onBeforeHandle(({ request, store: { requestId } }) => {
+    log.debug(`<- ${request.method} ${request.url}`, {
+      user: requestId,
+      tag: "Ely",
+    });
+  })
+  .onAfterResponse(async ({ request, requestTime, store: { requestId } }) => {
+    log.debug(
+      `-> ${request.method} ${request.url} – ${Date.now() - requestTime}ms`,
+      { user: requestId, tag: "Ely" },
+    );
+  })
+  // api routes
+  .use(apiApp)
+  // Static file serving
+  .get("/*", async ({ request, status }) => {
+    const url = new URL(request.url).pathname;
+    if (url.startsWith("/api"))
+      return new Response("Not Found", { status: 404 });
+
+    if (url === "/") {
+      const file = Bun.file(path.resolve(publicPath, "index.html"));
+      if (!(await file.exists())) {
+        return status(404);
+      }
+      return file;
+    }
+    const file = Bun.file(path.resolve(publicPath, url.slice(1)));
+    if (!(await file.exists())) {
+      return status(404);
+    }
+    return file;
+  });
+
+export type ScheduleServerApp = typeof app;
+
+console.log(`Started Elysia at ${app.server?.hostname}:${app.server?.port}`);
+
+const scheduler = new ToadScheduler();
 
 async function start() {
   // await init_redis(server);
-  await init_bot(server);
+  // await init_bot();
 
-  await server.register(cors, {
-    origin: env.SCHED_HOST,
-    credentials: true,
+  app.listen(env.SCHED_SERVER_PORT, () => {
+    log.info("Elysia server started", { tag: "Ely", user: 0 });
   });
 
-  server.register(routesv0, { prefix: "/api/v0" });
-  if (env.NODE_ENV === "development")
-    server.register(routesDebug, { prefix: "/api/debug" });
-
-  server.register(fastifyStatic, {
-    root:
-      env.NODE_ENV === "development"
-        ? path.resolve("../client/dist")
-        : path.resolve("/app/public"),
-  });
-
-  server.setNotFoundHandler((req, reply) => {
-    if (req.url.startsWith("/api")) {
-      return reply.code(404).send({ message: "Not Found" });
-    }
-    reply.sendFile("index.html");
-  });
-
-  server.register(fastifySchedule);
-
-  server.ready().then(() => {
-    for (const job of intervaljobs) server.scheduler.addIntervalJob(job);
-    for (const job of cronjobs) server.scheduler.addCronJob(job);
-  });
-
-  server.listen({ port: env.SCHED_PORT, host: env.SCHED_HOST }, (err, addr) => {
-    if (err) {
-      log.error(err);
-      process.exit(1);
-    }
-    log.info(`Server listening at ${addr}`);
-  });
-
-  process.once("SIGINT", () => {
-    void server.close();
-    void server.botHandle.stop();
-  });
-
-  process.once("SIGTERM", () => {
-    void server.close();
-    void server.botHandle.stop();
-  });
+  for (const job of intervaljobs) scheduler.addIntervalJob(job);
+  for (const job of cronjobs) scheduler.addCronJob(job);
 }
 void start();
+
+async function connectionCheck() {
+  let success = false;
+  while (!success) {
+    let e: Error | null = null;
+    await botApi.health
+      .get({
+        headers: {
+          "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
+        },
+      })
+      .then((res) => (success = res.data === "ok"))
+      .catch((err: Error) => {
+        e = err;
+      });
+
+    if (!success) {
+      log.warn(
+        "Unable to connect to bot server" + (e ? ": " + JSON.stringify(e) : ""),
+        {
+          user: "init",
+          tag: "Ely",
+        },
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  log.info("Successfully connected to bot server", {
+    user: "init",
+    tag: "Ely",
+  });
+}
+
+void connectionCheck();

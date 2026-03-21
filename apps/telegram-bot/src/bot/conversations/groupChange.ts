@@ -6,10 +6,8 @@ import {
 import { type Conversation, createConversation } from "@grammyjs/conversations";
 
 import type { Context } from "../types";
-import { db } from "@/db";
 import log from "@/logger";
-import { lk } from "@/ssau/lk";
-import { findGroupOrOptions } from "@/ssau/search";
+import { api } from "@/serverClient";
 
 const GROUP_CHANGE_CANCEL = "group_change_cancel";
 const GROUP_CHANGE_FROM_LK = "group_change_from_lk";
@@ -35,28 +33,29 @@ function getGroupsKeyboard(groups: { id: number; name: string }[]) {
   return keyboard;
 }
 
-async function changeUserGroupById(userId: number, groupId: number) {
-  const now = new Date();
-  const user = await db.user.update({
-    where: { id: userId },
-    data: {
+export async function changeUserGroupById(userId: number, groupId: number) {
+  const req = await api.user
+    .id({
+      id: userId,
+    })
+    .patch({
       groupId,
-      lastActive: now,
-      ics: {
-        upsert: {
-          create: { validUntil: now },
-          update: { validUntil: now },
-        },
-      },
-    },
-    include: { group: true },
-  });
-  await db.week.updateMany({
-    where: { owner: userId },
-    data: { cachedUntil: now },
-  });
-  log.info(`User group updated to ${user.group?.name} #${groupId}`, {
+    });
+
+  if (req.status !== 200 || !req.data) {
+    throw new Error(
+      `Failed to update user group: ${req.status || "Unknown error"}`,
+    );
+  }
+
+  const user = req.data;
+
+  await api.cache.week.invalidate.patch({ owner: userId });
+  await api.cache["user-ics"].invalidate.patch({ userId });
+
+  log.info(`User group updated to ${user?.groupId}`, {
     user: userId,
+    tag: "l",
   });
   return user;
 }
@@ -76,12 +75,14 @@ async function groupChangeConversation(
     });
   }
 
-  const user = await conversation.external(() =>
-    db.user.findUnique({ where: { tgId: tgUserId } }),
-  );
+  const user = await api.user
+    .tgid({ id: ctx.from.id })
+    .get()
+    .then((res) => res.data);
+
   if (!user) {
     return ctx.reply(
-      "Вас не существует в базе данных. Пожалуйста пропишите /start",
+      "Не удалось получить данные пользователя. Пожалуйста пропишите /start",
     );
   }
 
@@ -144,9 +145,11 @@ async function groupChangeConversation(
 
       const lkResult: GroupChangeResult = await conversation.external(
         async (): Promise<GroupChangeResult> => {
-          const actualUser = await db.user.findUnique({
-            where: { id: user.id },
-          });
+          const actualUser = await api.user
+            .id({ id: user.id })
+            .get()
+            .then((res) => res.data)
+            .catch(() => null);
           if (!actualUser) {
             return {
               ok: false,
@@ -155,11 +158,15 @@ async function groupChangeConversation(
             };
           }
 
-          const res = await lk.updateUserInfo(actualUser, {
-            overrideGroup: true,
-          });
-          const groupId = res.data?.groupId;
-          if (!res.ok) {
+          const res = await api.user
+            .id({ id: user.id })
+            .lk.updateInfo.post(undefined, {
+              query: {
+                overrideGroup: true,
+              },
+            });
+          const groupId = res.data?.user.groupId;
+          if (!res.data?.success) {
             return {
               ok: false,
               message:
@@ -252,9 +259,15 @@ async function groupChangeConversation(
       { reply_markup: getMainKeyboard(hasLkAccess) },
     );
 
-    const groups = await conversation.external(() =>
-      findGroupOrOptions({ groupName: messageText }),
+    const groupsRes = await conversation.external(() =>
+      api.ssau.findGroupOrOptions.get({
+        query: {
+          name: messageText,
+        },
+      }),
     );
+
+    const groups = groupsRes.data;
 
     if (!groups || (Array.isArray(groups) && groups.length === 0)) {
       selectableGroups = [];
@@ -265,17 +278,6 @@ async function groupChangeConversation(
         { reply_markup: getMainKeyboard(hasLkAccess) },
       );
       continue;
-    }
-
-    if (!Array.isArray(groups)) {
-      const updatedUser = await conversation.external(() =>
-        changeUserGroupById(user.id, groups.id),
-      );
-      return ctx.api.editMessageText(
-        msg.chat.id,
-        msg.message_id,
-        `Группа успешно изменена на '${updatedUser.group?.name ?? groups.name}'`,
-      );
     }
 
     if (groups.length === 1) {

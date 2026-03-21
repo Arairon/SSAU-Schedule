@@ -19,7 +19,7 @@ export default defineConfig({
       },
     },
   },
-  base: '/',
+  base: './',
   plugins: [
     devtools(),
     tanstackRouter({

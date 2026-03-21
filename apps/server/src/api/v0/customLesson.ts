@@ -1,4 +1,3 @@
-import { type FastifyInstance } from "fastify";
 import { db } from "@/db";
 import {
   addCustomLesson,
@@ -6,72 +5,71 @@ import {
   deleteCustomLesson,
   editCustomLesson,
 } from "@/schedule/customLesson";
-import { type AuthData } from "./auth";
-import { initServer } from "@ts-rest/fastify";
-import { customLessonContract } from "@ssau-schedule/contracts/v0/customLesson";
+import type { WithAuth } from "./auth";
+import Elysia from "elysia";
+import z from "zod";
 
-const s = initServer();
-
-const router = s.router(customLessonContract, {
-  add: async ({ body, request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
+export const app = new Elysia<"/customLesson", WithAuth>({
+  prefix: "/customLesson",
+})
+  .post("/", async ({ body, auth, status }) => {
     if (!auth) {
-      return { status: 403, body: "Unauthorized" };
+      return status(403, "Unauthorized");
     }
 
     const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
     const { data, error } = CustomizationDataSchemaPartial.omit("id")
       .strict()
       .safeParse(body);
+
     if (error || !data) {
-      return {
-        status: 400,
-        body: `${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`,
-      };
+      return status(
+        400,
+        `${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`,
+      );
     }
 
-    // TODO: Fail oon already existing lessonInfoId/lessonId
-    const result = await addCustomLesson(user, data);
-    return { status: 200, body: result };
-  },
+    // TODO: Fail on already existing lessonInfoId/lessonId
+    return await addCustomLesson(user, data);
+  })
+  .delete(
+    "/:lessonId",
+    async ({ params, auth, status }) => {
+      if (!auth) {
+        return status(403, "Unauthorized");
+      }
 
-  remove: async ({ params, request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
+      const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+      const id = params.lessonId;
+
+      if (
+        !(await db.customLesson.findUnique({ where: { id, userId: user.id } }))
+      ) {
+        return status(
+          404,
+          "CustomLesson with such id belonging to you not found",
+        );
+      }
+
+      return await deleteCustomLesson(user, id);
+    },
+    { params: z.object({ lessonId: z.coerce.number() }) },
+  )
+  .put("/", async ({ body, auth, status }) => {
     if (!auth) {
-      return { status: 403, body: "Unauthorized" };
-    }
-
-    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-    const id = Number(params.lessonId);
-
-    if (
-      !(await db.customLesson.findUnique({ where: { id, userId: user.id } }))
-    ) {
-      return {
-        status: 404,
-        body: "CustomLesson with such id belonging to you not found",
-      };
-    }
-
-    const result = await deleteCustomLesson(user, id);
-    return { status: 200, body: result };
-  },
-
-  edit: async ({ body, request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
-    if (!auth) {
-      return { status: 403, body: "Unauthorized" };
+      return status(403, "Unauthorized");
     }
 
     const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
     const { data, error } = CustomizationDataSchemaPartial.requiredFor("id")
       .strict()
       .safeParse(body);
+
     if (error || !data) {
-      return {
-        status: 400,
-        body: `${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`,
-      };
+      return status(
+        400,
+        `${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`,
+      );
     }
 
     if (
@@ -79,17 +77,11 @@ const router = s.router(customLessonContract, {
         where: { id: data.id, userId: user.id },
       }))
     ) {
-      return {
-        status: 404,
-        body: "CustomLesson with such id belonging to you not found",
-      };
+      return status(
+        404,
+        "CustomLesson with such id belonging to you not found",
+      );
     }
 
-    const result = await editCustomLesson(user, data);
-    return { status: 200, body: result };
-  },
-});
-
-export async function routesCustomLesson(fastify: FastifyInstance) {
-  s.registerRouter(customLessonContract, router, fastify);
-}
+    return await editCustomLesson(user, data);
+  });

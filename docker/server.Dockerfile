@@ -6,6 +6,7 @@ COPY package.json bun.lock ./
 COPY apps/client/package.json ./apps/client/package.json
 COPY apps/server/package.json ./apps/server/package.json
 COPY apps/telegram-relay/package.json ./apps/telegram-relay/package.json 
+COPY apps/telegram-bot/package.json ./apps/telegram-bot/package.json 
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 
@@ -35,13 +36,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
 COPY package.json bun.lock ./
 COPY apps/server ./apps/server
+COPY apps/telegram-bot ./apps/telegram-bot
 COPY packages/shared ./packages/shared
 COPY packages/contracts ./packages/contracts
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_DISABLE_DEV_SHM_USAGE=true
 ENV CHROME_PATH=/usr/bin/chromium-browser
-ENV SCHED_DATABASE_URL=localhost
+ENV SCHED_SERVER_DATABASE_URL=localhost
 
 WORKDIR /app/apps/server
 RUN bun install;

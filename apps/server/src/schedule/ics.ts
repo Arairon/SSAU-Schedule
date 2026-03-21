@@ -2,13 +2,13 @@ import * as ics from "ics";
 import { db } from "@/db";
 import log from "@/logger";
 import {
-  getUserPreferences,
   lessonToTimetableLesson,
   LessonTypeIcon,
   LessonTypeName,
-} from "../lib/misc";
+} from "@ssau-schedule/shared/misc";
 import { LessonType } from "@/generated/prisma/client";
 import { applyCustomization } from "./customLesson";
+import { getUserPreferences } from "@ssau-schedule/shared/utils";
 
 const ICS_CACHE_TTL_MS = 3600_000;
 

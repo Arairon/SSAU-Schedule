@@ -1,18 +1,11 @@
-import { InlineKeyboard, type Bot } from "grammy";
-import { CommandGroup } from "@grammyjs/commands";
-import { type Context } from "./types";
-import log from "@/logger";
-import { db } from "@/db";
-import { getUserPreferences } from "@/lib/misc";
-import { stylemaps, getStylemap } from "@ssau-schedule/shared/themes/index";
 import { env } from "@/env";
-import { getWeekFromDate } from "@ssau-schedule/shared/date";
-import { getPersonShortname } from "@ssau-schedule/shared/utils";
-import {
-  invalidateDailyNotificationsForTarget,
-  scheduleDailyNotificationsForUser,
-} from "@/lib/tasks";
-import { type User } from "@/generated/prisma/client";
+import log from "@/logger";
+import { CommandGroup } from "@grammyjs/commands";
+import { getStylemap, stylemaps } from "@ssau-schedule/shared/themes/index";
+import { getUserPreferences } from "@ssau-schedule/shared/utils";
+import { InlineKeyboard, type Bot } from "grammy";
+import { type Context } from "./types";
+import { api } from "@/serverClient";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -52,10 +45,10 @@ async function updateOptionsMsg(ctx: Context) {
     );
   }
   const msgId = ctx.session.options.message;
-  const user = await db.user.findUnique({
-    where: { tgId: ctx.from?.id ?? ctx.callbackQuery?.from.id },
-    include: { group: true },
-  });
+  const user = await api.user
+    .tgid({ id: ctx.from!.id })
+    .get()
+    .then((res) => res.data);
   if (!user) {
     return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
   }
@@ -195,52 +188,54 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
           .row(),
       });
     }
-    case "groupchat": {
-      const groupchat = await db.groupChat.findUnique({
-        where: { tgId: chat },
-        include: { group: true, user: true },
-      });
-      if (!groupchat) {
-        return ctx.api.editMessageText(chat, msgId, newText, {
-          reply_markup: new InlineKeyboard()
-            .text("Зарегистрировать чат", "options_groupchat_register")
-            .row()
-            .text("Закрыть", "options_groupchat_close"),
-        });
-      }
-      return ctx.api.editMessageText(chat, msgId, newText, {
-        reply_markup: new InlineKeyboard()
-          .text(
-            `Группа: ${groupchat.group?.name ?? "Отсутствует"}`,
-            "options_groupchat_changegroup",
-          )
-          .row()
-          .text(
-            `Админ: ${(groupchat.user?.fullname ? getPersonShortname(groupchat.user.fullname) : groupchat.user?.id) ?? "Отсутствует"}`,
-            "options_groupchat_changeowner",
-          )
-          .row()
-          .text("Отключить чат", "options_groupchat_deregister")
-          .row()
-          .text("Закрыть", "options_groupchat_close"),
-      });
-    }
-    case "groupchat_deregister": {
-      return ctx.api.editMessageText(chat, msgId, newText, {
-        reply_markup: new InlineKeyboard()
-          .text("Да, отключить", "options_groupchat_deregister_confirm")
-          .row()
-          .text("Назад", "options_groupchat_menu"),
-      });
-    }
-    case "groupchat_changeowner": {
-      return ctx.api.editMessageText(chat, msgId, newText, {
-        reply_markup: new InlineKeyboard()
-          .text("Перенять группу", "groupchat_changeowner_confirm")
-          .row()
-          .text("Назад", "options_groupchat_menu"),
-      });
-    }
+    // TODO: Reimplement group chats
+    // case "groupchat": {
+    //   const groupchat = await api.groupchat
+    //     .tgid({ id: chat })
+    //     .get()
+    //     .then((res) => res.data)
+    //     .catch(() => null);
+    //   if (!groupchat) {
+    //     return ctx.api.editMessageText(chat, msgId, newText, {
+    //       reply_markup: new InlineKeyboard()
+    //         .text("Зарегистрировать чат", "options_groupchat_register")
+    //         .row()
+    //         .text("Закрыть", "options_groupchat_close"),
+    //     });
+    //   }
+    //   return ctx.api.editMessageText(chat, msgId, newText, {
+    //     reply_markup: new InlineKeyboard()
+    //       .text(
+    //         `Группа: ${groupchat.group?.name ?? "Отсутствует"}`,
+    //         "options_groupchat_changegroup",
+    //       )
+    //       .row()
+    //       .text(
+    //         `Админ: ${(groupchat.user?.fullname ? getPersonShortname(groupchat.user.fullname) : groupchat.user?.id) ?? "Отсутствует"}`,
+    //         "options_groupchat_changeowner",
+    //       )
+    //       .row()
+    //       .text("Отключить чат", "options_groupchat_deregister")
+    //       .row()
+    //       .text("Закрыть", "options_groupchat_close"),
+    //   });
+    // }
+    // case "groupchat_deregister": {
+    //   return ctx.api.editMessageText(chat, msgId, newText, {
+    //     reply_markup: new InlineKeyboard()
+    //       .text("Да, отключить", "options_groupchat_deregister_confirm")
+    //       .row()
+    //       .text("Назад", "options_groupchat_menu"),
+    //   });
+    // }
+    // case "groupchat_changeowner": {
+    //   return ctx.api.editMessageText(chat, msgId, newText, {
+    //     reply_markup: new InlineKeyboard()
+    //       .text("Перенять группу", "groupchat_changeowner_confirm")
+    //       .row()
+    //       .text("Назад", "options_groupchat_menu"),
+    //   });
+    // }
     case "proxyaccess": {
       return ctx.api.editMessageText(chat, msgId, newText, {
         reply_markup: new InlineKeyboard()
@@ -274,7 +269,10 @@ export async function openSettings(ctx: Context, menu?: string) {
   return updateOptionsMsg(ctx);
 }
 
-function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
+function scheduleUserNotificationsUpdate(
+  ctx: Context,
+  user: { groupId: number; id: number },
+) {
   if (ctx.session.options.notificationsRescheduleTimeout) {
     clearTimeout(ctx.session.options.notificationsRescheduleTimeout);
   }
@@ -283,180 +281,179 @@ function scheduleUserNotificationsUpdate(ctx: Context, user: User) {
   if (!chat || !from || !user.groupId) return;
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   ctx.session.options.notificationsRescheduleTimeout = setTimeout(async () => {
-    const now = new Date();
-    const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0);
-    await invalidateDailyNotificationsForTarget(user.tgId.toString());
-    await scheduleDailyNotificationsForUser(user, weekNumber);
+    // const now = new Date();
+    // const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0);
+    await api.user.id({ id: user.id }).notifications.reschedule.post();
   }, 30_000);
 }
 
-async function initGroupchatOptions(bot: Bot<Context>) {
-  bot.callbackQuery("options_groupchat_register", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
-    const chat = ctx.chat;
-    if (!chat) return;
-    const existing = await db.groupChat.findUnique({
-      where: { tgId: chat.id },
-    });
-    if (existing) return ctx.answerCallbackQuery("Чат уже зарегистрирован");
-    const user = await db.user.findUnique({
-      where: { tgId: ctx.from.id },
-      include: { group: true },
-    });
-    await db.groupChat.create({
-      data: {
-        tgId: chat.id,
-        userId: user?.id ?? undefined,
-        groupId: user?.groupId ?? undefined,
-      },
-    });
+// async function initGroupchatOptions(bot: Bot<Context>) {
+//   bot.callbackQuery("options_groupchat_register", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
+//     const chat = ctx.chat;
+//     if (!chat) return;
+//     const existing = await db.groupChat.findUnique({
+//       where: { tgId: chat.id },
+//     });
+//     if (existing) return ctx.answerCallbackQuery("Чат уже зарегистрирован");
+//     const user = await db.user.findUnique({
+//       where: { tgId: ctx.from.id },
+//       include: { group: true },
+//     });
+//     await db.groupChat.create({
+//       data: {
+//         tgId: chat.id,
+//         userId: user?.id ?? undefined,
+//         groupId: user?.groupId ?? undefined,
+//       },
+//     });
 
-    ctx.session.options.updText = `Чат успешно зарегистрирован${user?.group ? ` с группой '${user.group.name}'` : ``}`;
-    ctx.session.options.menu = "groupchat";
-    return updateOptionsMsg(ctx);
-  });
+//     ctx.session.options.updText = `Чат успешно зарегистрирован${user?.group ? ` с группой '${user.group.name}'` : ``}`;
+//     ctx.session.options.menu = "groupchat";
+//     return updateOptionsMsg(ctx);
+//   });
 
-  bot.callbackQuery("options_groupchat_deregister", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
+//   bot.callbackQuery("options_groupchat_deregister", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
 
-    ctx.session.options.menu = "groupchat_deregister";
-    return updateOptionsMsg(ctx);
-  });
+//     ctx.session.options.menu = "groupchat_deregister";
+//     return updateOptionsMsg(ctx);
+//   });
 
-  bot.callbackQuery("options_groupchat_deregister_confirm", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
-    const chat = ctx.chat;
-    if (!chat) return;
-    const groupchat = await db.groupChat.findUnique({
-      where: { tgId: chat.id },
-    });
-    if (!groupchat) return ctx.answerCallbackQuery("Чат не зарегистрирован");
+//   bot.callbackQuery("options_groupchat_deregister_confirm", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
+//     const chat = ctx.chat;
+//     if (!chat) return;
+//     const groupchat = await db.groupChat.findUnique({
+//       where: { tgId: chat.id },
+//     });
+//     if (!groupchat) return ctx.answerCallbackQuery("Чат не зарегистрирован");
 
-    await db.groupChat.delete({ where: { id: groupchat.id } });
+//     await db.groupChat.delete({ where: { id: groupchat.id } });
 
-    ctx.session.options.updText = `Чат успешно отключен от бота`;
-    ctx.session.options.menu = "groupchat";
-    return updateOptionsMsg(ctx);
-  });
+//     ctx.session.options.updText = `Чат успешно отключен от бота`;
+//     ctx.session.options.menu = "groupchat";
+//     return updateOptionsMsg(ctx);
+//   });
 
-  bot.callbackQuery("options_groupchat_changegroup", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
+//   bot.callbackQuery("options_groupchat_changegroup", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
 
-    return ctx.answerCallbackQuery("На данный момент эта функция недоступна");
-  });
+//     return ctx.answerCallbackQuery("На данный момент эта функция недоступна");
+//   });
 
-  bot.callbackQuery("options_groupchat_changeowner", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
+//   bot.callbackQuery("options_groupchat_changeowner", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
 
-    ctx.session.options.menu = "groupchat_changeowner";
-    return updateOptionsMsg(ctx);
-  });
+//     ctx.session.options.menu = "groupchat_changeowner";
+//     return updateOptionsMsg(ctx);
+//   });
 
-  bot.callbackQuery("groupchat_changeowner_confirm", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
+//   bot.callbackQuery("groupchat_changeowner_confirm", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
 
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
-    if (!user)
-      return ctx.answerCallbackQuery(
-        "Вас нет в базе данных, пожалуйста пропишите /start в ЛС с ботом",
-      );
-    const chat = ctx.chat;
-    if (!chat) return;
-    const groupchat = await db.groupChat.findUnique({
-      where: { tgId: chat.id },
-    });
-    if (!groupchat) return ctx.answerCallbackQuery("Чат не зарегистрирован");
-    if (groupchat.userId === user.id)
-      return ctx.answerCallbackQuery(
-        "Вы уже являетесь администратором этого чата",
-      );
+//     const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+//     if (!user)
+//       return ctx.answerCallbackQuery(
+//         "Вас нет в базе данных, пожалуйста пропишите /start в ЛС с ботом",
+//       );
+//     const chat = ctx.chat;
+//     if (!chat) return;
+//     const groupchat = await db.groupChat.findUnique({
+//       where: { tgId: chat.id },
+//     });
+//     if (!groupchat) return ctx.answerCallbackQuery("Чат не зарегистрирован");
+//     if (groupchat.userId === user.id)
+//       return ctx.answerCallbackQuery(
+//         "Вы уже являетесь администратором этого чата",
+//       );
 
-    await db.groupChat.update({
-      where: { id: groupchat.id },
-      data: { userId: user.id },
-    });
+//     await db.groupChat.update({
+//       where: { id: groupchat.id },
+//       data: { userId: user.id },
+//     });
 
-    ctx.session.options.updText = `Вы успешно переняли админство расписания`;
-    ctx.session.options.menu = "groupchat";
-    return updateOptionsMsg(ctx);
-  });
+//     ctx.session.options.updText = `Вы успешно переняли админство расписания`;
+//     ctx.session.options.menu = "groupchat";
+//     return updateOptionsMsg(ctx);
+//   });
 
-  bot.callbackQuery("options_groupchat_menu", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
-    ctx.session.options.menu = "groupchat";
-    return updateOptionsMsg(ctx);
-  });
+//   bot.callbackQuery("options_groupchat_menu", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
+//     ctx.session.options.menu = "groupchat";
+//     return updateOptionsMsg(ctx);
+//   });
 
-  bot.callbackQuery("options_groupchat_close", async (ctx) => {
-    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
-      const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
-      if (member.status !== "administrator" && member.status !== "creator") {
-        return ctx.answerCallbackQuery(
-          "Только администраторы могут использовать эти настройки",
-        );
-      }
-    }
-    const target =
-      ctx.session.options.message || ctx.callbackQuery.message?.message_id;
-    try {
-      if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
-    } catch {
-      await ctx.reply(
-        `Произошла ошибка при попытке удалить сообщение. Сообщения отправленные ранее чем 48 часов назад не могут быть удалены ботом.`,
-      );
-    }
-    ctx.session.options.message = 0;
-  });
-}
+//   bot.callbackQuery("options_groupchat_close", async (ctx) => {
+//     if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) {
+//       const member = await ctx.api.getChatMember(ctx.chat!.id, ctx.from.id);
+//       if (member.status !== "administrator" && member.status !== "creator") {
+//         return ctx.answerCallbackQuery(
+//           "Только администраторы могут использовать эти настройки",
+//         );
+//       }
+//     }
+//     const target =
+//       ctx.session.options.message || ctx.callbackQuery.message?.message_id;
+//     try {
+//       if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
+//     } catch {
+//       await ctx.reply(
+//         `Произошла ошибка при попытке удалить сообщение. Сообщения отправленные ранее чем 48 часов назад не могут быть удалены ботом.`,
+//       );
+//     }
+//     ctx.session.options.message = 0;
+//   });
+// }
 
 export const optionsCommands = new CommandGroup<Context>();
 
@@ -494,7 +491,7 @@ export async function initOptions(bot: Bot<Context>) {
       return openSettings(ctx, "groupchat");
     });
 
-  await initGroupchatOptions(bot);
+  // await initGroupchatOptions(bot);
 
   bot.callbackQuery("options_themes", async (ctx) => {
     ctx.session.options.menu = "themes";
@@ -515,7 +512,10 @@ export async function initOptions(bot: Bot<Context>) {
       );
     }
     const theme = ctx.match[1];
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
@@ -526,10 +526,7 @@ export async function initOptions(bot: Bot<Context>) {
       return updateOptionsMsg(ctx);
     }
     preferences.theme = theme;
-    await db.user.update({
-      where: { id: user.id },
-      data: { preferences, lastActive: new Date() },
-    });
+    await api.user.id({ id: user.id }).patch({ preferences });
     ctx.session.options.updText = `Тема успешно изменена на "${stylemaps[theme].description}"`;
     ctx.session.options.menu = "";
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
@@ -572,7 +569,10 @@ export async function initOptions(bot: Bot<Context>) {
       );
     }
     const target = Number(rawtarget);
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
@@ -581,24 +581,10 @@ export async function initOptions(bot: Bot<Context>) {
       ctx.session.options.menu = "";
       return updateOptionsMsg(ctx);
     }
-    const now = new Date();
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        subgroup: target,
-        lastActive: now,
-        ics: {
-          upsert: {
-            create: { validUntil: now },
-            update: { validUntil: now },
-          },
-        },
-      },
+    await api.user.id({ id: user.id }).patch({
+      subgroup: target,
     });
-    await db.week.updateMany({
-      where: { owner: user.id },
-      data: { cachedUntil: now },
-    });
+    await api.cache["user-ics"].invalidate.patch({ userId: user.id });
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`;
@@ -609,30 +595,20 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_toggle_iet", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
     const preferences = getUserPreferences(user);
     preferences.showIet = !preferences.showIet;
-    const now = new Date();
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        preferences,
-        lastActive: now,
-        ics: {
-          upsert: {
-            create: { validUntil: now },
-            update: { validUntil: now },
-          },
-        },
-      },
+    await api.user.id({ id: user.id }).patch({
+      preferences,
     });
-    await db.week.updateMany({
-      where: { owner: user.id },
-      data: { cachedUntil: now },
-    });
+    await api.cache["user-ics"].invalidate.patch({ userId: user.id });
+    await api.cache.week.invalidate.patch({ owner: user.id });
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Отображение ИОТов ${preferences.showIet ? "включено" : "отключено"}`;
@@ -643,30 +619,21 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_toggle_military", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
     const preferences = getUserPreferences(user);
     preferences.showMilitary = !preferences.showMilitary;
-    const now = new Date();
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        preferences,
-        lastActive: now,
-        ics: {
-          upsert: {
-            create: { validUntil: now },
-            update: { validUntil: now },
-          },
-        },
-      },
+
+    await api.user.id({ id: user.id }).patch({
+      preferences,
     });
-    await db.week.updateMany({
-      where: { owner: user.id },
-      data: { cachedUntil: now },
-    });
+    await api.cache["user-ics"].invalidate.patch({ userId: user.id });
+    await api.cache.week.invalidate.patch({ owner: user.id });
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Отображение военки ${preferences.showMilitary ? "включено" : "отключено"}`;
@@ -723,7 +690,10 @@ export async function initOptions(bot: Bot<Context>) {
         );
       }
       const time = Number(rawtarget) * 60;
-      const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+      const user = await api.user
+        .tgid({ id: ctx.from.id })
+        .get()
+        .then((res) => res.data);
       if (!user) {
         return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
       }
@@ -734,20 +704,19 @@ export async function initOptions(bot: Bot<Context>) {
         return updateOptionsMsg(ctx);
       }
       preferences.notifyBeforeLessons = time;
-      const now = new Date();
-      await db.user.update({
-        where: { id: user.id },
-        data: {
-          preferences,
-          lastActive: now,
-        },
+      await api.user.id({ id: user.id }).patch({
+        preferences,
       });
       if (time)
         ctx.session.options.updText = `Установлено время: "${time / 60} мин"`;
       else
         ctx.session.options.updText = `Уведомления перед началом занятий отключены`;
       ctx.session.options.menu = "notifications";
-      scheduleUserNotificationsUpdate(ctx, user);
+      if (user.groupId)
+        scheduleUserNotificationsUpdate(
+          ctx,
+          user as { groupId: number; id: number },
+        );
       return updateOptionsMsg(ctx);
     },
   );
@@ -755,64 +724,85 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_notifications_nextlesson_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
     const preferences = getUserPreferences(user);
     preferences.notifyAboutNextLesson = !preferences.notifyAboutNextLesson;
-    await db.user.update({
-      where: { id: user.id },
-      data: { preferences, lastActive: new Date() },
+    await api.user.id({ id: user.id }).patch({
+      preferences,
     });
     ctx.session.options.updText = `Уведомления о следующей паре ${preferences.notifyAboutNextLesson ? "включены" : "отключены"}`;
     ctx.session.options.menu = "notifications";
-    scheduleUserNotificationsUpdate(ctx, user);
+    if (user.groupId)
+      scheduleUserNotificationsUpdate(
+        ctx,
+        user as { groupId: number; id: number },
+      );
     return updateOptionsMsg(ctx);
   });
 
   bot.callbackQuery("options_notifications_nextday_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
     const preferences = getUserPreferences(user);
     preferences.notifyAboutNextDay = !preferences.notifyAboutNextDay;
-    await db.user.update({
-      where: { id: user.id },
-      data: { preferences, lastActive: new Date() },
+    await api.user.id({ id: user.id }).patch({
+      preferences,
     });
     ctx.session.options.updText = `Уведомления о следующем дне ${preferences.notifyAboutNextDay ? "включены" : "отключены"}`;
     ctx.session.options.menu = "notifications";
-    scheduleUserNotificationsUpdate(ctx, user);
+    if (user.groupId)
+      scheduleUserNotificationsUpdate(
+        ctx,
+        user as { groupId: number; id: number },
+      );
     return updateOptionsMsg(ctx);
   });
 
   bot.callbackQuery("options_notifications_nextweek_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
     const preferences = getUserPreferences(user);
     preferences.notifyAboutNextWeek = !preferences.notifyAboutNextWeek;
-    await db.user.update({
-      where: { id: user.id },
-      data: { preferences, lastActive: new Date() },
+    await api.user.id({ id: user.id }).patch({
+      preferences,
     });
     ctx.session.options.updText = `Уведомления о следующей неделе ${preferences.notifyAboutNextWeek ? "включены" : "отключены"}`;
     ctx.session.options.menu = "notifications";
-    scheduleUserNotificationsUpdate(ctx, user);
+    if (user.groupId)
+      scheduleUserNotificationsUpdate(
+        ctx,
+        user as { groupId: number; id: number },
+      );
     return updateOptionsMsg(ctx);
   });
 
   bot.callbackQuery("options_proxyaccess", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
@@ -837,7 +827,10 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_proxyaccess_enable", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
@@ -846,9 +839,8 @@ export async function initOptions(bot: Bot<Context>) {
       ctx.session.options.menu = "";
       return updateOptionsMsg(ctx);
     }
-    await db.user.update({
-      where: { id: user.id },
-      data: { allowsAccountProxyUse: true, lastActive: new Date() },
+    await api.user.id({ id: user.id }).patch({
+      allowsAccountProxyUse: true,
     });
     ctx.session.options.updText = `Ваш аккаунт теперь разрешён для анонимных запросов`;
     ctx.session.options.menu = "";
@@ -858,7 +850,10 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_proxyaccess_disable", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await db.user.findUnique({ where: { tgId: ctx.from.id } });
+    const user = await api.user
+      .tgid({ id: ctx.from.id })
+      .get()
+      .then((res) => res.data);
     if (!user) {
       return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
     }
@@ -867,9 +862,8 @@ export async function initOptions(bot: Bot<Context>) {
       ctx.session.options.menu = "";
       return updateOptionsMsg(ctx);
     }
-    await db.user.update({
-      where: { id: user.id },
-      data: { allowsAccountProxyUse: false, lastActive: new Date() },
+    await api.user.id({ id: user.id }).patch({
+      allowsAccountProxyUse: false,
     });
     ctx.session.options.updText = `Ваш аккаунт теперь недоступен для анонимных запросов`;
     ctx.session.options.menu = "";

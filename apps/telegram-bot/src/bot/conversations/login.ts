@@ -7,9 +7,8 @@ import { type Conversation, createConversation } from "@grammyjs/conversations";
 
 import type { Context } from "../types";
 import log from "@/logger";
-import { db } from "@/db";
-import { lk } from "@/ssau/lk";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
+import { api } from "@/serverClient";
 
 async function loginConversation(
   conversation: Conversation,
@@ -22,7 +21,10 @@ async function loginConversation(
     });
   }
   const user = await conversation.external(() =>
-    db.user.findUnique({ where: { tgId: userId } }),
+    api.user
+      .tgid({ id: userId })
+      .get()
+      .then((res) => res.data),
   );
   if (!user) {
     return ctx.reply(
@@ -85,9 +87,27 @@ async function loginConversation(
     `,
   );
   let loginRes = await conversation.external(() =>
-    lk.login(user, { username, password }),
+    api.user
+      .id({ id: user.id })
+      .lk.login.post({ username, password, saveCredentials: false }),
   );
-  while (!loginRes.ok) {
+  const loginResData = loginRes.data;
+  if (!loginResData) {
+    return ctx.api
+      .editMessageText(
+        msg.chat.id,
+        msg.message_id,
+        `
+Вход в личный кабинет
+Логин: ${username}
+Пароль: \*\*\*\*\*\*\*\*
+Ошибка входа: "Нет ответа от сервера"
+Можете попробовать ввести пароль ещё раз или отменить вход через /cancel
+    `,
+      )
+      .catch(); // Ignore "message is not modified" error
+  }
+  while (!loginResData.success) {
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -96,7 +116,7 @@ async function loginConversation(
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Ошибка входа: "${loginRes.error}: ${loginRes.message!}"
+Ошибка входа: "${loginResData.error}"
 Можете попробовать ввести пароль ещё раз или отменить вход через /cancel
     `,
       )
@@ -126,17 +146,16 @@ async function loginConversation(
       )
       .catch(); // Ignore "message is not modified" error
     loginRes = await conversation.external(() =>
-      lk.login(user, { username, password }),
+      api.user
+        .id({ id: user.id })
+        .lk.login.post({ username, password, saveCredentials: false }),
     );
   }
-  if (loginRes.ok) {
+  if (loginRes.data?.success) {
     await conversation.external(() => {
-      void db.week.updateMany({
-        where: { owner: userId },
-        data: { cachedUntil: new Date(), updatedAt: new Date(0) },
-      });
-      return lk.updateUserInfo(user);
+      void api.cache.week.invalidate.patch({ owner: user.id });
     });
+    const user = loginRes.data.user;
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -145,7 +164,7 @@ async function loginConversation(
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Вход успешен! ${loginRes.data?.fullname ? `Вы вошли как '${getPersonShortname(loginRes.data.fullname)}'` : ``}
+Вход успешен! ${user.fullname ? `Вы вошли как '${getPersonShortname(user.fullname)}'` : ``}
 Сохранить данные для входа в базе данных?
 (Данные хранятся в зашифрованном виде и используются только если ЛК по той или иной причине прервёт сессию. Сохранять данные необязательно)
     `,
@@ -168,7 +187,7 @@ async function loginConversation(
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Вход успешен! ${loginRes.data?.fullname ? `Вы вошли как '${getPersonShortname(loginRes.data.fullname)}'` : ``}`,
+Вход успешен! ${user.fullname ? `Вы вошли как '${getPersonShortname(user.fullname)}'` : ``}`,
           );
         },
       },
@@ -176,7 +195,9 @@ async function loginConversation(
 
     if (saveAnswer.match) {
       await conversation.external(() =>
-        lk.saveCredentials(user.id, { username, password }),
+        api.user
+          .id({ id: user.id })
+          .lk.saveCredentials.post({ username, password }),
       );
       log.debug("Login successful, credentials saved", { user: userId });
       await ctx.api.editMessageText(
@@ -186,7 +207,7 @@ async function loginConversation(
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Вход успешен! ${loginRes.data?.fullname ? `Вы вошли как '${getPersonShortname(loginRes.data.fullname)}'` : ``}
+Вход успешен! ${user.fullname ? `Вы вошли как '${getPersonShortname(user.fullname)}'` : ``}
 Данные для входа сохранены`,
       );
     } else {

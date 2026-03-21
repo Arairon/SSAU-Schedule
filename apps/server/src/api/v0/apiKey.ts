@@ -1,17 +1,13 @@
-import { type FastifyInstance } from "fastify";
 import { db } from "@/db";
-import { type AuthData } from "./auth";
+import type { WithAuth } from "./auth";
 import { createApiKeyAndStore, validateApiKey } from "@/lib/apiKey";
-import { initServer } from "@ts-rest/fastify";
-import { apiKeyContract } from "@ssau-schedule/contracts/v0/apiKey";
+import Elysia from "elysia";
+import z from "zod";
 
-const s = initServer();
-
-const router = s.router(apiKeyContract, {
-  create: async ({ request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
+export const app = new Elysia<"/key", WithAuth>({ prefix: "/key" })
+  .get("/new", async ({ auth, status }) => {
     if (!auth) {
-      return { status: 403, body: "Unauthorized" };
+      return status(403, "Unauthorized");
     }
 
     const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
@@ -21,58 +17,43 @@ const router = s.router(apiKeyContract, {
     );
 
     return {
-      status: 200,
-      body: {
-        key,
-        info: Object.assign({}, info, { keyHash: "redacted" }),
+      key,
+      info: Object.assign({}, info, { keyHash: "redacted" }),
+    };
+  })
+  .get(
+    "/check/:key",
+    async ({ params }) => {
+      return await validateApiKey({ key: params.key });
+    },
+    { params: z.object({ key: z.string() }) },
+  )
+  .get("/list", async ({ auth, status }) => {
+    if (!auth) {
+      return status(403, "Unauthorized");
+    }
+
+    return await db.userApiKey.findMany({
+      where: {
+        userId: auth.userId,
+        revoked: false,
+        expiresAt: { gt: new Date() },
       },
-    };
-  },
+    });
+  })
+  .delete(
+    "/:keyId",
+    async ({ params, auth, status }) => {
+      if (!auth) {
+        return status(403, "Unauthorized");
+      }
 
-  check: async ({ params }) => {
-    return {
-      status: 200,
-      body: await validateApiKey({ key: params.key }),
-    };
-  },
-
-  list: async ({ request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
-    if (!auth) {
-      return { status: 403, body: "Unauthorized" };
-    }
-
-    return {
-      status: 200,
-      body: await db.userApiKey.findMany({
-        where: {
-          userId: auth.userId,
-          revoked: false,
-          expiresAt: { gt: new Date() },
-        },
-      }),
-    };
-  },
-
-  revoke: async ({ params, request }) => {
-    const auth = request.getDecorator<AuthData>("authData");
-    if (!auth) {
-      return { status: 403, body: "Unauthorized" };
-    }
-
-    const keyId = Number(params.keyId);
-    return {
-      status: 200,
-      body: !!(
+      return !!(
         await db.userApiKey.updateMany({
-          where: { id: keyId, userId: auth.userId, revoked: false },
+          where: { id: params.keyId, userId: auth.userId, revoked: false },
           data: { revoked: true },
         })
-      ).count,
-    };
-  },
-});
-
-export async function routesApiKey(fastify: FastifyInstance) {
-  s.registerRouter(apiKeyContract, router, fastify);
-}
+      ).count;
+    },
+    { params: z.object({ keyId: z.coerce.number() }) },
+  );

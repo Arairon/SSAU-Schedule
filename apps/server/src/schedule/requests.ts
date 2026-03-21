@@ -10,9 +10,10 @@ import {
   getTimetableHash,
   getTimetablesDiff,
 } from "./timetable";
-import { getUserPreferences, type RequestStateUpdate } from "@/lib/misc";
+import { type RequestStateUpdate } from "@/lib/misc";
+import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { db } from "@/db";
-import type { Timetable, TimetableDiff } from "./types/timetable";
+import type { Timetable, TimetableDiff } from "@ssau-schedule/shared/timetable";
 import { generateTimetableImage } from "./image";
 
 type TimetableWeekLike = {
@@ -139,7 +140,7 @@ export async function getTimetable(
     forceUpdate?: boolean; // Force update week from SSAU.
     dontCache?: boolean; // Don't cache generated timetable to DB
     ignoreIet?: boolean;
-    ignoreSubroup?: boolean;
+    ignoreSubgroup?: boolean;
     onUpdate?: (
       update: RequestStateUpdate<
         "updatingWeek" | "generatingTimetable" | "error"
@@ -200,7 +201,7 @@ export async function getTimetable(
     groupId: opts?.groupId,
     year: opts?.year,
     ignoreIet: opts?.ignoreIet,
-    ignoreSubroup: opts?.ignoreSubroup,
+    ignoreSubgroup: opts?.ignoreSubgroup,
   });
 
   return {
@@ -224,7 +225,7 @@ async function getTimetableWithImage(
     forceUpdate?: boolean; // Force update week from SSAU.
     dontCache?: boolean; // Don't cache generated timetable to DB
     ignoreIet?: boolean;
-    ignoreSubroup?: boolean;
+    ignoreSubgroup?: boolean;
     onUpdate?: (
       update: RequestStateUpdate<
         "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
@@ -302,7 +303,7 @@ async function getTimetableWithImage(
       groupId: opts?.groupId,
       year: opts?.year,
       ignoreIet: opts?.ignoreIet,
-      ignoreSubroup: opts?.ignoreSubroup,
+      ignoreSubgroup: opts?.ignoreSubgroup,
     });
   }
 

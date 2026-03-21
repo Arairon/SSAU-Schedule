@@ -6,13 +6,12 @@ import {
 import { type Conversation, createConversation } from "@grammyjs/conversations";
 
 import type { Context } from "../types";
-import { db } from "@/db";
 import log from "@/logger";
-import { lk } from "@/ssau/lk";
-import { findGroupOrOptions } from "@/ssau/search";
-import { getUserPreferences } from "@/lib/misc";
+import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { stylemaps } from "@ssau-schedule/shared/themes/index";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
+import { changeUserGroupById } from "./groupChange";
+import { api } from "@/serverClient";
 
 const ONBOARD_CANCEL = "onboard_cancel";
 const ONBOARD_MODE_AUTHED = "onboard_mode_authed";
@@ -72,39 +71,14 @@ async function cancelOnboarding(
     .catch();
 }
 
-async function setUserGroupById(userId: number, groupId: number) {
-  const now = new Date();
-  const user = await db.user.update({
-    where: { id: userId },
-    data: {
-      groupId,
-      lastActive: now,
-      ics: {
-        upsert: {
-          create: { validUntil: now },
-          update: { validUntil: now },
-        },
-      },
-    },
-    include: { group: true },
-  });
-  await db.week.updateMany({
-    where: { owner: userId },
-    data: { cachedUntil: now },
-  });
-  return user;
-}
-
 async function askMode(
   conversation: Conversation,
   ctx: GrammyContext,
   msg: { chat: { id: number }; message_id: number },
 ): Promise<"authed" | "unauthed" | null> {
-  const proxyUserExists = await conversation.external(() => {
-    return db.user.findFirst({
-      where: { authCookie: { not: null }, allowsAccountProxyUse: true },
-    });
-  });
+  const proxyUserExists = await conversation.external(() =>
+    api.misc.findProxiableUser.get().then((res) => res.data),
+  );
 
   const keyboard = new InlineKeyboard()
     .text("С входом в ЛК", ONBOARD_MODE_AUTHED)
@@ -178,7 +152,10 @@ async function runLkLogin(
   userId: number,
 ) {
   const user = await conversation.external(() =>
-    db.user.findUnique({ where: { id: userId } }),
+    api.user
+      .id({ id: userId })
+      .get()
+      .then((res) => res.data),
   );
   if (!user) return { ok: false as const, cancelled: false as const };
 
@@ -207,10 +184,13 @@ async function runLkLogin(
   let password: string = initialPassword;
 
   let loginResult = await conversation.external(() =>
-    lk.login(user, { username, password }),
+    api.user
+      .id({ id: userId })
+      .lk.login.post({ username, password, saveCredentials: false })
+      .then((res) => res.data),
   );
 
-  while (!loginResult.ok) {
+  while (!loginResult?.success) {
     const nextPassword = await promptForText(
       conversation,
       ctx,
@@ -219,7 +199,7 @@ async function runLkLogin(
 Вход в ЛК
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Ошибка входа: ${loginResult.error}: ${loginResult.message ?? "Неизвестная ошибка"}
+Ошибка входа: ${loginResult?.error}
 Попробуйте ввести пароль снова или отмените вход через /cancel`,
     );
     if (!nextPassword) return { ok: false as const, cancelled: true as const };
@@ -239,16 +219,14 @@ async function runLkLogin(
       .catch();
 
     loginResult = await conversation.external(() =>
-      lk.login(user, { username, password }),
+      api.user
+        .id({ id: userId })
+        .lk.login.post({ username, password, saveCredentials: false })
+        .then((res) => res.data),
     );
   }
 
-  const userInfoResult = await conversation.external(() =>
-    lk.updateUserInfo(user, { overrideGroup: true }),
-  );
-  if (!userInfoResult.ok) {
-    return { ok: false as const, cancelled: false as const };
-  }
+  const userInfo = loginResult.user;
 
   await ctx.api.editMessageText(
     msg.chat.id,
@@ -257,7 +235,7 @@ async function runLkLogin(
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Вход успешен! ${userInfoResult.data?.fullname ? `Вы вошли как '${getPersonShortname(userInfoResult.data.fullname)}'` : ``}
+Вход успешен! ${userInfo.fullname ? `Вы вошли как '${getPersonShortname(userInfo.fullname)}'` : ``}
 Сохранить данные для входа в базе данных?
 (Данные хранятся в зашифрованном виде и используются только если ЛК по той или иной причине прервёт сессию. Сохранять данные необязательно)
     `,
@@ -285,7 +263,9 @@ async function runLkLogin(
     }
     if (data === ONBOARD_LOGIN_SAVE) {
       await conversation.external(() =>
-        lk.saveCredentials(userId, { username, password }),
+        api.user
+          .id({ id: user.id })
+          .lk.saveCredentials.post({ username, password }),
       );
       return { ok: true as const, savedCredentials: true as const };
     }
@@ -378,7 +358,7 @@ async function chooseGroupManually(
       if (!selected) continue;
 
       const updated = await conversation.external(() =>
-        setUserGroupById(userId, selected.id),
+        changeUserGroupById(userId, selected.id),
       );
       return updated.group;
     }
@@ -403,7 +383,9 @@ async function chooseGroupManually(
     );
 
     const groups = await conversation.external(() =>
-      findGroupOrOptions({ groupName: text }),
+      api.ssau.findGroupOrOptions
+        .get({ query: { name: text } })
+        .then((res) => res.data),
     );
 
     if (!groups || (Array.isArray(groups) && groups.length === 0)) {
@@ -419,16 +401,9 @@ async function chooseGroupManually(
       continue;
     }
 
-    if (!Array.isArray(groups)) {
-      const updated = await conversation.external(() =>
-        setUserGroupById(userId, groups.id),
-      );
-      return updated.group;
-    }
-
     if (groups.length === 1) {
       const updated = await conversation.external(() =>
-        setUserGroupById(userId, groups[0].id),
+        changeUserGroupById(userId, groups[0].id),
       );
       return updated.group;
     }
@@ -623,10 +598,10 @@ async function onboardingConversation(
   }
 
   const user = await conversation.external(() =>
-    db.user.findUnique({
-      where: { tgId: tgUserId },
-      include: { group: true },
-    }),
+    api.user
+      .tgid({ id: tgUserId })
+      .get()
+      .then((res) => res.data),
   );
   if (!user) {
     return ctx.reply(
@@ -661,7 +636,10 @@ async function onboardingConversation(
   }
 
   const actualUser = await conversation.external(() =>
-    db.user.findUnique({ where: { id: user.id }, include: { group: true } }),
+    api.user
+      .id({ id: user.id })
+      .get()
+      .then((res) => res.data),
   );
   if (!actualUser) {
     await ctx.api.editMessageText(
@@ -736,7 +714,10 @@ async function onboardingConversation(
   }
 
   const finalUser = await conversation.external(() =>
-    db.user.findUnique({ where: { id: user.id }, include: { group: true } }),
+    api.user
+      .id({ id: user.id })
+      .get()
+      .then((res) => res.data),
   );
   if (!finalUser) {
     await ctx.api.editMessageText(
@@ -762,27 +743,13 @@ async function onboardingConversation(
     preferences.notifyAboutNextWeek = false;
   }
 
-  const now = new Date();
   await conversation.external(async () => {
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        preferences,
-        subgroup,
-        lastActive: now,
-        ics: {
-          upsert: {
-            create: { validUntil: now },
-            update: { validUntil: now },
-          },
-        },
-        allowsAccountProxyUse: allowsProxy ?? false,
-      },
+    await api.user.id({ id: user.id }).patch({
+      preferences,
+      subgroup,
+      allowsAccountProxyUse: allowsProxy ?? false,
     });
-    await db.week.updateMany({
-      where: { owner: user.id },
-      data: { cachedUntil: now },
-    });
+    await api.cache.week.invalidate.patch({ owner: user.id });
   });
 
   await ctx.api.editMessageText(

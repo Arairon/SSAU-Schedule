@@ -2,10 +2,10 @@ import { InputFile } from "grammy";
 
 import { env } from "@/env";
 import log from "@/logger";
-import { detectImageMimeType } from "@/schedule/image";
+import { detectImageMimeType } from "@ssau-schedule/shared/utils";
 import { relayImageByFile } from "@/lib/telegramRelay";
 import type { Context } from "./types";
-import { db } from "@/db";
+import { api } from "@/serverClient";
 
 export type ScheduleUploadMode = "file" | "url" | "relay";
 
@@ -21,7 +21,7 @@ function getUploadModesOrder(): ScheduleUploadMode[] {
 }
 
 function getScheduleImageUrl(timetableHash: string, stylemap: string) {
-  return `https://${env.SCHED_BOT_DOMAIN}/api/v0/schedule/image/${encodeURIComponent(timetableHash)}/${encodeURIComponent(stylemap)}`;
+  return `https://${env.SCHED_SERVER_DOMAIN}/api/v0/schedule/image/${encodeURIComponent(timetableHash)}/${encodeURIComponent(stylemap)}`;
 }
 
 function getImageDumpChatId() {
@@ -199,10 +199,7 @@ export async function uploadScheduleImage(
   });
   if (opts.dontSaveToDb) return res;
 
-  await db.weekImage.update({
-    where: { id: image.id },
-    data: { tgId: res.fileId },
-  });
+  await api.misc.uploadedImage({ id: image.id }).post(res.fileId);
 
   return res;
 }

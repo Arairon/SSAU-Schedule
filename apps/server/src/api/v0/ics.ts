@@ -1,50 +1,25 @@
-import { type FastifyInstance } from "fastify";
-import { initServer } from "@ts-rest/fastify";
 import { getUserIcsByUserId, getUserIcsByUUID } from "@/schedule/ics";
-import { type AuthData } from "./auth";
-import { icsContract } from "@ssau-schedule/contracts/v0/ics";
+import type { WithAuth } from "./auth";
+import Elysia from "elysia";
+import z from "zod";
 
-const s = initServer();
-
-const router = s.router(icsContract, {
-  getOwnIcs: async ({ request, reply }) => {
-    const auth = request.getDecorator<AuthData>("authData");
-    if (!auth) {
-      return { status: 403, body: "Unauthorized" };
-    }
-
+export const app = new Elysia<"", WithAuth>()
+  .get("/ics", async ({ auth, status, set }) => {
+    if (!auth) return status(403, "Unauthorized");
     const cal = await getUserIcsByUserId(auth.userId);
-    if (!cal) {
-      return {
-        status: 404,
-        body: {
-          error: "not found",
-          message: "Could not generate Calendar",
-        },
-      };
-    }
+    if (!cal) return status(500, "Could not generate Calendar");
 
-    reply.header("content-type", "text/calendar; charset=utf-8");
-    return { status: 200, body: cal.data };
-  },
+    set.headers["content-type"] = "text/calendar; charset=utf-8";
+    return cal.data;
+  })
+  .get(
+    "/ics/:icsUUID",
+    async ({ params, status, set }) => {
+      const cal = await getUserIcsByUUID(params.icsUUID);
+      if (!cal) return status(404, "Not found");
 
-  getIcsByUuid: async ({ params, reply }) => {
-    const cal = await getUserIcsByUUID(params.icsUUID);
-    if (!cal) {
-      return {
-        status: 404,
-        body: {
-          error: "not found",
-          message: "Could not find such Calendar",
-        },
-      };
-    }
-
-    reply.header("content-type", "text/calendar; charset=utf-8");
-    return { status: 200, body: cal.data };
-  },
-});
-
-export async function routesIcs(fastify: FastifyInstance) {
-  s.registerRouter(icsContract, router, fastify);
-}
+      set.headers["content-type"] = "text/calendar; charset=utf-8";
+      return cal.data;
+    },
+    { params: z.object({ icsUUID: z.uuid() }) },
+  );
