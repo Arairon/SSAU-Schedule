@@ -2,6 +2,7 @@ import crypto from "crypto";
 import z from "zod";
 
 export function getPersonShortname(fullname: string) {
+  if (!fullname) return "";
   const [surname, name, secondname] = fullname.split(" ");
   return `${surname} ${name[0]}.` + (secondname ? secondname[0] + "." : "");
 }
