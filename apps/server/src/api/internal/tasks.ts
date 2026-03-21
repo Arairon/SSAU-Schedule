@@ -57,8 +57,9 @@ export const app = new Elysia()
           chatId: z.string(),
           text: z.string(),
           entities: z.array(z.any()).default([]),
-          sendAt: z.date(),
-          source: z.string(),
+          source: z.string().default(""),
+          sendAt: z.coerce.date(),
+          // image: z.string().nullable(), // base64
         }),
       ),
     },

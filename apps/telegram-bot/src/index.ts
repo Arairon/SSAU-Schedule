@@ -9,6 +9,8 @@ import cors from "@elysiajs/cors";
 import { api } from "./serverClient";
 import type { Update } from "grammy/types";
 
+let requestIdCounter = 0;
+
 const app = new Elysia()
   // .use(openapi())
   .use(
@@ -16,21 +18,27 @@ const app = new Elysia()
       credentials: true,
     }),
   )
-  .state("requestId", 0)
-  .derive(({ store }) => ({
-    requestTime: Date.now(),
-    requestId: store.requestId++,
-  }))
-  .onRequest(({ request, store: { requestId } }) => {
-    log.debug(`<- ${request.method} ${request.url}`, {
-      user: requestId + 1,
+  .onRequest(({ request, set }) => {
+    requestIdCounter += 1;
+    set.headers["x-request-id"] = requestIdCounter.toString();
+    set.headers["x-request-time"] = Date.now().toString();
+    const path = new URL(request.url).pathname;
+    log.debug(`<- ${request.method.padEnd(5, " ")} ${path}`, {
+      user: requestIdCounter,
       tag: "Ely",
     });
   })
-  .onAfterResponse(async ({ request, requestTime, store: { requestId } }) => {
+  .onAfterResponse(async ({ request, set }) => {
+    const requestId = set.headers["x-request-id"];
+    const requestStart = Number(set.headers["x-request-time"]);
+    const requestTime = Date.now() - requestStart;
+    const path = new URL(request.url).pathname;
     log.debug(
-      `-> ${request.method} ${request.url} – ${Date.now() - requestTime}ms`,
-      { user: requestId, tag: "Ely" },
+      `-> ${request.method[0]} ${set.status ?? "unk"} ${path} – ${requestTime}ms`,
+      {
+        user: requestId,
+        tag: "Ely",
+      },
     );
   })
   .get("/ok", () => "ok")
