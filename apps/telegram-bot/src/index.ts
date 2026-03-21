@@ -34,7 +34,12 @@ const app = new Elysia()
     );
   })
   .get("/ok", () => "ok")
-  .post(env.SCHED_BOT_WEBHOOK_PATH, async ({ body, headers, set }) => {
+  .use(apiApp);
+
+export type ScheduleTelegramBotApp = typeof app;
+
+function init_bot_webhook() {
+  app.post(env.SCHED_BOT_WEBHOOK_PATH, async ({ body, headers, set }) => {
     if (!env.SCHED_BOT_USE_WEBHOOK) {
       set.status = 404;
       return "Webhook mode is disabled";
@@ -54,10 +59,8 @@ const app = new Elysia()
 
     await handleWebhookUpdate(body as Update);
     return "ok";
-  })
-  .use(apiApp);
-
-export type ScheduleTelegramBotApp = typeof app;
+  });
+}
 
 async function start() {
   app.listen(env.SCHED_BOT_PORT, () => {
@@ -67,6 +70,7 @@ async function start() {
     );
   });
 
+  init_bot_webhook();
   void init_bot();
   void connectionCheck();
 }
