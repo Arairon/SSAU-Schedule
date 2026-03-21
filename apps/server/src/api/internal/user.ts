@@ -277,7 +277,12 @@ export const app = new Elysia()
       params: z.object({
         id: z.coerce.number().int(),
       }),
-      query: z.object({ overrideGroup: z.boolean().default(false) }),
+      query: z.object({
+        overrideGroup: z
+          .string()
+          .transform((val) => val.toLowerCase() === "true")
+          .default(false),
+      }),
       response: {
         200: z.object({
           success: z.literal(true),
