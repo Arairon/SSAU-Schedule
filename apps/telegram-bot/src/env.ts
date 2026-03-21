@@ -41,6 +41,15 @@ export const env = createEnv({
     SCHED_BOT_PORT: z.coerce.number().int().default(3002),
     SCHED_BOT_HOST: z.string().default("0.0.0.0"),
 
+    SCHED_BOT_TLS_CERT: z
+      .string()
+      .optional()
+      .describe("TLS certificate PEM content or file path"),
+    SCHED_BOT_TLS_KEY: z
+      .string()
+      .optional()
+      .describe("TLS private key PEM content or file path"),
+
     SCHED_BOT_IMAGE_UPLOAD_MODE: z
       .enum(["file", "url", "relay"])
       .default("file"),
@@ -102,4 +111,13 @@ if (env.SCHED_BOT_PROXY_TYPE && !env.SCHED_BOT_PROXY_URL) {
 
 if (env.SCHED_BOT_USE_WEBHOOK && !env.SCHED_BOT_WEBHOOK_PATH.startsWith("/")) {
   throw new Error("SCHED_BOT_WEBHOOK_PATH must start with '/'");
+}
+
+if (
+  (env.SCHED_BOT_TLS_CERT && !env.SCHED_BOT_TLS_KEY) ||
+  (!env.SCHED_BOT_TLS_CERT && env.SCHED_BOT_TLS_KEY)
+) {
+  throw new Error(
+    "SCHED_BOT_TLS_CERT and SCHED_BOT_TLS_KEY must be provided together",
+  );
 }

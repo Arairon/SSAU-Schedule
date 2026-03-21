@@ -27,7 +27,7 @@ export async function getBrowser() {
   }
 
   browserPromise ??= Puppeteer.launch({
-    executablePath: env.SCHED_SERVER_CHROME_PATH ?? "chromium",
+    executablePath: env.SCHED_SERVER_CHROME_PATH ?? undefined,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",

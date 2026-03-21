@@ -1,4 +1,4 @@
-import { Bot as GrammyBot, type GrammyError, session } from "grammy";
+import { Bot as GrammyBot, InputFile, type GrammyError, session } from "grammy";
 import { run } from "@grammyjs/runner";
 import { conversations } from "@grammyjs/conversations";
 // import { HttpsProxyAgent } from "https-proxy-agent";
@@ -247,6 +247,15 @@ function getWebhookUrl(path: string): string {
   return `https://${env.SCHED_BOT_DOMAIN}${path}`;
 }
 
+async function resolveTlsMaterial(input: string): Promise<Uint8Array> {
+  const trimmed = input.trimStart();
+  if (trimmed.startsWith("-----BEGIN")) {
+    return new TextEncoder().encode(input);
+  }
+
+  return new Uint8Array(await Bun.file(input).arrayBuffer());
+}
+
 async function ensureInitialized() {
   if (initializationPromise) {
     await initializationPromise;
@@ -260,14 +269,23 @@ async function ensureInitialized() {
 
     if (env.SCHED_BOT_USE_WEBHOOK) {
       const webhookUrl = getWebhookUrl(env.SCHED_BOT_WEBHOOK_PATH);
+      const webhookOptions: Parameters<typeof bot.api.setWebhook>[1] = {};
+
+      if (env.SCHED_BOT_WEBHOOK_SECRET) {
+        webhookOptions.secret_token = env.SCHED_BOT_WEBHOOK_SECRET;
+      }
+
+      if (env.SCHED_BOT_TLS_CERT && env.SCHED_BOT_TLS_KEY) {
+        const certContent = await resolveTlsMaterial(env.SCHED_BOT_TLS_CERT);
+
+        webhookOptions.certificate = new InputFile(
+          certContent,
+          "webhook-cert.pem",
+        );
+      }
 
       await bot.api
-        .setWebhook(
-          webhookUrl,
-          env.SCHED_BOT_WEBHOOK_SECRET
-            ? { secret_token: env.SCHED_BOT_WEBHOOK_SECRET }
-            : undefined,
-        )
+        .setWebhook(webhookUrl, webhookOptions)
         .catch((err: GrammyError) => {
           if (err.error_code === 429) {
             log.warn(`Failed to set webhook: Too Many Requests.`, {

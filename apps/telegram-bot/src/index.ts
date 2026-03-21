@@ -46,6 +46,34 @@ const app = new Elysia()
 
 export type ScheduleTelegramBotApp = typeof app;
 
+async function resolveTlsMaterial(input: string): Promise<string> {
+  const trimmed = input.trimStart();
+  if (trimmed.startsWith("-----BEGIN")) {
+    return input;
+  }
+
+  return await Bun.file(input).text();
+}
+
+async function getTlsOptions() {
+  const certSource = env.SCHED_BOT_TLS_CERT;
+  const keySource = env.SCHED_BOT_TLS_KEY;
+
+  if (typeof certSource !== "string" || typeof keySource !== "string") {
+    return undefined;
+  }
+
+  log.info("TLS configuration detected. Resolving certificate and key...", {
+    tag: "Ely",
+    user: "tls",
+  });
+
+  return {
+    cert: await resolveTlsMaterial(certSource),
+    key: await resolveTlsMaterial(keySource),
+  };
+}
+
 function init_bot_webhook() {
   app.post(env.SCHED_BOT_WEBHOOK_PATH, async ({ body, headers, set }) => {
     if (!env.SCHED_BOT_USE_WEBHOOK) {
@@ -71,12 +99,21 @@ function init_bot_webhook() {
 }
 
 async function start() {
-  app.listen(env.SCHED_BOT_PORT, () => {
-    log.info(
-      `Elysia server started at ${app.server?.hostname}:${app.server?.port}`,
-      { tag: "Ely", user: 0 },
-    );
-  });
+  const tls = await getTlsOptions();
+
+  app.listen(
+    {
+      port: env.SCHED_BOT_PORT,
+      hostname: env.SCHED_BOT_HOST,
+      ...(tls ? { tls } : {}),
+    },
+    () => {
+      log.info(
+        `Elysia server started at ${app.server?.hostname}:${app.server?.port}`,
+        { tag: "Ely", user: 0 },
+      );
+    },
+  );
 
   init_bot_webhook();
   void init_bot();
