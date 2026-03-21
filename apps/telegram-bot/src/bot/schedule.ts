@@ -103,16 +103,22 @@ async function sendTimetable(
   }
   const preferences = getUserPreferences(user);
 
+  if (!groupId && !user.groupId) {
+    await answerCallbackQueryIfPresent(ctx)?.catch(() => undefined);
+    return ctx.reply(
+      'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nНастройте группу через /options или укажите группу в запросе через "/schedule 6101-090301D"',
+    );
+  }
+
   const group = groupId
-    ? await api.group
-        .id({ id: groupId })
+    ? (await api.group
+        .id({ id: groupId ?? user.groupId! })
         .get()
-        .then((res) => res.data)
-        .catch(() => null)
+        .then((res) => res.data))!
     : null;
 
   log.debug(
-    `[bot] Requested schedule ${preferences.theme}/${groupId ?? user.groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+    `[bot] Requested schedule ${preferences.theme}/${group?.id ?? user.groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
     { user: ctx?.from?.id },
   );
   const startTime = process.hrtime.bigint();
@@ -404,12 +410,7 @@ export async function updateTimetable(
     }
     const isAuthed = !!user.authCookie;
     const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
-    const group = groupId
-      ? await api.group
-          .id({ id: groupId })
-          .get()
-          .then((res) => res.data)
-      : null;
+
     if (!groupId && !user.groupId) {
       await answerCallbackQueryIfPresent(ctx)?.catch(() => undefined);
       return ctx.reply(
@@ -417,10 +418,17 @@ export async function updateTimetable(
       );
     }
 
+    const group = groupId
+      ? (await api.group
+          .id({ id: groupId ?? user.groupId! })
+          .get()
+          .then((res) => res.data))!
+      : null;
+
     const preferences = getUserPreferences(user);
 
     log.debug(
-      `[bot.viewer] Requested schedule ${preferences.theme}/${groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+      `[bot.viewer] Requested schedule ${preferences.theme}/${group?.id ?? user.groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
       { user: userId },
     );
     const startTime = process.hrtime.bigint();
@@ -448,13 +456,14 @@ export async function updateTimetable(
 
     let data;
     // let error = "";
+
     try {
       data = await api.schedule.image
         .get({
           query: {
-            userId: user.id,
+            userId: user?.id ?? undefined,
             week: weekNumber,
-            groupId: group?.id ?? undefined,
+            groupId: group.id,
             stylemap: preferences.theme,
             forceUpdate: !!opts?.forceUpdate,
           },
