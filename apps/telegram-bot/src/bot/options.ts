@@ -6,6 +6,7 @@ import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { InlineKeyboard, type Bot } from "grammy";
 import { type Context } from "./types";
 import { api } from "@/serverClient";
+import { getUser } from "./misc";
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -45,13 +46,8 @@ async function updateOptionsMsg(ctx: Context) {
     );
   }
   const msgId = ctx.session.options.message;
-  const user = await api.user
-    .tgid({ id: ctx.from!.id })
-    .get()
-    .then((res) => res.data);
-  if (!user) {
-    return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-  }
+  const user = await getUser(ctx, { required: true });
+  if (!user) return; // getUser уже отправил сообщение об ошибке
   const preferences = getUserPreferences(user);
   const newText = `\
 Настройки
@@ -512,13 +508,8 @@ export async function initOptions(bot: Bot<Context>) {
       );
     }
     const theme = ctx.match[1];
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const preferences = getUserPreferences(user);
     if (preferences.theme === theme) {
       ctx.session.options.updText = `Оставляем тему: "${stylemaps[theme].description}"`;
@@ -569,13 +560,8 @@ export async function initOptions(bot: Bot<Context>) {
       );
     }
     const target = Number(rawtarget);
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     if (target === user.subgroup || (!target && !user.subgroup)) {
       ctx.session.options.updText = `Оставляем подгруппу: "${(user.subgroup ?? 0) || "Обе"}"`;
       ctx.session.options.menu = "";
@@ -595,13 +581,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_toggle_iet", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const preferences = getUserPreferences(user);
     preferences.showIet = !preferences.showIet;
     await api.user.id({ id: user.id }).patch({
@@ -619,13 +600,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_toggle_military", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const preferences = getUserPreferences(user);
     preferences.showMilitary = !preferences.showMilitary;
 
@@ -690,13 +666,8 @@ export async function initOptions(bot: Bot<Context>) {
         );
       }
       const time = Number(rawtarget) * 60;
-      const user = await api.user
-        .tgid({ id: ctx.from.id })
-        .get()
-        .then((res) => res.data);
-      if (!user) {
-        return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-      }
+      const user = await getUser(ctx, { required: true });
+      if (!user) return;
       const preferences = getUserPreferences(user);
       if (time === preferences.notifyBeforeLessons) {
         ctx.session.options.updText = `Оставляем время: "${time / 60} мин"`;
@@ -724,13 +695,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_notifications_nextlesson_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const preferences = getUserPreferences(user);
     preferences.notifyAboutNextLesson = !preferences.notifyAboutNextLesson;
     await api.user.id({ id: user.id }).patch({
@@ -749,13 +715,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_notifications_nextday_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const preferences = getUserPreferences(user);
     preferences.notifyAboutNextDay = !preferences.notifyAboutNextDay;
     await api.user.id({ id: user.id }).patch({
@@ -774,13 +735,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_notifications_nextweek_toggle", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const preferences = getUserPreferences(user);
     preferences.notifyAboutNextWeek = !preferences.notifyAboutNextWeek;
     await api.user.id({ id: user.id }).patch({
@@ -799,13 +755,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_proxyaccess", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     ctx.session.options.menu = "proxyaccess";
     if (!user.allowsAccountProxyUse) {
       ctx.session.options.updText = `\
@@ -827,13 +778,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_proxyaccess_enable", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     if (user.allowsAccountProxyUse) {
       ctx.session.options.updText = `Ваш аккаунт уже разрешён для анонимных запросов`;
       ctx.session.options.menu = "";
@@ -850,13 +796,8 @@ export async function initOptions(bot: Bot<Context>) {
   bot.callbackQuery("options_proxyaccess_disable", async (ctx) => {
     if (!ctx.session.options.message)
       ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(`Вас нет в базе данных, пожалуйста пропишите /start`);
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     if (!user.allowsAccountProxyUse) {
       ctx.session.options.updText = `Ваш аккаунт уже недоступен для анонимных запросов`;
       ctx.session.options.menu = "";

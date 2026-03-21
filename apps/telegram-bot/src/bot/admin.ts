@@ -6,6 +6,7 @@ import { CommandGroup } from "@grammyjs/commands";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
 import { api } from "@/serverClient";
 import type { MessageEntity } from "grammy/types";
+import { getUser } from "./misc";
 
 export type ScheduledMessage = {
   chatId: string;
@@ -115,14 +116,8 @@ export async function initAdmin(bot: Bot<Context>) {
       const args = ctx.message.text.split(" ");
       args.shift();
       const arg = args[0]?.trim().toLowerCase();
-      const user = await api.user
-        .tgid({ id: ctx.from.id })
-        .get()
-        .then((res) => res.data);
-      if (!user)
-        return ctx.reply(
-          `Вас не существует в базе данных, пожалуйста пропишите /start`,
-        );
+      const user = await getUser(ctx, { required: true });
+      if (!user) return;
       if (arg === "cache") {
         const target =
           ctx.from.id === env.SCHED_BOT_ADMIN_TGID && args.includes("all")
@@ -260,14 +255,8 @@ export async function initAdmin(bot: Bot<Context>) {
     "Returns various info about user/bot",
     async (ctx) => {
       if (!ctx.from || !ctx.message) return;
-      const user = await api.user
-        .tgid({ id: ctx.from.id })
-        .get()
-        .then((res) => res.data);
-      if (!user)
-        return ctx.reply(
-          `Вас не существует в базе данных, пожалуйста пропишите /start`,
-        );
+      const user = await getUser(ctx, { required: true });
+      if (!user) return;
       if (ctx.message.text.includes("admin")) {
         if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
           return ctx.reply("Вы не администратор");
