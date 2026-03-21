@@ -199,7 +199,6 @@ export async function initAdmin(bot: Bot<Context>) {
         sendAt: new Date(),
         source: "broadcast",
       };
-      console.dir(msg, { depth: null });
       await api.tasks.scheduleMessages.post([msg]);
       const replyHeader = `1 Сообщение следующего содержания\n---\n`;
       entities?.map((e) => (e.offset += replyHeader.length));
