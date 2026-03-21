@@ -23,7 +23,6 @@
     "elysia": "^1.4.28",
     "grammy": "^1.38.2",
     "https-proxy-agent": "^8.0.0",
-    "pino": "^9.9.0",
     "socks-proxy-agent": "^9.0.0",
     "timestring": "^7.0.0",
     "winston": "^3.19.0",

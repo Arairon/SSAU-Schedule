@@ -20,7 +20,9 @@
     "build:containers": "bun build:container:bot && bun build:container:server",
     "db:generate": "bun --filter @ssau-schedule/server db:generate",
     "db:migrate": "bun --filter @ssau-schedule/server db:migrate",
-    "lint": "bun --filter @ssau-schedule/client lint & bun --filter @ssau-schedule/server lint",
+    "lint": "bun lint:client & bun lint:server & bun lint:bot & bun lint:relay",
+    "lint:client": "bun --filter @ssau-schedule/client lint",
+    "lint:server": "bun --filter @ssau-schedule/server lint",
     "lint:bot": "bun --filter @ssau-schedule/telegram-bot lint",
     "lint:relay": "bun --filter @ssau-schedule/telegram-relay lint"
   }
