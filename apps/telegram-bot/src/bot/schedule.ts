@@ -463,7 +463,7 @@ export async function updateTimetable(
           query: {
             userId: user?.id ?? undefined,
             week: weekNumber,
-            groupId: group.id,
+            groupId: group?.id ?? undefined,
             stylemap: preferences.theme,
             forceUpdate: !!opts?.forceUpdate,
           },
