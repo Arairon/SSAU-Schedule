@@ -28,9 +28,9 @@ const app = new Elysia()
     requestTime: Date.now(),
     requestId: store.requestId++,
   }))
-  .onBeforeHandle(({ request, store: { requestId } }) => {
+  .onRequest(({ request, store: { requestId } }) => {
     log.debug(`<- ${request.method} ${request.url}`, {
-      user: requestId,
+      user: requestId + 1,
       tag: "Ely",
     });
   })
@@ -64,8 +64,6 @@ const app = new Elysia()
 
 export type ScheduleServerApp = typeof app;
 
-console.log(`Started Elysia at ${app.server?.hostname}:${app.server?.port}`);
-
 const scheduler = new ToadScheduler();
 
 async function start() {
@@ -73,7 +71,10 @@ async function start() {
   // await init_bot();
 
   app.listen(env.SCHED_SERVER_PORT, () => {
-    log.info("Elysia server started", { tag: "Ely", user: 0 });
+    log.info(
+      `Elysia server started at ${app.server?.hostname}:${app.server?.port}`,
+      { tag: "Ely", user: 0 },
+    );
   });
 
   for (const job of intervaljobs) scheduler.addIntervalJob(job);

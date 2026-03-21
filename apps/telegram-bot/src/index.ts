@@ -21,9 +21,9 @@ const app = new Elysia()
     requestTime: Date.now(),
     requestId: store.requestId++,
   }))
-  .onBeforeHandle(({ request, store: { requestId } }) => {
+  .onRequest(({ request, store: { requestId } }) => {
     log.debug(`<- ${request.method} ${request.url}`, {
-      user: requestId,
+      user: requestId + 1,
       tag: "Ely",
     });
   })
@@ -57,16 +57,19 @@ const app = new Elysia()
   })
   .use(apiApp);
 
-app.listen(env.SCHED_BOT_PORT, () => {
-  log.info(
-    `Elysia started at http://${env.SCHED_BOT_HOST}:${env.SCHED_BOT_PORT}`,
-    { tag: "Ely", user: "init" },
-  );
-});
-
-void init_bot();
-
 export type ScheduleTelegramBotApp = typeof app;
+
+async function start() {
+  app.listen(env.SCHED_BOT_PORT, () => {
+    log.info(
+      `Elysia server started at ${app.server?.hostname}:${app.server?.port}`,
+      { tag: "Ely", user: 0 },
+    );
+  });
+
+  void init_bot();
+  void connectionCheck();
+}
 
 async function connectionCheck() {
   let success = false;
@@ -103,4 +106,4 @@ async function connectionCheck() {
   });
 }
 
-void connectionCheck();
+void start();

@@ -25,6 +25,10 @@ export const app = new Elysia()
         failedIds: [] as number[],
         rejectedIds: [] as number[],
       };
+      log.debug(`Received request to send ${body.length} scheduled messages`, {
+        user: "msgs",
+        tag: "Ely",
+      });
       for (const msg of body as DbScheduledMessage[]) {
         try {
           if (msg.text.length > 4096) {
