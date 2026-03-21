@@ -163,7 +163,7 @@ async function groupChangeConversation(
             return {
               ok: false,
               message:
-                "Не удалось получить группу из ЛК. Попробуйте повторно войти через /login или выбрать группу вручную.",
+                "Не удалось получить группу из ЛК. Попробуйте повторно войти через /login или отправьте группу вручную.",
             };
           }
           if (!groupId) {
@@ -252,15 +252,15 @@ async function groupChangeConversation(
       { reply_markup: getMainKeyboard(hasLkAccess) },
     );
 
-    const groupsRes = await conversation.external(() =>
-      api.ssau.findGroupOrOptions.get({
-        query: {
-          name: messageText,
-        },
-      }),
+    const groups = await conversation.external(() =>
+      api.ssau.findGroupOrOptions
+        .get({
+          query: {
+            name: messageText,
+          },
+        })
+        .then((res) => res.data),
     );
-
-    const groups = groupsRes.data;
 
     if (!groups || (Array.isArray(groups) && groups.length === 0)) {
       selectableGroups = [];
