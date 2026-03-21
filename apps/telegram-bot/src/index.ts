@@ -3,10 +3,11 @@ import { Elysia } from "elysia";
 import { env } from "@/env";
 import log from "@/logger";
 
-import init_bot from "@/bot";
+import init_bot, { handleWebhookUpdate } from "@/bot";
 import { apiApp } from "./api";
 import cors from "@elysiajs/cors";
 import { api } from "./serverClient";
+import type { Update } from "grammy/types";
 
 const app = new Elysia()
   // .use(openapi())
@@ -33,6 +34,27 @@ const app = new Elysia()
     );
   })
   .get("/ok", () => "ok")
+  .post(env.SCHED_BOT_WEBHOOK_PATH, async ({ body, headers, set }) => {
+    if (!env.SCHED_BOT_USE_WEBHOOK) {
+      set.status = 404;
+      return "Webhook mode is disabled";
+    }
+
+    if (env.SCHED_BOT_WEBHOOK_SECRET) {
+      const headerSecret = headers["x-telegram-bot-api-secret-token"];
+      if (headerSecret !== env.SCHED_BOT_WEBHOOK_SECRET) {
+        log.warn(`Unauthorized request to webhook: invalid secret`, {
+          tag: "Ely",
+          user: "tg",
+        });
+        set.status = 401;
+        return "Unauthorized";
+      }
+    }
+
+    await handleWebhookUpdate(body as Update);
+    return "ok";
+  })
   .use(apiApp);
 
 app.listen(env.SCHED_BOT_PORT, () => {
@@ -56,7 +78,9 @@ async function connectionCheck() {
           "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
         },
       })
-      .then((res) => (success = res.data === "ok"))
+      .then((res) => {
+        success = res.data === "ok";
+      })
       .catch((err: Error) => {
         e = err;
       });

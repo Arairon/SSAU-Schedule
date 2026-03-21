@@ -1,4 +1,4 @@
-import { Bot as GrammyBot, session } from "grammy";
+import { Bot as GrammyBot, type GrammyError, session } from "grammy";
 import { run } from "@grammyjs/runner";
 import { conversations } from "@grammyjs/conversations";
 // import { HttpsProxyAgent } from "https-proxy-agent";
@@ -17,6 +17,8 @@ import { initGroupChange } from "./conversations/groupChange";
 import { initOnboarding } from "./conversations/onboarding";
 import { accountCommands, initAccount } from "./account";
 import { type BotCommand } from "grammy/types";
+
+import type { Update } from "grammy/types";
 
 // function getWebhookUrl(path: string): string {
 //   if (env.SCHED_BOT_WEBHOOK_URL) return env.SCHED_BOT_WEBHOOK_URL;
@@ -237,107 +239,131 @@ async function initBot(bot: GrammyBot<Context>) {
 
 export const bot = createBot();
 
-async function init() {
-  log.debug("Registering bot..", { tag: "init", user: "bot" });
+let initializationPromise: Promise<void> | null = null;
+let shutdownHookRegistered = false;
 
-  await initBot(bot);
-
-  // if (env.SCHED_BOT_USE_WEBHOOK) {
-  //   throw new Error("Webhook mode is not yet supported.");
-  // } else {
-  await bot.api.deleteWebhook();
-
-  const runnerHandle = run(bot);
-
-  log.info("Bot started in long-polling mode", { tag: "init", user: "bot" });
-
-  process.once("SIGINT", () => {
-    log.info("Received SIGINT, shutting down...");
-    void runnerHandle.stop();
-  });
-
-  process.once("SIGTERM", () => {
-    log.info("Received SIGTERM, shutting down...");
-    void runnerHandle.stop();
-  });
-  // }
-  log.debug("Bot registered", { tag: "init", user: "bot" });
+function getWebhookUrl(path: string): string {
+  if (env.SCHED_BOT_WEBHOOK_URL) return env.SCHED_BOT_WEBHOOK_URL;
+  return `https://${env.SCHED_BOT_DOMAIN}${path}`;
 }
 
-// async function initFastify(fastify: FastifyInstance) {
-//   const TOKEN = env.SCHED_BOT_TOKEN;
+async function ensureInitialized() {
+  if (initializationPromise) {
+    await initializationPromise;
+    return;
+  }
 
-//   await fastify.register(
-//     fp<{ token: string }>(
-//       async (fastify) => {
-//         log.debug("Registering bot..");
+  initializationPromise = (async () => {
+    log.debug("Registering bot..", { tag: "init", user: "bot" });
 
-//         await initBot(bot);
+    await initBot(bot);
 
-//         let handle: BotHandle;
-//         if (env.SCHED_BOT_USE_WEBHOOK) {
-//           const webhookPath = getWebhookPath();
-//           const webhookUrl = getWebhookUrl(webhookPath);
-//           const webhookHandler = webhookCallback(bot, "fastify", {
-//             onTimeout: "return",
-//             timeoutMilliseconds: 9000,
-//             secretToken: env.SCHED_BOT_WEBHOOK_SECRET,
-//           });
+    if (env.SCHED_BOT_USE_WEBHOOK) {
+      const webhookUrl = getWebhookUrl(env.SCHED_BOT_WEBHOOK_PATH);
 
-//           fastify.post(webhookPath, async (request, reply) => {
-//             log.debug("Received webhook update");
-//             await webhookHandler(request, reply);
-//             log.debug("Handled webhook update");
-//           });
+      await bot.api
+        .setWebhook(
+          webhookUrl,
+          env.SCHED_BOT_WEBHOOK_SECRET
+            ? { secret_token: env.SCHED_BOT_WEBHOOK_SECRET }
+            : undefined,
+        )
+        .catch((err: GrammyError) => {
+          if (err.error_code === 429) {
+            log.warn(`Failed to set webhook: Too Many Requests.`, {
+              tag: "init",
+              user: "bot",
+            });
+          }
+        });
 
-//           await bot.api.setWebhook(
-//             webhookUrl,
-//             env.SCHED_BOT_WEBHOOK_SECRET
-//               ? { secret_token: env.SCHED_BOT_WEBHOOK_SECRET }
-//               : undefined,
-//           );
+      await bot.init();
 
-//           await bot.init();
+      log.info(`Bot started in webhook mode: ${webhookUrl}`, {
+        tag: "init",
+        user: "bot",
+      });
+    } else {
+      await bot.api.deleteWebhook();
 
-//           handle = {
-//             stop: async () => {
-//               await bot.api.deleteWebhook();
-//             },
-//           };
+      const runnerHandle = run(bot);
 
-//           log.info(`Bot started in webhook mode: ${webhookUrl}`);
-//         } else {
-//           await bot.api.deleteWebhook();
+      log.info("Bot started in long-polling mode", {
+        tag: "init",
+        user: "bot",
+      });
 
-//           const runnerHandle: RunnerHandle = run(bot);
-//           handle = {
-//             stop: () => runnerHandle.stop(),
-//           };
-//           log.info("Bot started in long-polling mode");
-//         }
+      if (!shutdownHookRegistered) {
+        shutdownHookRegistered = true;
 
-//         log.debug("Bot registered");
+        process.once("SIGINT", () => {
+          log.info("Received SIGINT, shutting down...");
+          void runnerHandle.stop();
+          setTimeout(() => {
+            log.error("Failed to terminate in time, forcing exit");
+            process.exit(1);
+          }, 5000);
+        });
 
-//         fastify.decorate("bot", bot);
-//         fastify.decorate("botHandle", handle);
-//       },
-//       {
-//         name: "arais-sched-bot",
-//       },
-//     ),
-//     {
-//       token: TOKEN,
-//     },
-//   );
+        process.once("SIGTERM", () => {
+          log.info("Received SIGTERM, shutting down...");
+          void runnerHandle.stop();
+          setTimeout(() => {
+            log.error("Failed to terminate in time, forcing exit");
+            process.exit(1);
+          }, 5000);
+        });
+      }
+    }
 
-//   return fastify;
-// }
+    if (env.SCHED_BOT_USE_WEBHOOK && !shutdownHookRegistered) {
+      shutdownHookRegistered = true;
 
-// declare module "fastify" {
-//   interface FastifyInstance {
-//     bot: GrammyBot<Context>;
-//     botHandle: BotHandle;
-//   }
-// }
+      process.once("SIGINT", () => {
+        log.info("Received SIGINT, deleting webhook...");
+        void bot.api
+          .deleteWebhook()
+          .then(() => process.exit(0))
+          .catch(() => process.exit(1));
+        setTimeout(() => {
+          log.error("Failed to delete webhook in time, forcing exit");
+          process.exit(1);
+        }, 5000);
+      });
+
+      process.once("SIGTERM", () => {
+        log.info("Received SIGTERM, deleting webhook...");
+        void bot.api
+          .deleteWebhook()
+          .then(() => process.exit(0))
+          .catch(() => process.exit(1));
+        setTimeout(() => {
+          log.error("Failed to delete webhook in time, forcing exit");
+          process.exit(1);
+        }, 5000);
+      });
+    }
+
+    log.debug("Bot registered", { tag: "init", user: "bot" });
+  })();
+
+  try {
+    await initializationPromise;
+  } catch (error) {
+    initializationPromise = null;
+    throw error;
+  }
+}
+
+export async function handleWebhookUpdate(update: Update) {
+  await ensureInitialized();
+  console.log("Handling webhook update:", JSON.stringify(update));
+  await bot.handleUpdate(update);
+  console.log("done");
+}
+
+async function init() {
+  await ensureInitialized();
+}
 
 export default init;
