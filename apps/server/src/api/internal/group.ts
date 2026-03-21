@@ -12,7 +12,7 @@ export const app = new Elysia().get(
   },
   {
     params: z.object({
-      id: z.number(),
+      id: z.coerce.number(),
     }),
   },
 );
