@@ -16,6 +16,8 @@ const publicPath =
     ? path.resolve("../client/dist")
     : path.resolve("/app/public");
 
+let requestIdCounter = 0;
+
 const app = new Elysia()
   .use(openapi())
   .use(
@@ -23,21 +25,38 @@ const app = new Elysia()
       credentials: true,
     }),
   )
-  .state("requestId", 0)
-  .derive(({ store }) => ({
-    requestTime: Date.now(),
-    requestId: store.requestId++,
-  }))
-  .onBeforeHandle(({ request, store: { requestId } }) => {
-    log.debug(`<- ${request.method} ${request.url}`, {
-      user: requestId,
+  .onRequest(({ request, set }) => {
+    requestIdCounter += 1;
+    set.headers["x-request-id"] = requestIdCounter.toString();
+    set.headers["x-request-time"] = Date.now().toString();
+    const path = new URL(request.url).pathname;
+    log.debug(`<- ${request.method.padEnd(5, " ")} ${path}`, {
+      user: requestIdCounter,
       tag: "Ely",
     });
   })
-  .onAfterResponse(async ({ request, requestTime, store: { requestId } }) => {
+  .onError(({ request, error, set }) => {
+    const requestId = set.headers["x-request-id"];
+    const path = new URL(request.url).pathname;
+    log.warn(
+      `XX ${request.method.padEnd(5, " ")} ${path} – ${JSON.stringify(error)}`,
+      {
+        user: requestId,
+        tag: "Ely",
+      },
+    );
+  })
+  .onAfterResponse(async ({ request, set }) => {
+    const requestId = set.headers["x-request-id"];
+    const requestStart = Number(set.headers["x-request-time"]);
+    const requestTime = Date.now() - requestStart;
+    const path = new URL(request.url).pathname;
     log.debug(
-      `-> ${request.method} ${request.url} – ${Date.now() - requestTime}ms`,
-      { user: requestId, tag: "Ely" },
+      `-> ${request.method[0]} ${set.status ?? "unk"} ${path} – ${requestTime}ms`,
+      {
+        user: requestId,
+        tag: "Ely",
+      },
     );
   })
   // api routes
@@ -64,8 +83,6 @@ const app = new Elysia()
 
 export type ScheduleServerApp = typeof app;
 
-console.log(`Started Elysia at ${app.server?.hostname}:${app.server?.port}`);
-
 const scheduler = new ToadScheduler();
 
 async function start() {
@@ -73,7 +90,10 @@ async function start() {
   // await init_bot();
 
   app.listen(env.SCHED_SERVER_PORT, () => {
-    log.info("Elysia server started", { tag: "Ely", user: 0 });
+    log.info(
+      `Elysia server started at ${app.server?.hostname}:${app.server?.port}`,
+      { tag: "Ely", user: 0 },
+    );
   });
 
   for (const job of intervaljobs) scheduler.addIntervalJob(job);

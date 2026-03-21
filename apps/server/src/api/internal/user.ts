@@ -33,15 +33,21 @@ export const UserSchema = z.object({
   updatedAt: z.date(),
 });
 
+export type UserType = z.infer<typeof UserSchema>;
+
 export const RedactedUserSchema = UserSchema.extend({
   tgId: z.string(),
   password: z.string().nullable(),
   authCookie: z.boolean(),
 });
 
+export type RedactedUser = z.infer<typeof RedactedUserSchema>;
+
 export const RedactedUserWithGroupSchema = RedactedUserSchema.extend({
   group: z.object({ id: z.number(), name: z.string() }).nullable(),
 });
+
+export type RedactedUserWithGroup = z.infer<typeof RedactedUserWithGroupSchema>;
 
 export const LkLoginBodySchema = z.object({
   username: z.string().min(1),

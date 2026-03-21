@@ -2,7 +2,7 @@ import { bot } from "@/bot";
 import { uploadScheduleImage } from "@/bot/imageUploading";
 import log from "@/logger";
 import Elysia from "elysia";
-import { type GrammyError, InputFile } from "grammy";
+import type { GrammyError } from "grammy";
 import type { MessageEntity } from "grammy/types";
 import z from "zod";
 
@@ -25,6 +25,10 @@ export const app = new Elysia()
         failedIds: [] as number[],
         rejectedIds: [] as number[],
       };
+      log.debug(`Received request to send ${body.length} scheduled messages`, {
+        user: "msgs",
+        tag: "Ely",
+      });
       for (const msg of body as DbScheduledMessage[]) {
         try {
           if (msg.text.length > 4096) {
@@ -39,7 +43,7 @@ export const app = new Elysia()
           }
           if (msg.image) {
             await bot.api
-              .sendPhoto(msg.chatId, new InputFile(msg.image), {
+              .sendPhoto(msg.chatId, msg.image, {
                 caption: msg.text,
                 caption_entities: (msg.entities ?? []) as MessageEntity[],
               })
@@ -73,6 +77,19 @@ export const app = new Elysia()
                     },
                   );
                   stats.rejectedIds.push(msg.id);
+                } else {
+                  if (e.error_code) {
+                    log.warn(
+                      `Failed to send message #${msg.id} to ${msg.chatId}. Err: ${e.message}`,
+                      {
+                        user: "msgs",
+                        tag: "Ely",
+                      },
+                    );
+                    stats.rejectedIds.push(msg.id);
+                  } else {
+                    stats.failedIds.push(msg.id);
+                  }
                 }
               });
           }

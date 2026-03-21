@@ -6,6 +6,7 @@ import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import log from "@/logger";
 import { getDefaultSession } from ".";
 import { api } from "@/serverClient";
+import { getUser } from "./misc";
 
 async function reset(_ctx: Context, userId: number) {
   const user = await api.user
@@ -50,10 +51,8 @@ export async function initAccount(bot: Bot<Context>) {
         parse_mode: "HTML",
       });
     }
-    const existingUser = await api.user
-      .tgid({ id: userId })
-      .get()
-      .then((res) => res.data);
+    const existingUser = await getUser(ctx);
+    if (existingUser === false) return; // getUser уже отправил сообщение об ошибке
     if (!existingUser) {
       return start(ctx, userId as unknown as bigint);
     } else {
@@ -107,10 +106,8 @@ ${
   commands.command("login", "Вход в личный кабинет", async (ctx) => {
     if (!ctx.from) return;
     if (ctx.chat.type !== "private") return;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
+    const user = await getUser(ctx);
+    if (user === false) return; // getUser уже отправил сообщение об ошибке
     if (user) {
       ctx.session.loggedIn = true;
       if (user.username && user.password) {
@@ -140,15 +137,8 @@ ${
         parse_mode: "HTML",
       });
     }
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(
-        "Вас не существует в базе данных. Пожалуйста пропишите /start",
-      );
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const hadCredentials = user.username && user.password;
     await api.user.id({ id: user.id }).lk.clearCredentials.post();
     return ctx.reply(
@@ -168,15 +158,8 @@ ${
         parse_mode: "HTML",
       });
     }
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(
-        "Вас не существует в базе данных. Пожалуйста пропишите /start",
-      );
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const cal = await api.user
       .id({ id: user.id })
       .ics.get()
@@ -201,15 +184,8 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
 
   commands.command("help", "Информация о боте", async (ctx) => {
     if (ctx.chat.type !== "private") return;
-    if (!ctx.from) {
-      return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
-        parse_mode: "HTML",
-      });
-    }
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
+    const user = await getUser(ctx);
+    if (user === false) return; // getUser уже отправил сообщение об ошибке
     if (!user)
       return ctx.reply(
         `\

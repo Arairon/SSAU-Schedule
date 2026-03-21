@@ -15,6 +15,7 @@ import { openSettings } from "./options";
 import { CommandGroup } from "@grammyjs/commands";
 import { uploadScheduleImage } from "./imageUploading";
 import { api } from "@/serverClient";
+import { getUser } from "./misc";
 
 function answerCallbackQueryOrReply(ctx: Context, text: string) {
   if (ctx.callbackQuery) {
@@ -317,15 +318,8 @@ async function sendUserTimetable(
   }
   ctx.session.startedScheduleUpdateAt = new Date();
   try {
-    const user = await api.user
-      .tgid({ id: ctx.from!.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(
-        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
-      );
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return; // getUser уже отправил сообщение об ошибке
 
     if (!groupId && !user.groupId) {
       return ctx.reply(
@@ -713,15 +707,8 @@ export async function initSchedule(bot: Bot<Context>) {
     "Расписание на сегодня (с ссылками на пары)",
     async (ctx) => {
       if (!ctx.from || !ctx.message) return;
-      const user = await api.user
-        .tgid({ id: ctx.from.id })
-        .get()
-        .then((res) => res.data);
-      if (!user) {
-        return ctx.reply(
-          "Вы не найдены в базе данных. Пожалуйста пропишите /start",
-        );
-      }
+      const user = await getUser(ctx, { required: true });
+      if (!user) return;
       const now = new Date();
       const timetable = (await api.schedule.json
         .get({ query: { userId: user.id, week: 0 } })
@@ -753,15 +740,8 @@ ${day.lessons.map(generateTextLesson).join("\n=====\n")}
 
   commands.command("now", "Ближайшая пара", async (ctx) => {
     if (!ctx.from || !ctx.message) return;
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(
-        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
-      );
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const now = new Date();
     const timetable = (await api.schedule.json
       .get({ query: { userId: user.id, week: 0 } })
@@ -852,15 +832,8 @@ ${generateTextLesson(lesson)}
         parse_mode: "HTML",
       });
     }
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(
-        "Вас не существует в базе данных. Пожалуйста пропишите /start",
-      );
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const cal = await api.user
       .id({ id: user.id })
       .ics.get()

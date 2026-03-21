@@ -5,6 +5,7 @@ import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { stylemaps } from "@ssau-schedule/shared/themes/index";
 import { CommandGroup } from "@grammyjs/commands";
 import { api } from "@/serverClient";
+import { getUser } from "./misc";
 
 // config.ts refers to the /config command, not the bot configuration :]
 const config_field_names: Record<string, string> = {
@@ -24,14 +25,8 @@ export async function initConfig(bot: Bot<Context>) {
     if (ctx.chat.type !== "private") return;
     const args = ctx.message.text.trim().split(" ");
     args.shift(); // remove command
-    const user = await api.user
-      .tgid({ id: ctx.from.id })
-      .get()
-      .then((res) => res.data);
-    if (!user)
-      return ctx.reply(
-        "Вас не существует в базе данных. Пожалуйста пропишите /start",
-      );
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const preferences = Object.assign({}, getUserPreferences(user), {
       group: user.group?.name ?? null,
       subgroup: user.subgroup ?? 0,

@@ -8,6 +8,7 @@ import { type Conversation, createConversation } from "@grammyjs/conversations";
 import type { Context } from "../types";
 import log from "@/logger";
 import { api } from "@/serverClient";
+import { getUser } from "../misc";
 
 const GROUP_CHANGE_CANCEL = "group_change_cancel";
 const GROUP_CHANGE_FROM_LK = "group_change_from_lk";
@@ -75,16 +76,8 @@ async function groupChangeConversation(
     });
   }
 
-  const user = await api.user
-    .tgid({ id: ctx.from.id })
-    .get()
-    .then((res) => res.data);
-
-  if (!user) {
-    return ctx.reply(
-      "Не удалось получить данные пользователя. Пожалуйста пропишите /start",
-    );
-  }
+  const user = await getUser(ctx as Context, { required: true });
+  if (!user) return;
 
   const hasLkAccess = Boolean(user.authCookie);
   let selectableGroups: { id: number; name: string }[] = [];
