@@ -50,9 +50,9 @@ export const RedactedUserWithGroupSchema = RedactedUserSchema.extend({
 export type RedactedUserWithGroup = z.infer<typeof RedactedUserWithGroupSchema>;
 
 export const LkLoginBodySchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1),
-  saveCredentials: z.boolean().default(false),
+  username: z.string(),
+  password: z.string(),
+  saveCredentials: z.boolean(),
 });
 
 export function redactUser(user: User): z.infer<typeof RedactedUserSchema> {
@@ -213,10 +213,13 @@ export const app = new Elysia()
       if (result.ok) {
         const res = await lk.updateUserInfo(user);
         if (res.ok) {
+          const updatedUser = await db.user.findUnique({
+            where: { id: user.id },
+          });
           return {
             success: true,
             error: null,
-            user: redactUser(res.data),
+            user: redactUser(updatedUser!),
           };
         } else {
           return status(400, {
@@ -308,8 +311,8 @@ export const app = new Elysia()
   )
   .post(
     "/id/:id/lk/clearCredentials",
-    ({ params }) => {
-      void lk.resetAuth(params.id, { resetCredentials: true });
+    async ({ params }) => {
+      await lk.resetAuth(params.id, { resetCredentials: true });
     },
     {
       params: z.object({

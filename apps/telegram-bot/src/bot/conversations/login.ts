@@ -89,10 +89,14 @@ async function loginConversation(
   let loginRes = await conversation.external(() =>
     api.user
       .id({ id: user.id })
-      .lk.login.post({ username, password, saveCredentials: false }),
+      .lk.login.post({ username, password, saveCredentials: false })
+      .then((res) => {
+        if (res.status === 422 || res.error?.status === 422)
+          return { success: false as const, error: "Неверный запрос." };
+        return res.data ?? res.error.value ?? null;
+      }),
   );
-  const loginResData = loginRes.data;
-  if (!loginResData) {
+  if (!loginRes) {
     return ctx.api
       .editMessageText(
         msg.chat.id,
@@ -107,7 +111,8 @@ async function loginConversation(
       )
       .catch(); // Ignore "message is not modified" error
   }
-  while (!loginResData.success) {
+
+  while (!loginRes?.success) {
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -116,7 +121,7 @@ async function loginConversation(
 Вход в личный кабинет
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
-Ошибка входа: "${loginResData.error}"
+Ошибка входа: "${loginRes?.error}"
 Можете попробовать ввести пароль ещё раз или отменить вход через /cancel
     `,
       )
@@ -148,14 +153,19 @@ async function loginConversation(
     loginRes = await conversation.external(() =>
       api.user
         .id({ id: user.id })
-        .lk.login.post({ username, password, saveCredentials: false }),
+        .lk.login.post({ username, password, saveCredentials: false })
+        .then((res) => {
+          if (res.status === 422 || res.error?.status === 422)
+            return { success: false as const, error: "Неверный запрос." };
+          return res.data ?? res.error.value ?? null;
+        }),
     );
   }
-  if (loginRes.data?.success) {
+  if (loginRes?.success) {
     await conversation.external(() => {
-      void api.cache.week.invalidate.patch({ owner: user.id });
+      void api.cache.week.invalidate.patch({ owner: userId });
     });
-    const user = loginRes.data.user;
+    const user = loginRes.user;
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -197,7 +207,8 @@ async function loginConversation(
       await conversation.external(() =>
         api.user
           .id({ id: user.id })
-          .lk.saveCredentials.post({ username, password }),
+          .lk.saveCredentials.post({ username, password })
+          .then(() => null),
       );
       log.debug("Login successful, credentials saved", { user: userId });
       await ctx.api.editMessageText(
