@@ -21,7 +21,7 @@ function getUploadModesOrder(): ScheduleUploadMode[] {
 }
 
 function getScheduleImageUrl(timetableHash: string, stylemap: string) {
-  return `https://${env.SCHED_BOT_DOMAIN}/api/v0/schedule/image/${encodeURIComponent(timetableHash)}/${encodeURIComponent(stylemap)}`;
+  return `https://${env.SCHED_SERVER_DOMAIN}/api/v0/schedule/image/${encodeURIComponent(timetableHash)}/${encodeURIComponent(stylemap)}`;
 }
 
 function getImageDumpChatId() {

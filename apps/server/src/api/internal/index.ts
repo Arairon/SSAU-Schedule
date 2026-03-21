@@ -15,7 +15,7 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
     headers: z.object({
       "x-internal-api-secret": z
         .string()
-        .refine((val) => val === env.SCHED_BOT_INTERNAL_API_SECRET, {
+        .refine((val) => val === env.SCHED_SERVER_INTERNAL_API_SECRET, {
           message: "Invalid internal API secret",
         }),
     }),

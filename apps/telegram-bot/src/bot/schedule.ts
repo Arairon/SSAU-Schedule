@@ -874,7 +874,7 @@ ${generateTextLesson(lesson)}
     return ctx.reply(
       `\
 Ваша ссылка:
-https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
+https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
 
 ‼️Файл по этой ссылке не для скачивания‼️
 Содержимое ссылки генерируется динамически в зависимости от текущего расписания и ваших настроек.

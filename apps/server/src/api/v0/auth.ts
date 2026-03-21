@@ -66,7 +66,7 @@ export const auth = new Elysia().resolve(
       httpOnly: true,
       sameSite: "lax" as const,
       secure: env.NODE_ENV === "production",
-      secrets: env.SCHED_JWT_SECRET,
+      secrets: env.SCHED_SERVER_JWT_SECRET,
     };
 
     function issueAccessToken(
@@ -74,7 +74,9 @@ export const auth = new Elysia().resolve(
       expiresIn: SignOptions["expiresIn"],
     ) {
       accessToken.set({
-        value: jwt.sign(auth as object, env.SCHED_JWT_SECRET, { expiresIn }),
+        value: jwt.sign(auth as object, env.SCHED_SERVER_JWT_SECRET, {
+          expiresIn,
+        }),
         ...accessTokenCookieOptions,
       });
     }
@@ -83,7 +85,7 @@ export const auth = new Elysia().resolve(
       try {
         const data = jwt.verify(
           accessToken.value as string,
-          env.SCHED_JWT_SECRET,
+          env.SCHED_SERVER_JWT_SECRET,
         ) as AuthData;
         if (data) {
           return { auth: data };

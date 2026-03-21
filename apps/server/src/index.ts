@@ -3,12 +3,11 @@ import { openapi } from "@elysiajs/openapi";
 import { cors } from "@elysiajs/cors";
 import { env } from "./env";
 import log from "./logger";
-// import init_redis from "./redis";
-import init_bot from "./bot";
 import { intervaljobs, cronjobs } from "./lib/tasks";
 import path from "node:path";
 import { apiApp } from "./api";
 import { ToadScheduler } from "toad-scheduler";
+import { botApi } from "./lib/botApiClient";
 
 //TODO: Elysia.cron
 
@@ -16,25 +15,6 @@ const publicPath =
   env.NODE_ENV === "development"
     ? path.resolve("../client/dist")
     : path.resolve("/app/public");
-
-const test = new Elysia()
-  .decorate(() => ({ test: 3 }))
-  .resolve(({ headers }) => ({ test2: headers["x-test"] ?? "N/A" }));
-
-type WithTest = {
-  decorator: { test: number };
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  store: {};
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  derive: {};
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  resolve: {};
-};
-
-const test2 = new Elysia<"", WithTest>().get(
-  "/test2",
-  ({ test }) => test ?? "N/A2",
-);
 
 const app = new Elysia()
   .use(openapi())
@@ -61,9 +41,6 @@ const app = new Elysia()
     );
   })
   // api routes
-  .use(test)
-  .get("/test", ({ test }) => test ?? "N/A")
-  .use(test2)
   .use(apiApp)
   // Static file serving
   .get("/*", async ({ request, status }) => {
@@ -95,7 +72,7 @@ async function start() {
   // await init_redis(server);
   // await init_bot();
 
-  app.listen(env.SCHED_PORT, () => {
+  app.listen(env.SCHED_SERVER_PORT, () => {
     log.info("Elysia server started", { tag: "Ely", user: 0 });
   });
 
@@ -103,3 +80,37 @@ async function start() {
   for (const job of cronjobs) scheduler.addCronJob(job);
 }
 void start();
+
+async function connectionCheck() {
+  let success = false;
+  while (!success) {
+    let e: Error | null = null;
+    await botApi.health
+      .get({
+        headers: {
+          "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
+        },
+      })
+      .then((res) => (success = res.data === "ok"))
+      .catch((err: Error) => {
+        e = err;
+      });
+
+    if (!success) {
+      log.warn(
+        "Unable to connect to bot server" + (e ? ": " + JSON.stringify(e) : ""),
+        {
+          user: "init",
+          tag: "Ely",
+        },
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  log.info("Successfully connected to bot server", {
+    user: "init",
+    tag: "Ely",
+  });
+}
+
+void connectionCheck();

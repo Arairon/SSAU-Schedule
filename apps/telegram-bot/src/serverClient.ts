@@ -3,9 +3,9 @@ import { env } from "./env";
 
 import type { ScheduleServerApp } from "@ssau-schedule/server/src/index";
 
-const app = treaty<ScheduleServerApp>(env.SCHED_BOT_INTERNAL_API_URL, {
+const app = treaty<ScheduleServerApp>(env.SCHED_SERVER_INTERNAL_API_URL, {
   headers: {
-    "x-internal-api-secret": env.SCHED_BOT_INTERNAL_API_SECRET,
+    "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
   },
 });
 

@@ -1,9 +1,7 @@
-import { InputFile, type MessageEntity } from "grammy/types";
+import { type MessageEntity } from "grammy/types";
 import { AsyncTask, CronJob } from "toad-scheduler";
 import { db } from "@/db";
-import { bot } from "@/bot";
 import log from "@/logger";
-import { uploadScheduleImage } from "@/bot/imageUploading";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
@@ -20,6 +18,7 @@ import type {
   TimetableLesson,
 } from "@ssau-schedule/shared/timetable";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
+import { botApi } from "./botApiClient";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,43 +53,39 @@ export async function sendScheduledNotifications() {
   log.info(`Sending ${messages.length} pending notifications`, {
     user: "notifications",
   });
-  for (const msg of messages) {
-    try {
-      if (msg.text.length > 4096) {
-        log.warn(
-          `Message #${msg.id} text length (${msg.text.length}) exceeds Telegram limit. Truncating.`,
-          {
-            user: "notifications",
-          },
-        );
-        msg.text = msg.text.slice(0, 4090) + "...";
-      }
-      if (msg.image) {
-        await bot.api.sendPhoto(msg.chatId, new InputFile(msg.image), {
-          caption: msg.text,
-          caption_entities: msg.entities as object[] as MessageEntity[],
-        });
-      } else {
-        await bot.api.sendMessage(msg.chatId, msg.text, {
-          entities: msg.entities as object[] as MessageEntity[],
-          link_preview_options: { is_disabled: true },
-        });
-      }
-    } catch (e) {
-      log.error(
-        `Failed to send message #${msg.id} to ${msg.chatId}. Err: ${e as Error}`,
-        { user: "notifications" },
-      );
-    }
+  const res = await botApi.msgs
+    .post(
+      messages.map((i) => ({ ...i, entities: (i.entities ?? []) as object[] })),
+    )
+    .then((res) => res.data);
+
+  if (!res) {
+    log.error(`Failed to send scheduled notifications: no response from bot`, {
+      user: "notifications",
+    });
+    return;
   }
-  const sentIds = messages.map((i) => i.id);
-  await db.scheduledMessage.updateMany({
-    where: { id: { in: sentIds } },
-    data: { wasSentAt: now },
-  });
-  log.debug(`Sent ${messages.length}.`, {
-    user: "notifications",
-  });
+
+  if (res.sentIds?.length) {
+    await db.scheduledMessage.updateMany({
+      where: { id: { in: res.sentIds } },
+      data: { wasSentAt: now },
+    });
+  }
+  if (res.rejectedIds?.length) {
+    await db.scheduledMessage.updateMany({
+      where: { id: { in: res.rejectedIds } },
+      data: { wasSentAt: new Date(0) },
+    });
+  }
+  // failed messages will be retried in the next run, so no need to update them
+
+  log.debug(
+    `Sent ${res.sentIds.length}. ${res.rejectedIds.length} were rejected. ${res.failedIds.length} have failed.`,
+    {
+      user: "notifications",
+    },
+  );
 }
 
 export function invalidateDailyNotificationsForTarget(target: string) {
@@ -411,12 +406,29 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
     try {
       let tgId = image.tgId;
       if (!image.tgId) {
-        const uploadedImage = await uploadScheduleImage({
-          image,
-          userId: user.id,
-          caption: `notifyAboutNextWeek for ${user.id} #${timetable.weekId}\n${timetable.hash}/${image.stylemap}`,
+        const uploadedImage = await botApi.images
+          .post([
+            {
+              ...image,
+              data: image.data.toBase64(),
+              caption: `notifyAboutNextWeek for ${user.id} #${timetable.weekId}\n${timetable.hash}/${image.stylemap}`,
+            },
+          ])
+          .then((res) => res.data?.[0]);
+        if (!uploadedImage?.success) {
+          log.error(
+            `Failed to upload for next week notification. ${uploadedImage ? "Response: " + JSON.stringify(uploadedImage) : "No response from bot"}`,
+            { user: user.id, tag: "dailyNW" },
+          );
+          throw new Error(
+            `Failed to upload image for next week notification: ${uploadedImage ? "Response: " + JSON.stringify(uploadedImage) : "No response from bot"}`,
+          );
+        }
+        tgId = uploadedImage.tgId;
+        await db.weekImage.update({
+          where: { id: image.id },
+          data: { tgId: tgId },
         });
-        tgId = uploadedImage.fileId;
       }
       if (!tgId)
         throw new Error("Failed to upload image for next week notification");
@@ -430,7 +442,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
     } catch {
       log.warn(
         `Failed to upload next week image for user. Sending text-only notification.`,
-        { user: user.id },
+        { user: user.id, tag: "dailyNW" },
       );
       const nextStudyDay = timetable.days.find((day) => day.lessons.length > 0);
       if (nextStudyDay) {
@@ -537,23 +549,28 @@ export async function uploadWeekImagesWithoutTgId() {
       const imageStartedAtMs = Date.now();
 
       try {
-        await uploadScheduleImage({
-          api: bot.api,
-          image: {
-            ...weekImage,
-            data: Buffer.from(weekImage.data, "base64"),
-          },
-          userId: "uploadWeekImagesWithoutTgId",
-          caption: `preupload of #${weekImage.id}\n${weekImage.timetableHash}/${weekImage.stylemap}`,
-          // onFallbackAttempt: () => {
-          //   log.warn(
-          //     `WeekImage #${weekImage.id}: upload mode failed, trying fallback`,
-          //     { user: "uploadWeekImagesWithoutTgId" },
-          //   );
-          // },
-        });
+        const uploadedImage = await botApi.images
+          .post([
+            {
+              ...weekImage,
+              caption: `preupload of #${weekImage.id}\n${weekImage.timetableHash}/${weekImage.stylemap}`,
+            },
+          ])
+          .then((res) => res.data?.[0]);
+        if (!uploadedImage?.success) {
+          log.error(
+            `Failed to upload for next week notification. ${uploadedImage ? "Response: " + JSON.stringify(uploadedImage) : "No response from bot"}`,
+            { user: "uploadWeekImagesWithoutTgId" },
+          );
+        }
 
-        uploaded += 1;
+        if (uploadedImage?.success) {
+          uploaded += 1;
+          await db.weekImage.update({
+            where: { id: weekImage.id },
+            data: { tgId: uploadedImage.tgId },
+          });
+        }
         const elapsedMs = Date.now() - imageStartedAtMs;
         totalImageMs += elapsedMs;
         // log.debug(

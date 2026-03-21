@@ -5,8 +5,8 @@ import type { ScheduleTelegramBotApp } from "@ssau-schedule/telegram-bot/src/ind
 
 const app = treaty<ScheduleTelegramBotApp>(env.SCHED_BOT_DISPATCH_URL, {
   headers: {
-    "x-internal-api-secret": env.SCHED_BOT_INTERNAL_API_SECRET,
+    "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
   },
 });
 
-export const botApi = app;
+export const botApi = app.api.internal;

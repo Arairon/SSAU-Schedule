@@ -189,7 +189,7 @@ ${
     return ctx.reply(
       `\
 Ваша ссылка:
-https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
+https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
 
 ‼️Файл по этой ссылке не для скачивания
 Содержимое файла генерируется динамически в зависимости от текущего расписания и ваших настроек.
@@ -267,7 +267,7 @@ https://${env.SCHED_BOT_DOMAIN}/api/v0/ics/${cal.uuid}
       {
         reply_markup: new InlineKeyboard().webApp(
           "Открыть",
-          `https://${env.SCHED_BOT_DOMAIN}/tg-wait`,
+          `https://${env.SCHED_APP_DOMAIN}/tg-wait`,
         ),
       },
     );

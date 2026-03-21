@@ -5,7 +5,7 @@ import { env } from "./env";
 import log from "./logger";
 
 const adapter = new PrismaPg({
-  connectionString: env.SCHED_DATABASE_URL,
+  connectionString: env.SCHED_SERVER_DATABASE_URL,
 });
 
 const createPrismaClient = () =>
