@@ -278,7 +278,7 @@ async function scheduleLessonChangeNotifications(
     },
   );
   await scheduleMessage(
-    user,
+    user.tgId,
     today,
     `Обнаружены изменения в расписании!\n\n${formatTimetableDiff(diff, "short", 0)}`,
     { source: "dailyupd/changes" },

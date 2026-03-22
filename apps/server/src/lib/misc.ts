@@ -1,4 +1,3 @@
-import type { User } from "@/generated/prisma/client";
 import type { MessageEntity } from "grammy/types";
 import { db } from "@/db";
 import { type TeacherType } from "@/ssau/schemas/schedule";
@@ -59,14 +58,14 @@ export async function ensureTeacherExists(teacher: TeacherType) {
 }
 
 export async function scheduleMessage(
-  user: User,
+  target: string | number | bigint,
   sendAt: Date,
   text: string,
   opts?: { entities?: MessageEntity[]; image?: string; source?: string },
 ) {
   await db.scheduledMessage.create({
     data: {
-      chatId: `${user.tgId}`,
+      chatId: target.toString(),
       text,
       sendAt,
       entities: opts?.entities as object[],

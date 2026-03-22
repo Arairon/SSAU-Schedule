@@ -2,6 +2,10 @@ import winston, { format } from "winston";
 import "winston-daily-rotate-file";
 import { env } from "./env";
 
+const ansicyan = "\x1b[36m";
+const ansigray = "\x1b[38;5;248m";
+const ansiclear = "\x1b[0m";
+
 const f = format.combine(
   format.colorize(),
   format.timestamp(),
@@ -12,10 +16,11 @@ const f = format.combine(
       const tag = info.tag as string;
       const extraSpace = tag && user ? " " : "";
       return `\
-${info.timestamp as string} | \
+${ansicyan}${info.timestamp as string}${ansiclear} | \
 ${info.level.padEnd(16, " ")} \
 [${tag}${extraSpace}${user.padStart(12 - (tag.length ? tag.length + 1 : 0), " ")}]: \
-${info.message as string}\
+${ansicyan}${info.message as string}${ansiclear}\
+${info.object ? `\n${ansigray}${JSON.stringify(info.object, null, info.objectPretty ? 2 : 0)}${ansiclear}` : ""}\
 `;
     }
     return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${(info.tag as string) || "unk"}]: ${info.message as string}`;
@@ -32,10 +37,22 @@ const rotatingLogFile = new winston.transports.DailyRotateFile({
   symlinkName: "latest.log",
 });
 
+type LogMeta = {
+  user?: string | number | bigint;
+  tag?: string;
+  object?: object | null;
+  objectPretty?: boolean;
+};
+
 const log = winston.createLogger({
   level: env.LOG_LEVEL.toLowerCase(),
   format: f,
-  defaultMeta: { user: "", tag: "" },
+  defaultMeta: {
+    user: "",
+    tag: "",
+    object: null as null | object,
+    objectPretty: false,
+  } as LogMeta,
   transports: [new winston.transports.Console(), rotatingLogFile],
 });
 
@@ -47,8 +64,15 @@ log.on("error", (error) => {
   console.error("[logger] logger error:", error);
 });
 
-// rotatingLogFile.on('rotate', (oldFilename, newFilename) => {
-//   // do something fun
-// });
+rotatingLogFile.on("rotate", (oldFilename, newFilename) => {
+  log.debug(`Log file rotated: ${oldFilename} -> ${newFilename}`);
+});
 
-export default log;
+type TypedLogger = Omit<winston.Logger, "info" | "warn" | "error" | "debug"> & {
+  info(message: string, meta?: LogMeta): winston.Logger;
+  warn(message: string, meta?: LogMeta): winston.Logger;
+  error(message: string, meta?: LogMeta): winston.Logger;
+  debug(message: string, meta?: LogMeta): winston.Logger;
+};
+
+export default log as TypedLogger;
