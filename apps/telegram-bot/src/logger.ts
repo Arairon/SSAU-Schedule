@@ -4,11 +4,14 @@ import { env } from "./env";
 
 const ansicyan = "\x1b[36m";
 const ansigray = "\x1b[38;5;248m";
+const ansilightgray = "\x1b[38;5;250m";
 const ansiclear = "\x1b[0m";
 
 const f = format.combine(
   format.colorize(),
-  format.timestamp(),
+  format.timestamp({
+    format: "YYYY-MM-DD HH:mm:ss",
+  }),
   // format.align(),
   format.printf((info) => {
     if (info.user !== undefined) {
@@ -16,7 +19,7 @@ const f = format.combine(
       const tag = info.tag as string;
       const extraSpace = tag && user ? " " : "";
       return `\
-${ansicyan}${info.timestamp as string}${ansiclear} | \
+${ansilightgray}${info.timestamp as string}${ansiclear} | \
 ${info.level.padEnd(16, " ")} \
 [${tag}${extraSpace}${user.padStart(12 - (tag.length ? tag.length + 1 : 0), " ")}]: \
 ${ansicyan}${info.message as string}${ansiclear}\
