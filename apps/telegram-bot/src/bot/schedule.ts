@@ -634,10 +634,10 @@ export async function updateTimetable(
         await editPhoto(uploaded.fileId);
       }
     } catch (error) {
-      log.debug(
-        `Error: unchanged or errored. Ignoring. Err: ${JSON.stringify(error)}`,
-        { user: userId },
-      );
+      log.debug(`Error: unchanged or errored. Ignoring.`, {
+        user: userId,
+        object: error as object,
+      });
       await answerCallbackQueryOrReply(ctx, "Ничего не изменилось");
     }
     const endTime = process.hrtime.bigint();

@@ -90,7 +90,7 @@ export const app = new Elysia()
     },
   )
   .patch(
-    "/notifications/daily/invalidate",
+    "/notifications/invalidate/daily",
     async ({ body }) => {
       const result = body.all
         ? await invalidateDailyNotificationsForAll()
@@ -100,6 +100,38 @@ export const app = new Elysia()
     },
     {
       body: InvalidateDailyNotificationsSchema,
+    },
+  )
+  .patch(
+    "/notifications/invalidate/bySource",
+    async ({ body: { source, method } }) => {
+      const filter: Parameters<
+        typeof db.scheduledMessage.updateMany
+      >[0]["where"] = { wasSentAt: null };
+      if (method === "is") {
+        filter.source = source;
+      } else if (method === "startsWith") {
+        filter.source = { startsWith: source };
+      } else if (method === "endsWith") {
+        filter.source = { endsWith: source };
+      } else if (method === "contains") {
+        filter.source = { contains: source };
+      }
+
+      const result = await db.scheduledMessage.updateMany({
+        where: filter,
+        data: { wasSentAt: new Date(0) },
+      });
+
+      return { count: result.count };
+    },
+    {
+      body: z.object({
+        source: z.string(),
+        method: z
+          .enum(["is", "startsWith", "endsWith", "contains"])
+          .default("is"),
+      }),
     },
   )
   .patch(

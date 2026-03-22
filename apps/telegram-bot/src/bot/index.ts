@@ -10,6 +10,7 @@ import log from "@/logger";
 
 import { initSchedule, scheduleCommands } from "./schedule";
 import { initOptions, optionsCommands } from "./options";
+import { initFeedback, feedbackCommands } from "./feedback";
 import { initAdmin } from "./admin";
 import { configCommands, initConfig } from "./config";
 import { initLogin } from "./conversations/login";
@@ -182,6 +183,7 @@ async function initBot(bot: GrammyBot<Context>) {
   await initOptions(bot);
   await initConfig(bot);
   await initAdmin(bot);
+  await initFeedback(bot);
 
   const hiddenCommands = ["config", "logout", "login", "start", "app"]; // and the whole admin group
   const publicCommands: BotCommand[] = [];
@@ -190,6 +192,7 @@ async function initBot(bot: GrammyBot<Context>) {
     scheduleCommands,
     optionsCommands,
     configCommands,
+    feedbackCommands,
   ]) {
     for (const command of commandGroup.commands) {
       if (hiddenCommands.includes(command.stringName)) continue;
