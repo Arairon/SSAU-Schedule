@@ -90,6 +90,19 @@ export type Timetable = {
   days: TimetableDay[]; // Should always have length of 6
 };
 
+export type TimetableWithDiff = Timetable & { diff?: TimetableDiff };
+
+export type TimetableWithImage = {
+  timetable: TimetableWithDiff;
+  image: {
+    id: number;
+    tgId: string | null;
+    data: string;
+    timetableHash: string;
+    stylemap: string;
+  };
+};
+
 export type TimetableDayWithWindows = {
   // user: number;
   week: number;
