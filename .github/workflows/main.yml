@@ -35,6 +35,8 @@ jobs:
           context: "{{defaultContext}}"
           file: ${{ matrix.dockerfile }}
           push: true
-          cache-from: type=gha,scope=${{ matrix.service }}-main
+          cache-from: |
+            type=gha,scope=${{ matrix.service }}-main
+            type=gha,scope=${{ matrix.service }}-dev
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-main
           tags: ${{ matrix.image }}:preview

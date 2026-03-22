@@ -28,7 +28,7 @@ Object.assign(axios.defaults.headers, {
 export async function updateWeekForUser(
   user: User,
   weekN: number,
-  opts?: { groupId?: number; year?: number },
+  opts?: { groupId?: number; year?: number; loggingTag?: string },
 ) {
   const now = new Date();
   const weekNumber = weekN || getWeekFromDate(now);
@@ -42,7 +42,7 @@ export async function updateWeekForUser(
 
   log.info(
     `[SSAU] Updating week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
-    { user: user.id },
+    { user: user.id, tag: opts?.loggingTag },
   );
 
   let lkUser = null as User | null;
@@ -58,6 +58,7 @@ export async function updateWeekForUser(
   if (isUsingProxyUser) {
     log.debug(`Using proxy user ${lkUser.id} for ${user.id}`, {
       user: user.id,
+      tag: opts?.loggingTag,
     });
   }
 
@@ -83,7 +84,7 @@ export async function updateWeekForUser(
   if (error) {
     log.error(
       `Error receiving schedule. ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
-      { user: user.id },
+      { user: user.id, tag: opts?.loggingTag },
     );
     log.error(JSON.stringify(error));
     return;
@@ -92,7 +93,7 @@ export async function updateWeekForUser(
   if (!weekSched) {
     log.error(
       `No schedule, despite no errors in parsing ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
-      { user: user.id },
+      { user: user.id, tag: opts?.loggingTag },
     );
     return;
   }
@@ -113,7 +114,7 @@ export async function updateWeekForUser(
   const updatedLessons: Lesson[] = [];
   const lessonsInThisWeek: number[] = [];
 
-  log.debug("Updating lessons", { user: user.id });
+  log.debug("Updating lessons", { user: user.id, tag: opts?.loggingTag });
   //console.log("KNOWN", knownLessons);
 
   const lessonValidUntilDate = new Date(Date.now() + 2592000_000); // 30 days from now
@@ -149,7 +150,7 @@ export async function updateWeekForUser(
       if (group.subgroup !== info.subgroup) {
         log.error(
           `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
-          { user: user.id },
+          { user: user.id, tag: opts?.loggingTag },
         );
         info.subgroup = null;
       }
@@ -159,7 +160,7 @@ export async function updateWeekForUser(
     if (info.type === LessonType.Unknown) {
       log.error(
         `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
-        { user: user.id },
+        { user: user.id, tag: opts?.loggingTag },
       );
     }
 
@@ -167,7 +168,7 @@ export async function updateWeekForUser(
     if (lessonList.teachers.length > 1) {
       log.error(
         `SSAU Strikes again! Apparently there can be multiple teachers on a lesson: ${JSON.stringify(lessonList)}`,
-        { user: user.id },
+        { user: user.id, tag: opts?.loggingTag },
       );
     }
 
@@ -257,7 +258,7 @@ export async function updateWeekForUser(
         if (flow.subgroup !== info.subgroup) {
           log.error(
             `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
-            { user: user.id },
+            { user: user.id, tag: opts?.loggingTag },
           );
           info.subgroup = null;
         }
@@ -266,7 +267,7 @@ export async function updateWeekForUser(
       if (lessonList.flows.length > 1) {
         log.debug(
           `Lesson uses multiple flows: ${lessonList.flows.map((f) => f.id).join(", ")}. Connecting all to user`,
-          { user: user.id },
+          { user: user.id, tag: opts?.loggingTag },
         );
       }
 
@@ -274,7 +275,7 @@ export async function updateWeekForUser(
       if (info.type === LessonType.Unknown) {
         log.error(
           `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
-          { user: user.id },
+          { user: user.id, tag: opts?.loggingTag },
         );
       }
 
@@ -341,8 +342,9 @@ export async function updateWeekForUser(
       }
     }
   } else {
-    log.info(`Skipping iet lessons for 'common' owned week or a proxy user`, {
+    log.debug(`Skipping iet lessons for 'common' owned week or a proxy user`, {
       user: user.id,
+      tag: opts?.loggingTag,
     });
   }
   //#endregion
@@ -363,7 +365,7 @@ export async function updateWeekForUser(
   if (!weekIsCommon) {
     log.debug(
       `Also updating common week for ${week.groupId}/${week.year}/${week.number}`,
-      { user: user.id },
+      { user: user.id, tag: opts?.loggingTag },
     );
     await db.week.upsert({
       where: {
@@ -464,11 +466,15 @@ export async function updateWeekForUser(
   });
 
   if (missingLessonsInfoId.length) {
-    log.debug(`Invalidating infoIds: [${missingLessonsInfoId.join()}]`);
+    log.debug(`Invalidating infoIds: [${missingLessonsInfoId.join()}]`, {
+      user: user.id,
+      tag: opts?.loggingTag,
+    });
   }
   if (removedLessons.length) {
     log.debug(
       `Invalidated missing lessons: ${removedLessons.map((i) => i.id).join()} and orphaned: ${orphanedLessons.map((i) => i.id).join()}`,
+      { user: user.id, tag: opts?.loggingTag },
     );
   }
 
@@ -495,7 +501,7 @@ export async function updateWeekForUser(
   );
   log.debug(
     `Updated week. Added: [${filteredNewLessons.map((i) => i.id).join()}] (${newLessons.length}) Removed: [${filteredRemovedLessons.map((i) => i.id).join()}] (${removedLessons.length})`,
-    { user: user.id },
+    { user: user.id, tag: opts?.loggingTag },
   );
 
   // I wonder if these are needed, since weeks cache now lives only 1h

@@ -25,8 +25,35 @@ const app = new Elysia()
     const path = new URL(request.url).pathname;
     log.debug(`<- ${request.method.padEnd(5, " ")} ${path}`, {
       user: requestIdCounter,
-      tag: "Ely",
+      tag: "API",
     });
+  })
+  .onError(({ request, error, set }) => {
+    const requestId = set.headers["x-request-id"];
+    const path = new URL(request.url).pathname;
+    const e = {
+      status: "status" in error ? error.status : "000",
+      code: "code" in error ? error.code : "unknown",
+    };
+    log.error(
+      `XX ${request.method.padEnd(5, " ")} ${path} - ${e.status}: ${e.code}`,
+      {
+        user: requestId,
+        tag: "API",
+        object: error,
+      },
+    );
+    if (env.SCHED_BOT_ADMIN_TGID && env.NODE_ENV === "production") {
+      void api.tasks.scheduleMessages.post([
+        {
+          chatId: env.SCHED_BOT_ADMIN_TGID.toString(),
+          sendAt: new Date(),
+          text: `(${requestId}) Error in request ${request.method} ${path}: ${JSON.stringify(error)}`,
+          source: "ElysiaError",
+          entities: [],
+        },
+      ]);
+    }
   })
   .onAfterResponse(async ({ request, set }) => {
     const requestId = set.headers["x-request-id"];
@@ -37,7 +64,7 @@ const app = new Elysia()
       `-> ${request.method[0]} ${set.status ?? "unk"} ${path} – ${requestTime}ms`,
       {
         user: requestId,
-        tag: "Ely",
+        tag: "API",
       },
     );
   })
@@ -110,17 +137,17 @@ async function start() {
     () => {
       log.info(
         `Elysia server started at ${app.server?.hostname}:${app.server?.port}`,
-        { tag: "Ely", user: 0 },
+        { tag: "init", user: "Elysia" },
       );
     },
   );
 
   init_bot_webhook();
   void init_bot();
-  void connectionCheck();
+  void connectionCheck({ sendOnline: true });
 }
 
-async function connectionCheck() {
+async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
   let success = false;
   while (!success) {
     let e: Error | null = null;
@@ -142,17 +169,24 @@ async function connectionCheck() {
         "Unable to connect to schedule server" +
           (e ? ": " + JSON.stringify(e) : ""),
         {
-          user: "init",
-          tag: "Ely",
+          tag: "init",
+          user: "Elysia",
         },
       );
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
   log.info("Successfully connected to schedule server", {
-    user: "init",
-    tag: "Ely",
+    tag: "init",
+    user: "Elysia",
   });
+  if (opts.sendOnline) {
+    await api.botOnline.post(undefined, {
+      headers: {
+        "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
+      },
+    });
+  }
 }
 
 void start();

@@ -71,6 +71,7 @@ export async function generateTimetable(
     dontCache?: boolean;
     ignoreIet?: boolean;
     ignoreSubgroup?: boolean;
+    loggingTag?: string;
   },
 ): Promise<Timetable> {
   const startTime = process.hrtime.bigint();
@@ -80,7 +81,10 @@ export async function generateTimetable(
   const groupId = opts?.groupId ?? user.groupId;
 
   if (!groupId) {
-    log.error(`Groupless user @getWeekTimetable`, { user: user.id });
+    log.error(`Groupless user @getWeekTimetable`, {
+      user: user.id,
+      tag: opts?.loggingTag,
+    });
     void lk.updateUserInfo(user);
     throw new Error(`Groupless user @getWeekTimetable`);
   }
@@ -97,6 +101,7 @@ export async function generateTimetable(
     `Week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number}) Generating timetable`,
     {
       user: user.id,
+      tag: opts?.loggingTag,
     },
   );
 
@@ -248,7 +253,7 @@ export async function generateTimetable(
     `Generated timetable for week #${week.id} in ${formatBigInt(
       process.hrtime.bigint() - startTime,
     )}ns`,
-    { user: user.id },
+    { user: user.id, tag: opts?.loggingTag },
   );
   return timetable;
 }

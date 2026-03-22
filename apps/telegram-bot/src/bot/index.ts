@@ -212,12 +212,12 @@ async function initBot(bot: GrammyBot<Context>) {
     }),
   ])
     .then(() => {
-      log.info("Bot commands set", { user: "init", tag: "Bot" });
+      log.info("Bot commands set", { tag: "init", user: "bot" });
     })
     .catch((err) => {
       log.error(`Failed to set bot commands: ${JSON.stringify(err)}`, {
-        user: "init",
-        tag: "Bot",
+        tag: "init",
+        user: "bot",
       });
     });
   // Too lazy to use proper groups. Unsure how to separate them and where to switch the user between them

@@ -9,6 +9,7 @@ import { app as routesSsau } from "./ssau";
 import { app as routesTasks } from "./tasks";
 import { app as routesUser } from "./user";
 import { app as routesGroup } from "./group";
+import log from "@/logger";
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {
@@ -23,6 +24,9 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
   (app) =>
     app
       .get("/health", () => "ok")
+      .post("/botOnline", () => {
+        log.info("Bot has come online", { tag: "API", user: "bot" });
+      })
       .group("/schedule", (app) => app.use(routesSchedule))
       .group("/user", (app) => app.use(routesUser))
       .group("/groupchat", (app) => app.use(routesGroupChat))
