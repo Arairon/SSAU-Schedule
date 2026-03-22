@@ -36,9 +36,8 @@ const app = new Elysia()
       tag: "API",
     });
   })
-  .onError(({ request, error, set }) => {
+  .onError(({ request, error, set, path }) => {
     const requestId = set.headers["x-request-id"];
-    const path = new URL(request.url).pathname;
     const e = {
       status: "status" in error ? error.status : "000",
       code: "code" in error ? error.code : "unknown",
@@ -60,11 +59,10 @@ const app = new Elysia()
       );
     }
   })
-  .onAfterResponse(async ({ request, set }) => {
+  .onAfterResponse(async ({ request, set, path }) => {
     const requestId = set.headers["x-request-id"];
     const requestStart = Number(set.headers["x-request-time"]);
     const requestTime = Date.now() - requestStart;
-    const path = new URL(request.url).pathname;
     log.debug(
       `-> ${request.method[0]} ${set.status ?? "unk"} ${path} – ${requestTime}ms`,
       {
@@ -82,15 +80,19 @@ const app = new Elysia()
       return new Response("Not Found", { status: 404 });
 
     if (url === "/") {
-      const file = Bun.file(path.resolve(publicPath, "index.html"));
-      if (!(await file.exists())) {
+      const index = Bun.file(path.resolve(publicPath, "index.html"));
+      if (!(await index.exists())) {
         return status(404);
       }
-      return file;
+      return index;
     }
     const file = Bun.file(path.resolve(publicPath, url.slice(1)));
     if (!(await file.exists())) {
-      return status(404);
+      const index = Bun.file(path.resolve(publicPath, "index.html"));
+      if (!(await index.exists())) {
+        return status(404);
+      }
+      return file;
     }
     return file;
   });
