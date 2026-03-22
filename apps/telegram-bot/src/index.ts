@@ -28,9 +28,8 @@ const app = new Elysia()
       tag: "API",
     });
   })
-  .onError(({ request, error, set }) => {
+  .onError(({ request, error, set, path }) => {
     const requestId = set.headers["x-request-id"];
-    const path = new URL(request.url).pathname;
     const e = {
       status: "status" in error ? error.status : "000",
       code: "code" in error ? error.code : "unknown",
@@ -43,7 +42,11 @@ const app = new Elysia()
         object: error,
       },
     );
-    if (env.SCHED_BOT_ADMIN_TGID && env.NODE_ENV === "production") {
+    if (
+      env.SCHED_BOT_ADMIN_TGID &&
+      env.NODE_ENV === "production" &&
+      path.startsWith("/api/") // Ignore errors on non-API routes
+    ) {
       void api.tasks.scheduleMessages.post([
         {
           chatId: env.SCHED_BOT_ADMIN_TGID.toString(),
@@ -55,11 +58,10 @@ const app = new Elysia()
       ]);
     }
   })
-  .onAfterResponse(async ({ request, set }) => {
+  .onAfterResponse(async ({ request, set, path }) => {
     const requestId = set.headers["x-request-id"];
     const requestStart = Number(set.headers["x-request-time"]);
     const requestTime = Date.now() - requestStart;
-    const path = new URL(request.url).pathname;
     log.debug(
       `-> ${request.method[0]} ${set.status ?? "unk"} ${path} – ${requestTime}ms`,
       {

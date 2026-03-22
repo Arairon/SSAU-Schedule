@@ -16,6 +16,7 @@ import { CommandGroup } from "@grammyjs/commands";
 import { uploadScheduleImage } from "./imageUploading";
 import { api } from "@/serverClient";
 import { getUser } from "./misc";
+import type { TimetableWithImage } from "@ssau-schedule/shared/timetable";
 
 function answerCallbackQueryOrReply(ctx: Context, text: string) {
   if (ctx.callbackQuery) {
@@ -149,57 +150,79 @@ async function sendTimetable(
     }
   }
 
-  let data;
-  // let error = "";
+  const userId = ctx.from?.id ?? user.tgId.toString();
+
+  let timetableData: TimetableWithImage | null = null;
+  let error = "";
 
   try {
-    data = await api.schedule.image
-      .get({
-        query: {
-          userId: user.id,
-          week: weekNumber,
-          groupId: group?.id ?? undefined,
-          stylemap: preferences.theme,
-          forceUpdate: !!opts?.forceUpdate,
-        },
-      })
-      .then((res) => res.data);
-    // data = await schedule.getTimetableWithImage(user, weekNumber, {
-    //   groupId: group?.id ?? undefined,
-    //   stylemap: preferences.theme,
-    //   forceUpdate: opts?.forceUpdate ?? undefined,
-    //   onUpdate: ({ state, message }) => {
-    //     let text = "";
-    //     switch (state) {
-    //       case "updatingWeek":
-    //         text = "Обновление расписания...";
-    //         break;
-    //       case "generatingTimetable":
-    //         // text = "Генерация расписания...";
-    //         // ignored
-    //         break;
-    //       case "generatingImage":
-    //         text = "Создание изображения...";
-    //         break;
-    //       case "error":
-    //         error = message ?? "Произошла ошибка при получении расписания.";
-    //         return; // prevent updateTempMsg
-    //     }
-    //     updateTempMsg(text);
-    //   },
-    // });
+    const { data, error: reqError } = await api.schedule.image.stream.get({
+      query: {
+        userId: user?.id ?? undefined,
+        week: weekNumber,
+        groupId: group?.id ?? undefined,
+        stylemap: preferences.theme,
+        forceUpdate: !!opts?.forceUpdate,
+      },
+    });
+    if (reqError) {
+      throw new Error(`API error: ${JSON.stringify(reqError)}`);
+    }
     if (!data) throw new Error("No data received from API");
+    if ("code" in data) {
+      throw new Error(`API error ${data.code}: ${data.response}`);
+    }
+
+    log.debug(`Started receiving schedule stream`, { user: userId });
+
+    for await (const rawchunk of data) {
+      // TODO: remove this mess. See https://github.com/elysiajs/elysia/issues/1559
+      const chunk = (rawchunk as unknown as { data: typeof rawchunk }).data;
+      if ("state" in chunk) {
+        let text = "";
+        const { state, message } = chunk;
+        switch (state) {
+          case "updatingWeek":
+            text = "Обновление расписания...";
+            break;
+          case "generatingTimetable":
+            // text = "Генерация расписания...";
+            // ignored
+            break;
+          case "generatingImage":
+            // text = "Создание изображения...";
+            // ignored
+            break;
+          case "error":
+            error = message ?? "Произошла ошибка при получении расписания.";
+            return; // prevent updateTempMsg
+        }
+        if (text) {
+          log.debug(`Schedule stream update: '${state}': "${message ?? ""}"`, {
+            user: userId,
+          });
+          updateTempMsg(text);
+        }
+      } else {
+        log.debug(`Received schedule data chunk`, { user: userId });
+        timetableData = chunk;
+      }
+    }
+
+    if (!timetableData) {
+      throw new Error("No timetable data received from API stream");
+    }
   } catch (e) {
-    log.error(`Failed to get timetable ${String(e)}`, {
-      user: ctx?.from?.id,
+    log.error(`Failed to get timetable`, {
+      user: userId,
+      object: String(e) as unknown as object,
     });
     return ctx.reply(`
 Произошла неизвестная ошибка при обновлении.
-Есть ненулевой шанс, что изображение не может быть отправленно из-за определённой трехбуквенной конторы...
 Для подробностей свяжитесь с администратором бота.
         `);
   }
-  const { timetable, image } = data;
+  const { timetable, image } = timetableData;
 
   const buttonsMarkup = new InlineKeyboard()
     .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
@@ -233,7 +256,7 @@ async function sendTimetable(
     `Расписание на ${timetable.week} неделю` +
     weekNumberModifier +
     (group ? `\nДля группы ${group.name}` : "") +
-    // (error ? `\n${error}` : "") +
+    (error ? `\n${error}` : "") +
     (timetable.diff
       ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
       : "");
@@ -454,56 +477,80 @@ export async function updateTimetable(
       }
     }
 
-    let data;
-    // let error = "";
+    let timetableData: TimetableWithImage | null = null;
+    let error = "";
 
     try {
-      data = await api.schedule.image
-        .get({
-          query: {
-            userId: user?.id ?? undefined,
-            week: weekNumber,
-            groupId: group?.id ?? undefined,
-            stylemap: preferences.theme,
-            forceUpdate: !!opts?.forceUpdate,
-          },
-        })
-        .then((res) => res.data);
+      const { data, error: reqError } = await api.schedule.image.stream.get({
+        query: {
+          userId: user?.id ?? undefined,
+          week: weekNumber,
+          groupId: group?.id ?? undefined,
+          stylemap: preferences.theme,
+          forceUpdate: !!opts?.forceUpdate,
+        },
+      });
+      if (reqError) {
+        throw new Error(`API error: ${JSON.stringify(reqError)}`);
+      }
       if (!data) throw new Error("No data received from API");
-      // data = await schedule.getTimetableWithImage(user, weekNumber, {
-      //   groupId: group?.id ?? undefined,
-      //   stylemap: preferences.theme,
-      //   forceUpdate: opts?.forceUpdate ?? undefined,
-      //   onUpdate: ({ state, message }) => {
-      //     let text = "";
-      //     switch (state) {
-      //       case "updatingWeek":
-      //         text = "Обновление расписания...";
-      //         break;
-      //       case "generatingTimetable":
-      //         // text = "Генерация расписания...";
-      //         // ignored
-      //         break;
-      //       case "generatingImage":
-      //         // text = "Создание изображения...";
-      //         // ignored
-      //         break;
-      //       case "error":
-      //         error = message ?? "Произошла ошибка при получении расписания.";
-      //         return; // prevent updateTempMsg
-      //     }
-      //     updateTempMsg(text);
-      //   },
-      // });
+      if ("code" in data) {
+        throw new Error(`API error ${data.code}: ${data.response}`);
+      }
+
+      log.debug(`Started receiving schedule stream`, { user: userId });
+
+      for await (const rawchunk of data) {
+        // TODO: remove this mess. See https://github.com/elysiajs/elysia/issues/1559
+        const chunk = (rawchunk as unknown as { data: typeof rawchunk }).data;
+        if ("state" in chunk) {
+          let text = "";
+          const { state, message } = chunk;
+          switch (state) {
+            case "updatingWeek":
+              text = "Обновление расписания...";
+              break;
+            case "generatingTimetable":
+              // text = "Генерация расписания...";
+              // ignored
+              break;
+            case "generatingImage":
+              // text = "Создание изображения...";
+              // ignored
+              break;
+            case "error":
+              error = message ?? "Произошла ошибка при получении расписания.";
+              return; // prevent updateTempMsg
+          }
+          if (text) {
+            log.debug(
+              `Schedule stream update: '${state}': "${message ?? ""}"`,
+              {
+                user: userId,
+              },
+            );
+            updateTempMsg(text);
+          }
+        } else {
+          log.debug(`Received schedule data chunk`, { user: userId });
+          timetableData = chunk;
+        }
+      }
+
+      if (!timetableData) {
+        throw new Error("No timetable data received from API stream");
+      }
     } catch (e) {
-      log.error(`Failed to get timetable ${String(e)}`, { user: userId });
+      log.error(`Failed to get timetable`, {
+        user: userId,
+        object: String(e) as unknown as object,
+      });
       return ctx.reply(`
 Произошла неизвестная ошибка при обновлении.
-Есть ненулевой шанс, что изображение не может быть отправленно из-за определённой трехбуквенной конторы...
 Для подробностей свяжитесь с администратором бота.
         `);
     }
-    const { timetable, image } = data;
+    const { timetable, image } = timetableData;
 
     const buttonsMarkup = new InlineKeyboard()
       .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
@@ -539,7 +586,7 @@ export async function updateTimetable(
         `Расписание на ${timetable.week} неделю` +
         weekNumberModifier +
         (group ? `\nДля группы ${group.name}` : "") +
-        // (error ? `\n${error}` : "") +
+        (error ? `\n${error}` : "") +
         (timetable.diff
           ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
           : "");
@@ -604,8 +651,9 @@ export async function updateTimetable(
     ctx.session.scheduleViewer.week = timetable.week;
     ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
   } catch (e) {
-    log.error(`Failed to update timetable msg ${String(e)}`, {
+    log.error(`Failed to update timetable msg`, {
       user: ctx?.from?.id,
+      object: String(e) as unknown as object,
     });
     return answerCallbackQueryOrReply(ctx, "Произошла ошибка при обновлении.");
   } finally {
