@@ -55,11 +55,37 @@ Time: ${new Date().toISOString()}
       `,
       {
         reply_markup: new InlineKeyboard()
+          .text("Отмена", "bugReportCancel")
           .text("Нет, не нужно", "bugReportDontNotify")
           .text("Да, уведомить меня", "bugReportNotify")
           .row(),
       },
     );
+  });
+
+  bot.callbackQuery("bugReportCancel", async (ctx) => {
+    const msg = ctx.callbackQuery.message;
+    if (!msg) return;
+
+    log.info(`User has CANCELLED the bug report`, {
+      user: ctx.from.id,
+      tag: "BUG",
+    });
+
+    await api.cache.notifications.invalidate.bySource.patch({
+      source: `bugReport/${ctx.from.id}`,
+      method: "is",
+    });
+
+    await ctx.api.editMessageText(
+      msg.chat.id,
+      msg.message_id,
+      `\
+Не вопрос, но если столкнётесь с какими-либо ошибками в будущем - пожалуйста пропишите /bug [сообщение] что бы я знал где искать ошибки :D\
+`,
+    );
+
+    return ctx.answerCallbackQuery();
   });
 
   bot.callbackQuery("bugReportDontNotify", async (ctx) => {
