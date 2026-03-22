@@ -44,17 +44,22 @@ function hydrateTimetableDates(timetable: Timetable): Timetable {
 function getCachedTimetable(
   week: TimetableWeekLike,
   userId: number,
+  opts?: { loggingTag?: string },
 ): Timetable | null {
   const now = new Date();
   if (!week.timetable) return null;
 
   if (week.cachedUntil > now) {
-    log.debug("Timetable good enough. Returning cached", { user: userId });
+    log.debug("Timetable good enough. Returning cached", {
+      user: userId,
+      tag: opts?.loggingTag,
+    });
     return hydrateTimetableDates(week.timetable);
   }
 
   log.debug("Cached timetable expired. Will generate a new one", {
     user: userId,
+    tag: opts?.loggingTag,
   });
   return null;
 }
@@ -68,6 +73,7 @@ async function updateWeekIfNeeded(
   opts: {
     ignoreUpdate?: boolean;
     forceUpdate?: boolean;
+    loggingTag?: string;
   },
   updateState: (update: RequestStateUpdate<"updatingWeek" | "error">) => void,
 ) {
@@ -76,22 +82,31 @@ async function updateWeekIfNeeded(
       `Ignoring updates and generating purely based on current db info`,
       {
         user: user.id,
+        tag: opts.loggingTag,
       },
     );
     return;
   }
 
   if (opts.forceUpdate) {
-    log.debug("Requested forceUpdate. Updating week", { user: user.id });
+    log.debug("Requested forceUpdate. Updating week", {
+      user: user.id,
+      tag: opts.loggingTag,
+    });
     updateState({
       state: "updatingWeek",
       message: "Updating week from SSAU",
     });
     try {
-      await updateWeekForUser(user, weekNumber, { year, groupId });
+      await updateWeekForUser(user, weekNumber, {
+        year,
+        groupId,
+        loggingTag: opts.loggingTag,
+      });
     } catch {
       log.warn(`Failed to update week during forceUpdate.`, {
         user: user.id,
+        tag: opts.loggingTag,
       });
       updateState({
         state: "error",
@@ -104,16 +119,24 @@ async function updateWeekIfNeeded(
 
   if (Date.now() - week.updatedAt.getTime() > 86400_000) {
     // 1 day
-    log.debug("Week updatedAt too old. Updating week", { user: user.id });
+    log.debug("Week updatedAt too old. Updating week", {
+      user: user.id,
+      tag: opts.loggingTag,
+    });
     updateState({
       state: "updatingWeek",
       message: "Updating week from SSAU",
     });
     try {
-      await updateWeekForUser(user, weekNumber, { year, groupId });
+      await updateWeekForUser(user, weekNumber, {
+        year,
+        groupId,
+        loggingTag: opts.loggingTag,
+      });
     } catch {
       log.warn(`Failed to update week.`, {
         user: user.id,
+        tag: opts.loggingTag,
       });
       updateState({
         state: "error",
@@ -126,6 +149,7 @@ async function updateWeekIfNeeded(
 
   log.debug("Week updatedAt looks good. Not updating from ssau", {
     user: user.id,
+    tag: opts.loggingTag,
   });
 }
 
@@ -141,6 +165,7 @@ export async function getTimetable(
     dontCache?: boolean; // Don't cache generated timetable to DB
     ignoreIet?: boolean;
     ignoreSubgroup?: boolean;
+    loggingTag?: string; // An optional tag to add to all logs for this request.
     onUpdate?: (
       update: RequestStateUpdate<
         "updatingWeek" | "generatingTimetable" | "error"
@@ -176,7 +201,9 @@ export async function getTimetable(
   // TODO: Review which opts cannot be cached (or cache them separately) instead of ignoring cache entirely.
 
   if (!opts?.ignoreCached) {
-    const cachedTimetable = getCachedTimetable(week, user.id);
+    const cachedTimetable = getCachedTimetable(week, user.id, {
+      loggingTag: opts?.loggingTag,
+    });
     if (cachedTimetable) {
       return cachedTimetable;
     }
@@ -226,6 +253,7 @@ async function getTimetableWithImage(
     dontCache?: boolean; // Don't cache generated timetable to DB
     ignoreIet?: boolean;
     ignoreSubgroup?: boolean;
+    loggingTag?: string; // An optional tag to add to all logs for this request.
     onUpdate?: (
       update: RequestStateUpdate<
         "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
@@ -246,7 +274,10 @@ async function getTimetableWithImage(
   }
 
   if (!groupId) {
-    log.error(`Groupless user @getWeekTimetable`, { user: user.id });
+    log.error(`Groupless user @getWeekTimetable`, {
+      user: user.id,
+      tag: opts?.loggingTag,
+    });
     void lk.updateUserInfo(user);
     throw new Error(`Groupless user @getWeekTimetable`);
   }
@@ -268,16 +299,18 @@ async function getTimetableWithImage(
     week.timetable = hydrateTimetableDates(week.timetable);
   }
 
-  log.debug(
+  log.info(
     `Requested Image ${stylemap}/${week.groupId}/${week.year}/${week.number}`,
-    { user: user.id },
+    { user: user.id, tag: opts?.loggingTag },
   );
 
   let timetable: Timetable | null = null;
   let usingCachedTimetable = false;
 
   if (!opts?.ignoreCached) {
-    const cachedTimetable = getCachedTimetable(week, user.id);
+    const cachedTimetable = getCachedTimetable(week, user.id, {
+      loggingTag: opts?.loggingTag,
+    });
     if (cachedTimetable) {
       timetable = cachedTimetable;
       usingCachedTimetable = true;
@@ -304,6 +337,7 @@ async function getTimetableWithImage(
       year: opts?.year,
       ignoreIet: opts?.ignoreIet,
       ignoreSubgroup: opts?.ignoreSubgroup,
+      loggingTag: opts?.loggingTag,
     });
   }
 
@@ -323,6 +357,7 @@ async function getTimetableWithImage(
     if (existingImage) {
       log.debug(`Found a valid image with same timetable hash. Returning`, {
         user: user.id,
+        tag: opts?.loggingTag,
       });
       await db.weekImage.update({
         where: { id: existingImage.id },
@@ -345,7 +380,7 @@ async function getTimetableWithImage(
     } else {
       log.debug(
         `Could not find a valid image with same hash. Generating new. (hash:${timetableHash})`,
-        { user: user.id },
+        { user: user.id, tag: opts?.loggingTag },
       );
     }
   }
@@ -391,7 +426,7 @@ async function pregenerateImagesForUser(
   user: User,
   week: number,
   count?: number,
-  opts?: { groupId?: number; year?: number },
+  opts?: { groupId?: number; year?: number; loggingTag?: string },
 ) {
   const startTime = process.hrtime.bigint();
   const requestedCount = count ?? 1;
@@ -404,6 +439,7 @@ async function pregenerateImagesForUser(
     `Pregenerating #${startingWeek}: ${requestedCount} images for user.`,
     {
       user: user.id,
+      tag: opts?.loggingTag,
     },
   );
   for (let i = 0; i < totalToGenerate; i++) {
@@ -422,9 +458,9 @@ async function pregenerateImagesForUser(
     generatedCount += 1;
   }
   const endTime = process.hrtime.bigint();
-  log.debug(
+  log.info(
     `Pregenerated #${startingWeek}: ${generatedCount}/${totalToGenerate} images for user. Took: ${formatBigInt(endTime - startTime)}ns`,
-    { user: user.id },
+    { user: user.id, tag: opts?.loggingTag },
   );
 }
 

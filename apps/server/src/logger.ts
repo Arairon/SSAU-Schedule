@@ -13,7 +13,7 @@ const f = format.combine(
   format.printf((info) => {
     if (info.user !== undefined) {
       const user = (info.user as string | number | bigint).toString();
-      const tag = info.tag as string;
+      const tag = (info.tag ?? "") as string;
       const extraSpace = tag && user ? " " : "";
       return `\
 ${ansicyan}${info.timestamp as string}${ansiclear} | \

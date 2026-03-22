@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import {
-  dailyWeekUpdate,
+  dailyUpdate,
   invalidateDailyNotificationsForAll,
   scheduleDailyNotificationsForAll,
   uploadWeekImagesWithoutTgId,
@@ -10,7 +10,7 @@ import z from "zod";
 
 export const app = new Elysia()
   .post("/dailyWeekUpdate", () => {
-    return dailyWeekUpdate();
+    return dailyUpdate();
   })
   .post("/invalidateDailyNotificationsForAll", async () => {
     const res = await invalidateDailyNotificationsForAll();

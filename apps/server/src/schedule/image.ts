@@ -391,7 +391,6 @@ export async function generateTimetableImage(
   const endTime = process.hrtime.bigint();
   log.debug(
     `Generated an image for week ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
-    { user: -1 },
   );
   return image;
 }

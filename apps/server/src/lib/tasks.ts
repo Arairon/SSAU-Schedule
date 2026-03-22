@@ -128,7 +128,7 @@ export async function scheduleDailyNotificationsForAll() {
   return count;
 }
 
-export async function dailyWeekUpdate() {
+export async function dailyUpdate() {
   const now = new Date();
   // const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000);
   // const monthAgo = new Date(Date.now() - 30 * 24 * 3600_000);
@@ -144,7 +144,7 @@ export async function dailyWeekUpdate() {
     orderBy: { id: "asc" },
   });
   log.info(`Running week update for ${users.length} users`, {
-    user: "dailyWeekUpdate",
+    user: "dailyUpdate",
   });
 
   const newLessons: TimetableLesson[] = [];
@@ -154,13 +154,17 @@ export async function dailyWeekUpdate() {
   // on todays weeknumber
   for (const user of users) {
     try {
+      log.info(`Running daily update for user ${user.tgId}`, {
+        user: user.id,
+        tag: "dUpd",
+      });
       // const user = await db.user.findUnique({
       //   where: { id: week.owner },
       //   include: { ics: true },
       // });
       // if (!user) {
       //   log.error(`Found orphaned week #${week.id}`, {
-      //     user: "dailyWeekUpdate",
+      //     user: "dailyUpdate",
       //   });
       //   continue;
       // }
@@ -168,7 +172,7 @@ export async function dailyWeekUpdate() {
       // // Handled in isAuthed
       // if (!user.authCookie) {
       //   log.debug(`Skipping unauthenticated user #${user.id}`, {
-      //     user: "dailyWeekUpdate",
+      //     user: "dailyUpdate",
       //   });
       //   continue;
       // }
@@ -177,7 +181,7 @@ export async function dailyWeekUpdate() {
       // const isActive = user.lastActive > monthAgo;
       // if (!isActive) {
       //   log.warn(`Found inactive user: #${user.id}/${user.tgId.toString()}`, {
-      //     user: "dailyWeekUpdate",
+      //     user: "dailyUpdate",
       //   });
       //   continue;
       // }
@@ -188,14 +192,15 @@ export async function dailyWeekUpdate() {
         if (!isAuthed) {
           log.warn(
             `Failed to ensure auth for user ${user.id}. Probably a lost session`,
-            { user: "dailyWeekUpdate" },
+            { user: "dailyUpdate" },
           );
           // await scheduleDailyNotificationsForUser(user, weekNumber);
           // continue;
         }
       } catch (e) {
-        log.error(`Failed to ensure auth for user ${user.id}: ${e as Error}`, {
-          user: "dailyWeekUpdate",
+        log.error(`Failed to ensure auth for user ${user.id}`, {
+          user: "dailyUpdate",
+          object: e as object,
         });
         // await scheduleDailyNotificationsForUser(user, weekNumber);
         // continue;
@@ -205,16 +210,20 @@ export async function dailyWeekUpdate() {
       const currentWeek = await schedule.getTimetableWithImage(
         user,
         weekNumber,
-        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed },
+        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed, loggingTag: "dUpd" },
       );
       const nextWeek = await schedule.getTimetableWithImage(
         user,
         weekNumber + 1,
-        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed },
+        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed, loggingTag: "dUpd" },
       );
 
-      await schedule.pregenerateImagesForUser(user, weekNumber + 2, 6); // For now generously pregenerate whole 2 months
-      await schedule.pregenerateImagesForUser(user, weekNumber - 1, -2); // and 2 previous weeks for smoother scroll
+      await schedule.pregenerateImagesForUser(user, weekNumber + 2, 6, {
+        loggingTag: "dUpd",
+      }); // For now generously pregenerate whole 2 months
+      await schedule.pregenerateImagesForUser(user, weekNumber - 1, -2, {
+        loggingTag: "dUpd",
+      }); // and 2 previous weeks for smoother scroll
 
       const diff = {
         added: [
@@ -245,17 +254,15 @@ export async function dailyWeekUpdate() {
       log.error(
         `Failed to run daily update for user #${user.id}: ${e as Error}`,
         {
-          user: "dailyWeekUpdate",
+          user: "dailyUpdate",
         },
       );
     }
   }
 
-  log.debug(
-    `Total week changes: +${newLessons.length}, -${removedLessons.length}`,
-    {
-      user: "dailyWeekUpdate",
-    },
+  log.info(
+    `Daily update completed. Took ${formatBigInt(Date.now() - now.getTime())}ms. Total changes: +${newLessons.length}, -${removedLessons.length}`,
+    { user: "dailyUpdate" },
   );
 }
 
@@ -294,7 +301,35 @@ export async function scheduleDailyNotificationsForUser(
   today.setHours(7, 0); // 7 AM in TZ (Europe/Samara)
   const weekNumber = week ?? getWeekFromDate(today);
   const preferences = getUserPreferences(user);
-  const timetable = await schedule.getTimetable(user, weekNumber);
+
+  if (
+    !(
+      preferences.notifyBeforeLessons ||
+      preferences.notifyAboutNextLesson ||
+      preferences.notifyAboutNextDay ||
+      preferences.notifyAboutNextWeek
+    )
+  ) {
+    log.debug(
+      `User ${user.id} has no notification preferences enabled. Skipping.`,
+      { user: user.id, tag: "dNf" },
+    );
+    return { count: 0 };
+  } else {
+    log.info(`Scheduling daily notifications for week ${week ?? "current"}`, {
+      user: user.id,
+      tag: "dNf",
+    });
+  }
+
+  if (today.getDay() === 0) {
+    // sunday
+    return;
+  }
+
+  const timetable = await schedule.getTimetable(user, weekNumber, {
+    loggingTag: "dNf",
+  });
   timetable.days.map(
     (d) => (d.lessons = d.lessons.filter((i) => !i.customized?.hidden)),
   );
@@ -633,7 +668,7 @@ export const cronjobs = [
     { cronExpression: "0 2 * * *" }, // 2 am
     new AsyncTask(
       "Daily week update and notifications scheduling",
-      dailyWeekUpdate,
+      dailyUpdate,
     ),
     {
       preventOverrun: true,
