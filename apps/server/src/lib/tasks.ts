@@ -537,25 +537,22 @@ export async function dailyCleanup() {
       })
     ).count,
   );
-  results.push(
-    (await db.userIcs.deleteMany({ where: { updatedAt: { lt: weekAgo } } }))
-      .count,
-  );
-  results.push(
-    (await db.groupIcs.deleteMany({ where: { updatedAt: { lt: weekAgo } } }))
-      .count,
-  );
+  // results.push(
+  //   (await db.userIcs.deleteMany({ where: { updatedAt: { lt: weekAgo } } }))
+  //     .count,
+  // );
+  // results.push(
+  //   (await db.groupIcs.deleteMany({ where: { updatedAt: { lt: weekAgo } } }))
+  //     .count,
+  // );
   results.push(
     (await db.lesson.deleteMany({ where: { validUntil: { lt: weekAgo } } }))
       .count,
   );
 
-  log.info(
-    `Cleanup complete: ${results.join(", ")} (im, msg, uIcs, gIcs, les)`,
-    {
-      user: "dailyCleanup",
-    },
-  );
+  log.info(`Cleanup complete: ${results.join(", ")} (im, msg, les)`, {
+    user: "dailyCleanup",
+  });
 }
 
 export async function uploadWeekImagesWithoutTgId() {
