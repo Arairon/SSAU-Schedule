@@ -113,6 +113,10 @@ async function login(
   return { ok: true, data: user };
 }
 
+const ssauVariableHeaders = {
+  "Next-Action": "60ec26be5c78628290529c6be2e0e64c114c5502af",
+};
+
 async function getTokenUsingCredentials(
   username: string,
   password: string,
@@ -129,7 +133,7 @@ async function getTokenUsingCredentials(
       Accept: "text/x-component",
       "Accept-Language": "en-US,en;q=0.9",
       "Accept-Encoding": "gzip, deflate, br, zstd",
-      "Next-Action": "6057f1293257a9a97bc650654963f1e9c17c351853",
+      // "Next-Action": "60ec26be5c78628290529c6be2e0e64c114c5502af",
       "Next-Router-State-Tree":
         "%5B%22%22%2C%7B%22children%22%3A%5B%22account%22%2C%7B%22children%22%3A%5B%22login%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2C%22%2Fapi%2Faccount%2Flogout%22%2C%22refresh%22%5D%7D%5D%7D%2Cnull%2Cnull%2Ctrue%5D%7D%2Cnull%2Cnull%2Ctrue%5D",
       Origin: "https://lk.ssau.ru",
@@ -143,6 +147,7 @@ async function getTokenUsingCredentials(
       "Cache-Control": "no-cache",
       TE: "trailers",
       "Content-Type": "multipart/form-data",
+      ...ssauVariableHeaders,
     },
     withCredentials: true,
     maxRedirects: 0,
