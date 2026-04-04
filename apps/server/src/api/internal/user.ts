@@ -357,7 +357,7 @@ export const app = new Elysia()
         user.tgId.toString(),
       );
       const scheduled = await scheduleDailyNotificationsForUser(user);
-      return { cleared: cleared.count, scheduled: scheduled.count };
+      return { cleared: cleared.count, scheduled: scheduled?.count ?? 0 };
     },
     {
       params: z.object({
