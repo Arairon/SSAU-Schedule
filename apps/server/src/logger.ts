@@ -61,7 +61,7 @@ const rotatingJsonLogFile = new winston.transports.DailyRotateFile({
 type LogMeta = {
   user?: string | number | bigint;
   tag?: string;
-  object?: object | null;
+  object?: object | null | string | number | boolean;
   objectPretty?: boolean;
 };
 

@@ -4,4 +4,5 @@ db/
 log/
 dist/
 generated/
+state.json
 

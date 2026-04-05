@@ -7,6 +7,7 @@ import { UserDetailsSchema, UserGroupsSchema } from "@/ssau/schemas/lk";
 import log from "@/logger";
 import { type ReturnObj } from "@ssau-schedule/shared/utils";
 import { ensureGroupExists } from "../lib/misc";
+import { runtimeState } from "@/lib/runtimeState";
 
 function resetAuth(
   userId: number,
@@ -90,12 +91,17 @@ async function login(
   const rawCookie = loginRes.data;
   // Save cookie and related info in user
   const cookieUpd = getCookie(rawCookie);
-  if (!cookieUpd)
+  if (!cookieUpd) {
+    log.debug(`Failed to get cookie from login response:`, {
+      user: user.id,
+      object: rawCookie,
+    });
     return {
       ok: false,
       error: "invalid cookie",
       message: "lk.ssau.ru returned an invalid cookie",
     };
+  }
 
   const credsUpd = {
     username: undefined as undefined | string,
@@ -105,6 +111,12 @@ async function login(
     credsUpd.username = username;
     credsUpd.password = creds.encrypt(password);
   }
+  log.debug(
+    `Logged in. Credentials ${saveCredentials ? "saved" : "not saved"}`,
+    {
+      user: user.id,
+    },
+  );
   Object.assign(user, cookieUpd, credsUpd);
   await db.user.update({
     where: { id: user.id },
@@ -113,14 +125,17 @@ async function login(
   return { ok: true, data: user };
 }
 
-const ssauVariableHeaders = {
-  "Next-Action": "60ec26be5c78628290529c6be2e0e64c114c5502af",
-};
+function getSsauVariableHeaders() {
+  return {
+    "Next-Action": runtimeState.ssauNextAction,
+  };
+}
 
 async function getTokenUsingCredentials(
   username: string,
   password: string,
 ): Promise<ReturnObj<string>> {
+  const ssauVariableHeaders = getSsauVariableHeaders();
   const form = new FormData();
   form.append("1_returnUrl", "");
   form.append("1_login", username);

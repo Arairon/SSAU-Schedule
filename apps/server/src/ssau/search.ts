@@ -10,17 +10,39 @@ type GroupTeacherSearchResponse = {
   type: "group" | "teacher";
 };
 
+type SsauSearchCacheEntry = {
+  results: GroupTeacherSearchResponse[];
+  expiresAt: number;
+};
+
 const ssauSearchResponseSchema = s.object({
   id: s.number(),
   url: s.string(),
   text: s.string(),
 });
 
-const ssauSearchCache = new Map<string, GroupTeacherSearchResponse[]>();
+const SSAU_SEARCH_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const SSAU_SEARCH_CACHE_MAX_ENTRIES = 5000;
+
+const ssauSearchCache = new Map<string, SsauSearchCacheEntry>();
 const inFlightSsauSearches = new Map<
   string,
   Promise<GroupTeacherSearchResponse[]>
 >();
+
+function pruneSsauSearchCache(now = Date.now()) {
+  for (const [key, entry] of ssauSearchCache) {
+    if (entry.expiresAt <= now) {
+      ssauSearchCache.delete(key);
+    }
+  }
+
+  while (ssauSearchCache.size > SSAU_SEARCH_CACHE_MAX_ENTRIES) {
+    const oldestKey = ssauSearchCache.keys().next().value;
+    if (!oldestKey) break;
+    ssauSearchCache.delete(oldestKey);
+  }
+}
 
 function normalizeSsauSearchText(text: string) {
   return text.trim().toLowerCase();
@@ -108,13 +130,16 @@ async function fetchGroupsOrTeachersInSsau(
 export async function findGroupsOrTeachersInSsau(
   text: string,
 ): Promise<GroupTeacherSearchResponse[]> {
+  const now = Date.now();
+  pruneSsauSearchCache(now);
+
   const normalizedText = normalizeSsauSearchText(text);
-  const cachedResults = ssauSearchCache.get(normalizedText);
-  if (cachedResults) {
+  const cachedEntry = ssauSearchCache.get(normalizedText);
+  if (cachedEntry && cachedEntry.expiresAt > now) {
     log.debug(
-      `Cache hit for '${text}' in ssau.ru/rasp search -> ${cachedResults.length} results`,
+      `Cache hit for '${text}' in ssau.ru/rasp search -> ${cachedEntry.results.length} results`,
     );
-    return cloneSearchResults(cachedResults);
+    return cloneSearchResults(cachedEntry.results);
   }
 
   // Deduplicate concurrent searches for the same query.
@@ -127,7 +152,10 @@ export async function findGroupsOrTeachersInSsau(
   const request = (async () => {
     const results = await fetchGroupsOrTeachersInSsau(normalizedText);
     if (results) {
-      ssauSearchCache.set(normalizedText, results);
+      ssauSearchCache.set(normalizedText, {
+        results,
+        expiresAt: now + SSAU_SEARCH_CACHE_TTL_MS,
+      });
       return results;
     }
     return [];
