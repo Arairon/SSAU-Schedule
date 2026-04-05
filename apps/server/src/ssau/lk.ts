@@ -7,7 +7,8 @@ import { UserDetailsSchema, UserGroupsSchema } from "@/ssau/schemas/lk";
 import log from "@/logger";
 import { type ReturnObj } from "@ssau-schedule/shared/utils";
 import { ensureGroupExists } from "../lib/misc";
-import { runtimeState } from "@/lib/runtimeState";
+import { runtimeState, writeStateToDisk } from "@/lib/runtimeState";
+import { scrapeLoginRequest } from "./loginScrape";
 
 function resetAuth(
   userId: number,
@@ -134,6 +135,7 @@ function getSsauVariableHeaders() {
 async function getTokenUsingCredentials(
   username: string,
   password: string,
+  opts?: { noRetry?: boolean },
 ): Promise<ReturnObj<string>> {
   const ssauVariableHeaders = getSsauVariableHeaders();
   const form = new FormData();
@@ -175,8 +177,7 @@ async function getTokenUsingCredentials(
       error: "refused",
       message: "Invalid username or password",
     };
-  }
-  if (resp.status === 303) {
+  } else if (resp.status === 303) {
     // Successful login
     if (!resp.headers["set-cookie"]?.length)
       return {
@@ -194,9 +195,63 @@ async function getTokenUsingCredentials(
         message: "Unable to get auth token from cookies",
       };
     return { ok: true, data: cookie };
+  } else if (resp.status === 404) {
+    // Invalid Next-Action
+    if (resp.data === "Server action not found.") {
+      log.warn(`Failed to login: Invalid Next-Action. Response: ${resp.data}`);
+
+      if (opts?.noRetry) {
+        log.warn(`Not retrying login since noRetry is set`, {
+          user: username,
+        });
+        return {
+          ok: false,
+          error: "invalid next-action",
+          message:
+            "SSAU login flow has changed, and the server needs to update some variables. Please file a /bug report.",
+        };
+      }
+
+      try {
+        await updateSsauNextAction();
+      } catch (e) {
+        log.error(`Failed to update Next-Action after failed login attempt`, {
+          user: username,
+          object: e as object,
+        });
+        return {
+          ok: false as const,
+          error: "invalid next-action",
+          message:
+            "SSAU login flow has changed, and the server needs to update some variables. Please file a /bug report.",
+        };
+      }
+
+      log.info(`Retrying login after updating Next-Action`, {
+        user: username,
+      });
+      return getTokenUsingCredentials(username, password, {
+        noRetry: true,
+      });
+    }
   }
   return { ok: false, error: "failed", message: "Unable to complete request" };
 }
+
+async function updateSsauNextAction() {
+  const request = await scrapeLoginRequest();
+  if (!request) {
+    throw new Error("Failed to scrape login page for Next-Action");
+  }
+  const nextAction = request.headers["next-action"];
+  if (!nextAction) {
+    throw new Error("Next-Action header not found in scraped login request");
+  }
+  runtimeState.ssauNextAction = nextAction;
+  await writeStateToDisk();
+  log.info(`Updated SSAU Next-Action: ${nextAction}`, { tag: "init" });
+}
+
 /*
 // Archived. Old auth
 async function getTokenUsingCredentials(
