@@ -65,18 +65,16 @@ const app = new Elysia()
       );
     }
   })
-  .onAfterResponse(async ({ request, set }) => {
+  .onAfterResponse(async ({ request, set, responseValue }) => {
     const requestId = set.headers["x-request-id"];
     const requestStart = Number(set.headers["x-request-time"]);
     const requestTime = Date.now() - requestStart;
+    const status = (responseValue as { status?: number })?.status ?? "unk";
 
-    log.debug(
-      `-> ${request.method[0]} ${set.status ?? "unk"} – ${requestTime}ms`,
-      {
-        user: requestId,
-        tag: "API",
-      },
-    );
+    log.debug(`-> ${request.method[0]} ${status} – ${requestTime}ms`, {
+      user: requestId,
+      tag: "API",
+    });
   })
   // api routes
   .use(apiApp)
