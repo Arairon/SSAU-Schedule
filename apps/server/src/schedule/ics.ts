@@ -2,7 +2,7 @@ import * as ics from "ics";
 import { db } from "@/db";
 import log from "@/logger";
 import {
-  lessonToTimetableLesson,
+  convertLessonToTimetableLesson,
   LessonTypeIcon,
   LessonTypeName,
 } from "@ssau-schedule/shared/misc";
@@ -100,7 +100,7 @@ export async function generateUserIcs(
 
   // Process regular lessons with customizations applied
   for (const dblesson of [...normalLessons, ...ietLessons]) {
-    const lesson = lessonToTimetableLesson(dblesson);
+    const lesson = convertLessonToTimetableLesson(dblesson);
     if (user.subgroup && lesson.subgroup && user.subgroup !== lesson.subgroup)
       continue;
     if (!preferences.showMilitary && lesson.type === LessonType.Military)

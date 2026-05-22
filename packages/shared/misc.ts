@@ -74,15 +74,28 @@ ${subgroupStr}`
 
 export function formatLesson(
   lesson: TimetableLesson,
-  options?: { showDate?: boolean },
+  options?: {
+    showDate?: boolean;
+    dateFormat?: Intl.DateTimeFormatOptions;
+    showSubgroup?: boolean;
+    nameOverride?: string;
+  },
 ): string {
-  const opts = Object.assign({ showDate: true }, options);
+  const opts = Object.assign(
+    {
+      showDate: true,
+      dateFormat: {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+      },
+      showSubgroup: false,
+      nameOverride: undefined,
+    },
+    options,
+  );
   const date = formatSentence(
-    lesson.beginTime.toLocaleDateString("ru-RU", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-    }),
+    lesson.beginTime.toLocaleDateString("ru-RU", opts.dateFormat),
   );
   const startTime = lesson.beginTime.toLocaleTimeString("ru-RU", {
     hour: "numeric",
@@ -92,13 +105,15 @@ export function formatLesson(
     hour: "numeric",
     minute: "numeric",
   });
+
   const place = lesson.isOnline
-    ? `Online (${lesson.conferenceUrl ?? "ссылка отсутствует"})`
+    ? `Online (${lesson.conferenceUrl ?? "n/a"})`
     : `${lesson.building} - ${lesson.room}`;
   return `\
 ${opts.showDate ? `📆 ${date} / ` : ""}\
-${startTime} - ${endTime}
-${LessonTypeIcon[lesson.type]} ${lesson.discipline} (${place}) ${lesson.isIet ? "[ИОТ]" : ""}`;
+${startTime} - ${endTime}\
+${opts.showSubgroup && lesson.subgroup ? ` / 👥 ${lesson.subgroup}` : ""}
+${LessonTypeIcon[lesson.type]} ${opts.nameOverride ?? lesson.discipline} (${place}) ${lesson.isIet ? "[ИОТ]" : ""}`;
 }
 
 export function mapLessonsToDays(lessons: TimetableLesson[]) {
@@ -266,7 +281,7 @@ export function formatTimetableDiff(
  * @param lesson Prisma Lesson with teacher, groups, and/or flows included
  * @returns TimetableLesson ready for use in timetables
  */
-export function lessonToTimetableLesson(lesson: {
+export function convertLessonToTimetableLesson(lesson: {
   id: number;
   infoId: number;
   type: LessonType;
@@ -317,3 +332,54 @@ export type RequestStateUpdate<T extends string> = {
   state: T;
   message?: string;
 };
+
+export function groupContinousLessons(
+  lessons: TimetableLesson[],
+): TimetableLesson[] {
+  if (lessons.length === 0) return [];
+  const sortedLessons = [...lessons].sort(
+    (a, b) => a.beginTime.getTime() - b.beginTime.getTime(),
+  );
+  const grouped: TimetableLesson[] = [];
+  let currentGroup = [sortedLessons[0]];
+
+  for (let i = 1; i < sortedLessons.length; i++) {
+    const prev = currentGroup[currentGroup.length - 1];
+    const curr = sortedLessons[i];
+    if (
+      prev.discipline === curr.discipline &&
+      prev.teacher.id === curr.teacher.id &&
+      prev.type === curr.type &&
+      prev.isOnline === curr.isOnline &&
+      prev.building === curr.building &&
+      prev.room === curr.room &&
+      prev.subgroup === curr.subgroup &&
+      prev.groups.join(",") === curr.groups.join(",") &&
+      prev.flows.join(",") === curr.flows.join(",") &&
+      curr.dayTimeSlot === prev.dayTimeSlot + 1
+    ) {
+      currentGroup.push(curr);
+    } else {
+      grouped.push(
+        currentGroup.length > 1
+          ? {
+              ...currentGroup[0],
+              endTime: currentGroup.at(-1)!.endTime,
+            }
+          : prev,
+      );
+      currentGroup = [curr];
+    }
+  }
+  // Push the last group
+  grouped.push(
+    currentGroup.length > 1
+      ? {
+          ...currentGroup[0],
+          endTime: currentGroup.at(-1)!.endTime,
+        }
+      : currentGroup[0],
+  );
+
+  return grouped;
+}
