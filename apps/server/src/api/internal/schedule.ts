@@ -3,8 +3,17 @@ import z from "zod";
 
 import { db } from "@/db";
 import { schedule } from "@/schedule/requests";
-import type { Timetable, TimetableDiff } from "@ssau-schedule/shared/timetable";
-import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
+import type {
+  Timetable,
+  TimetableDiff,
+  TimetableLesson,
+} from "@ssau-schedule/shared/timetable";
+import {
+  convertLessonToTimetableLesson,
+  groupContinousLessons,
+  type RequestStateUpdate,
+} from "@ssau-schedule/shared/misc";
+import { getWeekFromDate } from "@ssau-schedule/shared/date";
 
 const stringBool = z
   .string()
@@ -198,6 +207,63 @@ export const app = new Elysia()
     {
       query: scheduleRequestQuerySchema.extend({
         stylemap: z.string().optional(),
+      }),
+    },
+  )
+  .get(
+    "/exams",
+    async ({ query, status }) => {
+      const user = await db.user.findUnique({
+        where: { id: query.userId },
+      });
+
+      if (!user) return status(404, "User not found");
+      if (!user.groupId) return status(400, "User has no groupId");
+
+      const now = new Date();
+      const currentWeek = getWeekFromDate(now);
+      const firstSemester = currentWeek < 23;
+
+      const exams: TimetableLesson[] = (
+        await db.lesson.findMany({
+          where: {
+            groups: {
+              some: {
+                id: user.groupId,
+              },
+            },
+            type: {
+              in: query.includeConsultations ? ["Exam", "Consult"] : ["Exam"],
+            },
+            weekNumber: {
+              gte: firstSemester ? 0 : 23,
+              lte: firstSemester ? 22 : 52,
+            },
+          },
+          include: {
+            teacher: true,
+            groups: true,
+          },
+        })
+      )
+        .filter(
+          (l) =>
+            !!query.ignoreSubgroup ||
+            !user.subgroup ||
+            l.subgroup === null ||
+            l.subgroup === user.subgroup,
+        )
+        .map(convertLessonToTimetableLesson);
+
+      const grouped = groupContinousLessons(exams); // Since many exams span multiple lessons
+
+      return grouped;
+    },
+    {
+      query: z.object({
+        userId: z.coerce.number().int(),
+        includeConsultations: z.coerce.boolean().default(false).optional(),
+        ignoreSubgroup: z.coerce.boolean().default(false).optional(),
       }),
     },
   );

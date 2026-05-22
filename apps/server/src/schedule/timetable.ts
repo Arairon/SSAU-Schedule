@@ -18,7 +18,7 @@ import type {
 } from "@ssau-schedule/shared/timetable";
 import { getWeek, getWeekLessons } from "@/lib/week";
 import { applyCustomization } from "./customLesson";
-import { lessonToTimetableLesson } from "@ssau-schedule/shared/misc";
+import { convertLessonToTimetableLesson } from "@ssau-schedule/shared/misc";
 
 function compareLessonSubgroup(
   left: TimetableLesson,
@@ -144,7 +144,7 @@ export async function generateTimetable(
 
   // Run through all the lessons and add them to the timetable, applying customizations if needed
   for (const lesson of lessons.all) {
-    const timetableLesson = lessonToTimetableLesson(lesson);
+    const timetableLesson = convertLessonToTimetableLesson(lesson);
 
     const customLesson = customLessons.find((i) => i.lessonId === lesson.id);
     if (customLesson && customLesson.weekNumber !== timetable.week) continue; // Lesson was moved to another week

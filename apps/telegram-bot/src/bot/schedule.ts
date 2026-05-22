@@ -2,10 +2,11 @@ import { InlineKeyboard, type Bot } from "grammy";
 import type { Context } from "./types";
 
 import log from "@/logger";
-import { formatBigInt } from "@ssau-schedule/shared/utils";
+import { formatBigInt, formatSentence } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
 import {
+  formatLesson,
   formatTimetableDiff,
   generateTextLesson,
 } from "@ssau-schedule/shared/misc";
@@ -788,7 +789,7 @@ export async function initSchedule(bot: Bot<Context>) {
         `\
 Занятия сегодня:
 
-${day.lessons.map(generateTextLesson).join("\n=====\n")}
+${day.lessons.map(generateTextLesson).join("\n-----\n")}
 `,
         { link_preview_options: { is_disabled: true } },
       );
@@ -819,6 +820,72 @@ ${generateTextLesson(lesson)}
 `,
       { link_preview_options: { is_disabled: true } },
     );
+  });
+
+  commands.command("exams", "Ближайшие экзамены", async (ctx) => {
+    if (!ctx.from || !ctx.message) return;
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
+
+    // Exams and Consultations
+    const exams = await api.schedule.exams
+      .get({ query: { userId: user.id, includeConsultations: true } })
+      .then((res) => res.data);
+
+    if (!exams || exams.length === 0) {
+      return ctx.reply(
+        "Экзамены не найдены :D\nВозможно их ещё не добавили в расписание.",
+      );
+    }
+
+    const lines: string[] = [];
+
+    function formatDate(d: Date) {
+      return formatSentence(
+        d.toLocaleDateString("ru-RU", {
+          weekday: "long",
+          day: "2-digit",
+          month: "2-digit",
+        }),
+      );
+    }
+
+    const now = new Date();
+    const lastPassedExamIndex = exams.findIndex(
+      (e) => new Date(e.endTime) < now && e.type === "Exam",
+    );
+    if (lastPassedExamIndex > 0) {
+      const items = exams
+        .slice(0, lastPassedExamIndex + 1)
+        .filter((e) => e.type === "Exam");
+      lines.push("Прошедшие экзамены:\n");
+      items.map((l) =>
+        lines.push(`<b>${l.discipline}</b> (${formatDate(l.beginTime)})`),
+      );
+      lines.push("-----");
+    }
+    lines.push("Предстоящие экзамены:");
+
+    let currentExamDiscipline = "";
+    for (const l of exams.slice(
+      lastPassedExamIndex > 0 ? lastPassedExamIndex + 1 : 0,
+    )) {
+      if (l.discipline !== currentExamDiscipline) {
+        lines.push(`\n<b>${l.discipline}</b>`);
+        currentExamDiscipline = l.discipline;
+      }
+      lines.push(
+        formatLesson(l, {
+          nameOverride: `${l.type === "Consult" ? "Консультация" : "Экзамен"}`,
+          showSubgroup: true,
+        }),
+      );
+    }
+
+    return ctx.reply(lines.join("\n"), {
+      link_preview_options: { is_disabled: true },
+      parse_mode: "HTML",
+    });
   });
 
   // 0 - 99 as a week number

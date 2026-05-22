@@ -22,11 +22,14 @@ const app = new Elysia()
     requestIdCounter += 1;
     set.headers["x-request-id"] = requestIdCounter.toString();
     set.headers["x-request-time"] = Date.now().toString();
-    const path = new URL(request.url).pathname;
-    log.debug(`<- ${request.method.padEnd(5, " ")} ${path}`, {
-      user: requestIdCounter,
-      tag: "API",
-    });
+    const url = new URL(request.url);
+    log.debug(
+      `<- ${request.method.padEnd(5, " ")} ${url.pathname} ${url.searchParams}`,
+      {
+        user: requestIdCounter,
+        tag: "API",
+      },
+    );
   })
   .onError(({ request, error, set, path }) => {
     const requestId = set.headers["x-request-id"];
@@ -39,7 +42,10 @@ const app = new Elysia()
       {
         user: requestId,
         tag: "API",
-        object: error,
+        object: {
+          request,
+          error,
+        },
       },
     );
     if (
@@ -58,12 +64,13 @@ const app = new Elysia()
       ]);
     }
   })
-  .onAfterResponse(async ({ request, set, path }) => {
+  .onAfterResponse(async ({ request, set }) => {
     const requestId = set.headers["x-request-id"];
     const requestStart = Number(set.headers["x-request-time"]);
     const requestTime = Date.now() - requestStart;
+
     log.debug(
-      `-> ${request.method[0]} ${set.status ?? "unk"} ${path} – ${requestTime}ms`,
+      `-> ${request.method[0]} ${set.status ?? "unk"} – ${requestTime}ms`,
       {
         user: requestId,
         tag: "API",
