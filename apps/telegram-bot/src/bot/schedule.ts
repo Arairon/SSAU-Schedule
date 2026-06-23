@@ -851,7 +851,7 @@ ${generateTextLesson(lesson)}
     }
 
     const now = new Date();
-    const lastPassedExamIndex = exams.findIndex(
+    const lastPassedExamIndex = exams.findLastIndex(
       (e) => new Date(e.endTime) < now && e.type === "Exam",
     );
     if (lastPassedExamIndex > 0) {
@@ -864,12 +864,17 @@ ${generateTextLesson(lesson)}
       );
       lines.push("-----");
     }
-    lines.push("Предстоящие экзамены:");
 
     let currentExamDiscipline = "";
-    for (const l of exams.slice(
+    const upcomingExams = exams.slice(
       lastPassedExamIndex > 0 ? lastPassedExamIndex + 1 : 0,
-    )) {
+    );
+    if (upcomingExams.length === 0) {
+      lines.push("Предстоящих экзаменов нет :D");
+    } else {
+      lines.push("Предстоящие экзамены:");
+    }
+    for (const l of upcomingExams) {
       if (l.discipline !== currentExamDiscipline) {
         lines.push(`\n<b>${l.discipline}</b>`);
         currentExamDiscipline = l.discipline;
