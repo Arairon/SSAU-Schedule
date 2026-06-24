@@ -211,6 +211,29 @@ export const app = new Elysia()
     },
   )
   .get(
+    "/image/png",
+    async ({ query, status, set }) => {
+      const user = await db.user.findUnique({
+        where: { id: query.userId },
+      });
+      if (!user) return status(404, "User not found");
+
+      const { image } = await schedule.getTimetableWithImage(
+        user,
+        query.week,
+        query,
+      );
+
+      set.headers["content-type"] = "image/png";
+      return image.data;
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+      }),
+    },
+  )
+  .get(
     "/exams",
     async ({ query, status }) => {
       const user = await db.user.findUnique({

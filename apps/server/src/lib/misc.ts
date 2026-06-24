@@ -43,17 +43,22 @@ export async function ensureFlowExists(flow: {
   });
 }
 
-export async function ensureTeacherExists(teacher: TeacherType) {
+export async function ensureTeacherExists(
+  teacher: Omit<TeacherType, "state"> & { state?: string },
+) {
   const data = {
     id: teacher.id,
     name: teacher.name,
     shortname: getPersonShortname(teacher.name),
-    state: teacher.state,
+    state: teacher.state ?? undefined,
   };
   await db.teacher.upsert({
     where: { id: teacher.id },
     update: data,
-    create: data,
+    create: {
+      ...data,
+      state: "unknown",
+    },
   });
 }
 

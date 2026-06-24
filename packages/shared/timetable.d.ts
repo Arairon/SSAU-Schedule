@@ -90,6 +90,14 @@ export type Timetable = {
   days: TimetableDay[]; // Should always have length of 6
 };
 
+export type TeacherTimetable = {
+  teacherId: number;
+  year: number;
+  week: number;
+  hash: string;
+  days: TimetableDay[]; // Should always have length of 6
+};
+
 export type TimetableWithDiff = Timetable & { diff?: TimetableDiff };
 
 export type TimetableWithImage = {

@@ -9,6 +9,7 @@ import { app as routesSsau } from "./ssau";
 import { app as routesTasks } from "./tasks";
 import { app as routesUser } from "./user";
 import { app as routesGroup } from "./group";
+import { app as routesTeacher } from "./teacher";
 import { app as routesDebug } from "./debug";
 import log from "@/logger";
 
@@ -36,5 +37,6 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
       .group("/misc", (app) => app.use(routesMisc))
       .group("/tasks", (app) => app.use(routesTasks))
       .group("/group", (app) => app.use(routesGroup))
+      .group("/teacher", (app) => app.use(routesTeacher))
       .group("/debug", (app) => app.use(routesDebug)),
 );

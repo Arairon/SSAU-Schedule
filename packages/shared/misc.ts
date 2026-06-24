@@ -30,6 +30,16 @@ export const LessonTypeName: Record<LessonType, string> = {
   Unknown: "Неизвестно",
 };
 
+export function getLessonTypeFromName(name: string): LessonType {
+  const entry = Object.entries(LessonTypeName).find(
+    ([, value]) => value === name,
+  );
+  if (!entry) {
+    return "Unknown";
+  }
+  return entry[0] as LessonType;
+}
+
 export const LessonFieldsNames = {
   id: "id",
   infoId: "infoId",

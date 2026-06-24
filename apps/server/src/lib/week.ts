@@ -176,9 +176,19 @@ export async function getWeekLessons(
     include: { flows: true, teacher: true },
   });
   return {
-    lessons,
-    ietLessons,
     customLessons,
     all: [...lessons, ...ietLessons],
   };
+}
+
+export async function getWeekTeacherLessons(teacherId: number, week: number) {
+  const lessons = await db.lesson.findMany({
+    where: {
+      weekNumber: week,
+      validUntil: { gt: new Date() },
+      teacherId: teacherId,
+    },
+    include: { groups: true, teacher: true },
+  });
+  return lessons;
 }

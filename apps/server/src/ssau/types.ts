@@ -10,6 +10,7 @@ const LessonTypeMap = [
   LessonType.Exam,
   LessonType.Consult,
   LessonType.CourseWork,
+  // TODO: Add LessonType 8. Зачёт
 ];
 export function getLessonTypeEnum(type: number) {
   if (type < 0 || type >= LessonTypeMap.length) {
