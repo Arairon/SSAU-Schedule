@@ -157,15 +157,8 @@ export async function sendTimetable(
 
     const newMessageMode = !msgId;
 
-    const user = await api.user
-      .tgid({ id: userId })
-      .get()
-      .then((res) => res.data);
-    if (!user) {
-      return ctx.reply(
-        "Вы не найдены в базе данных. Пожалуйста пропишите /start",
-      );
-    }
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
     const isAuthed = !!user.authCookie;
     const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
 

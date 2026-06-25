@@ -98,6 +98,8 @@ export function getDefaultSession(): Session {
       chatId: 0,
       week: 0,
       groupId: undefined,
+      teacherId: undefined,
+      mode: null,
     },
   };
 }

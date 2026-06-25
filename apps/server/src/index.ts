@@ -39,7 +39,7 @@ const app = new Elysia()
       },
     );
   })
-  .onError(({ request, error, set, path }) => {
+  .onError(({ request, error, set, path, server }) => {
     const requestId = set.headers["x-request-id"];
     const e = {
       status: "status" in error ? error.status : "000",
@@ -53,6 +53,7 @@ const app = new Elysia()
         object: {
           request,
           error,
+          ip: server?.requestIP(request),
         },
       },
     );
