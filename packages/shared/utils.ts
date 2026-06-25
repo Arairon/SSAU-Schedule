@@ -15,6 +15,13 @@ export function formatSentence(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+export function formatName(string: string) {
+  return string
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function md5(string: string) {
   const hash = crypto.createHash("md5");
   hash.update(string);

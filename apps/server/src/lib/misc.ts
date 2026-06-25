@@ -79,8 +79,3 @@ export async function scheduleMessage(
     },
   });
 }
-
-export type RequestStateUpdate<T extends string> = {
-  state: T;
-  message?: string;
-};

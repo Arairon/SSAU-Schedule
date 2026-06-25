@@ -1,4 +1,4 @@
-import { InlineKeyboard, type Bot } from "grammy";
+import { InlineKeyboard, InputFile, type Bot } from "grammy";
 import type { Context } from "./types";
 
 import log from "@/logger";
@@ -662,6 +662,47 @@ export async function updateTimetable(
   }
 }
 
+async function sendTeacherTimetable(
+  ctx: Context,
+  week: number,
+  teacherId: number,
+) {
+  log.debug(`Sending teacher timetable for teacher#${teacherId}`, {
+    user: ctx?.from?.id,
+  });
+  const user = await getUser(ctx, { required: true });
+  if (!user) return; // getUser уже отправил сообщение об ошибке
+  let weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
+  const now = new Date();
+  const currentWeek = getWeekFromDate(now);
+  if (weekNumber === 0 && now.getDay() === 0) {
+    weekNumber = currentWeek + 1;
+  }
+
+  const req = await api.teacher.schedule.image.get({
+    query: {
+      teacherId,
+      week: weekNumber,
+      userId: user.id,
+    },
+  });
+
+  const timetable = req.data;
+  if (!timetable) {
+    return ctx.reply("Не удалось получить расписание преподавателя");
+  }
+
+  log.debug(`Sending actual image for teacher#${teacherId}`, {
+    user: ctx?.from?.id,
+  });
+  await ctx.reply(
+    "Пробуем отправить расписание. Расписания преподавателей всё ещё в разработке, многого не ждать.",
+  );
+  return ctx.api.sendPhoto(ctx.chat!.id, new InputFile(timetable.image), {
+    caption: ``,
+  });
+}
+
 async function sendGroupSelector(
   ctx: Context,
   groups: { id: number; name: string }[],
@@ -679,6 +720,27 @@ async function sendGroupSelector(
     keyboard.text(group.name, `schedule_group_open_${group.id}`);
   });
   return ctx.reply(`Найдены следующие группы:`, { reply_markup: keyboard });
+}
+
+async function sendTeacherSelector(
+  ctx: Context,
+  teachers: { id: number; name: string }[],
+) {
+  const keyboard = new InlineKeyboard();
+  teachers.slice(0, 3).forEach((teacher) => {
+    keyboard.text(teacher.name, `schedule_teacher_open_${teacher.id}`);
+  });
+  keyboard.row();
+  teachers.slice(3, 6).forEach((teacher) => {
+    keyboard.text(teacher.name, `schedule_teacher_open_${teacher.id}`);
+  });
+  keyboard.row();
+  teachers.slice(6, 9).forEach((teacher) => {
+    keyboard.text(teacher.name, `schedule_teacher_open_${teacher.id}`);
+  });
+  return ctx.reply(`Найдены следующие преподователи:`, {
+    reply_markup: keyboard,
+  });
 }
 
 export const scheduleCommands = new CommandGroup<Context>();
@@ -984,6 +1046,38 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
  `,
       { link_preview_options: { is_disabled: true } },
     );
+  });
+
+  // Bot hears a teacher's name (1-3 words cyrillic)
+  bot.hears(/^([а-яА-Я]{3,}) ?([а-яА-Я]+ ?){0,2}$/, async (ctx) => {
+    if (!ctx.from || !ctx.message || !ctx.message.text) return;
+    if (ctx.chat?.type !== "private") {
+      return;
+    }
+
+    // TODO: Remove when out of dev
+    if (env.NODE_ENV !== "development") {
+      return ctx.reply(
+        "Поиск по преподавателям находится в разработке.\nВместе дружно ждём :]",
+      );
+    }
+
+    const teachers = await api.ssau.findTeacherOrOptions
+      .get({ query: { name: ctx.message.text.trim() } })
+      .then((res) => res.data)
+      .catch(() => null);
+    if (!teachers || (Array.isArray(teachers) && teachers.length === 0)) {
+      return ctx.reply(
+        "Преподаватель или похожие на него преподаватели не найдены",
+      );
+    }
+    if (Array.isArray(teachers)) {
+      if (teachers.length === 1) {
+        return sendTeacherTimetable(ctx, 0, teachers[0].id);
+      } else {
+        return sendTeacherSelector(ctx, teachers);
+      }
+    }
   });
 
   bot.use(commands);
