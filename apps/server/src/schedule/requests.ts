@@ -509,9 +509,9 @@ async function getTeacherTimetable(
     },
   );
 
-  let updatedGroupCount = 0;
+  // let updatedGroupCount = 0;
   for (const [id, name] of Object.entries(groups)) {
-    updatedGroupCount++;
+    // updatedGroupCount++;
     const group = { id: parseInt(id), name };
     await ensureGroupExists(group);
     const week = await getWeek(user, weekN, {
@@ -528,10 +528,11 @@ async function getTeacherTimetable(
       opts ?? {},
       (upd) => {
         if (upd.state === "updatingWeek") {
-          updateState({
-            state: "updatingTeacher",
-            message: `Обновляем расписание по группам ${updatedGroupCount}/${groupCount}`,
-          });
+          /* ignore */
+          // updateState({
+          //   state: "updatingTeacher",
+          //   message: `Обновляем расписание по группам ${updatedGroupCount}/${groupCount}`,
+          // });
         } else {
           updateState(upd);
         }

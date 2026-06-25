@@ -274,11 +274,14 @@ export async function sendTimetable(
           switch (state) {
             case "updatingTeacher":
               text = message ?? "";
+              if (teacherMode) {
+                text += `\nРасписания для преподавателей могут обновляться довольно медленно.\nПожалуйста, подождите`;
+              }
               break;
             case "updatingWeek":
               text = "Обновление расписания...";
               if (teacherMode) {
-                text += `\nРасписания для преподавателей обновляются довольно медленно.\nПожалуйста, подождите`;
+                text += `\nРасписания для преподавателей могут обновляться довольно медленно.\nПожалуйста, подождите`;
               }
               break;
             case "generatingTimetable":
