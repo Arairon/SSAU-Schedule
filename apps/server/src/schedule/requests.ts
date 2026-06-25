@@ -465,7 +465,7 @@ async function getTeacherTimetable(
 
   updateState({
     state: "updatingTeacher",
-    message: "Fetching teacher info from ssau.ru/rasp",
+    message: "Обновляем расписание преподавателя с ssau.ru/rasp",
   });
 
   const raspSchedule = await getTeacherWeekFromSsauRasp({
@@ -498,8 +498,10 @@ async function getTeacherTimetable(
     }
   }
 
+  const groupCount = Object.keys(groups).length;
+
   log.debug(
-    `Updating weeks for ${Object.keys(groups).length} groups from a ssau.ru/rasp timetable`,
+    `Updating weeks for ${groupCount} groups from a ssau.ru/rasp timetable`,
     {
       user: user.id,
       tag: opts?.loggingTag,
@@ -507,7 +509,9 @@ async function getTeacherTimetable(
     },
   );
 
+  let updatedGroupCount = 0;
   for (const [id, name] of Object.entries(groups)) {
+    updatedGroupCount++;
     const group = { id: parseInt(id), name };
     await ensureGroupExists(group);
     const week = await getWeek(user, weekN, {
@@ -522,7 +526,16 @@ async function getTeacherTimetable(
       year,
       group.id,
       opts ?? {},
-      updateState,
+      (upd) => {
+        if (upd.state === "updatingWeek") {
+          updateState({
+            state: "updatingTeacher",
+            message: `Обновляем расписание по группам ${updatedGroupCount}/${groupCount}`,
+          });
+        } else {
+          updateState(upd);
+        }
+      },
     );
   }
 

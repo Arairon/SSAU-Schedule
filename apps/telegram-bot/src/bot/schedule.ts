@@ -272,6 +272,9 @@ export async function sendTimetable(
           let text = "";
           const { state, message } = chunk;
           switch (state) {
+            case "updatingTeacher":
+              text = message ?? "";
+              break;
             case "updatingWeek":
               text = "Обновление расписания...";
               if (teacherMode) {
@@ -369,7 +372,8 @@ export async function sendTimetable(
         caption = caption.slice(0, 1020) + " ...";
       }
 
-      function sendPhoto(media: string) {
+      async function sendPhoto(media: string) {
+        if (tempMsgPromise) await tempMsgPromise.catch(() => undefined);
         if (newMessageMode) {
           return ctx.api
             .sendPhoto(chat.id, media, {
