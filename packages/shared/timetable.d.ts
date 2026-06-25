@@ -92,6 +92,7 @@ export type Timetable = {
 
 export type TeacherTimetable = {
   teacherId: number;
+  teacherName?: string;
   year: number;
   week: number;
   hash: string;
@@ -100,15 +101,22 @@ export type TeacherTimetable = {
 
 export type TimetableWithDiff = Timetable & { diff?: TimetableDiff };
 
+type WeekImage = {
+  id: number;
+  tgId: string | null;
+  data: string;
+  timetableHash: string;
+  stylemap: string;
+};
+
 export type TimetableWithImage = {
   timetable: TimetableWithDiff;
-  image: {
-    id: number;
-    tgId: string | null;
-    data: string;
-    timetableHash: string;
-    stylemap: string;
-  };
+  image: WeekImage;
+};
+
+export type TeacherTimetableWithImage = {
+  timetable: TeacherTimetable & { diff?: TimetableDiff };
+  image: WeekImage;
 };
 
 export type TimetableDayWithWindows = {

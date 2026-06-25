@@ -1,6 +1,18 @@
 import type { Context as GrammyContext, SessionFlavor } from "grammy";
 import type { ConversationFlavor } from "@grammyjs/conversations";
 
+export type ScheduleViewerMode = null | "group" | "teacher";
+
+export type ScheduleViewer = {
+  message: number;
+  chatId: number;
+  week: number;
+
+  mode: ScheduleViewerMode;
+  groupId?: number;
+  teacherId?: number;
+};
+
 export interface Session {
   sceneData: any; //eslint-disable-line @typescript-eslint/no-explicit-any
   loggedIn: boolean;
@@ -11,12 +23,7 @@ export interface Session {
     notificationsRescheduleTimeout: NodeJS.Timeout | null;
   };
   startedScheduleUpdateAt: Date | null;
-  scheduleViewer: {
-    message: number;
-    chatId: number;
-    week: number;
-    groupId?: number;
-  };
+  scheduleViewer: ScheduleViewer;
 }
 
 export type Context = ConversationFlavor<

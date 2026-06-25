@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import type { WeekImage } from "@/generated/prisma/client";
 import { streamWithUpdates } from "@/lib/apiUpdateStream";
 import { schedule } from "@/schedule/requests";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
@@ -42,6 +43,20 @@ type teacherScheduleImageRequestUpdateCallback = (
   >,
 ) => void;
 
+type ImageGenerator = AsyncGenerator<
+  | Parameters<teacherScheduleImageRequestUpdateCallback>[0]
+  | {
+      timetable: TeacherTimetable & { diff?: TimetableDiff };
+      image: {
+        id: number;
+        tgId: string | null;
+        data: string;
+        timetableHash: string;
+        stylemap: string;
+      };
+    }
+>;
+
 export const app = new Elysia()
   .get(
     "/schedule/json",
@@ -80,9 +95,14 @@ export const app = new Elysia()
         query.teacherId,
       );
 
-      return { timetable, image } as {
+      return {
+        timetable,
+        image: Object.assign(image, {
+          data: image.data.toString("base64"),
+        }),
+      } as {
         timetable: TeacherTimetable;
-        image: Buffer;
+        image: WeekImage;
       };
     },
     {
@@ -127,14 +147,13 @@ export const app = new Elysia()
         Awaited<ReturnType<typeof schedule.getTeacherTimetableWithImage>>,
         {
           timetable: TeacherTimetable & { diff?: TimetableDiff };
-          image: Buffer;
-          // image: {
-          //   id: number;
-          //   tgId: string | null;
-          //   data: string;
-          //   timetableHash: string;
-          //   stylemap: string;
-          // };
+          image: {
+            id: number;
+            tgId: string | null;
+            data: string;
+            timetableHash: string;
+            stylemap: string;
+          };
         }
       >(
         (onUpdate) =>
@@ -149,12 +168,11 @@ export const app = new Elysia()
           ),
         (result) => ({
           timetable: result.timetable,
-          image: result.image,
-          // image: Object.assign(result.image, {
-          //   data: result.image.data.toString("base64"),
-          // }),
+          image: Object.assign(result.image, {
+            data: result.image.data.toString("base64"),
+          }),
         }),
-      );
+      ) as ImageGenerator;
     },
     {
       query: scheduleRequestQuerySchema.extend({

@@ -21,6 +21,7 @@ import type {
 import { generateTimetableImage } from "./image";
 import { getTeacherWeekFromSsauRasp } from "@/ssau/rasp";
 import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
+import { ensureGroupExists } from "@/lib/misc";
 
 type TimetableWeekLike = {
   timetable: Timetable | null;
@@ -488,30 +489,30 @@ async function getTeacherTimetable(
     );
   }
 
-  const groups = new Set<number>();
+  const groups: Record<number, string> = {};
   for (const day of raspSchedule.value.days) {
     for (const lesson of day) {
       for (const group of lesson.groups) {
-        groups.add(group.id);
+        groups[group.id] = group.name;
       }
     }
   }
 
   log.debug(
-    `Updating weeks for ${groups.size} groups from a ssau.ru/rasp timetable`,
+    `Updating weeks for ${Object.keys(groups).length} groups from a ssau.ru/rasp timetable`,
     {
       user: user.id,
       tag: opts?.loggingTag,
-      object: {
-        groups: Array.from(groups),
-      },
+      object: { groups },
     },
   );
 
-  for (const groupId of groups) {
+  for (const [id, name] of Object.entries(groups)) {
+    const group = { id: parseInt(id), name };
+    await ensureGroupExists(group);
     const week = await getWeek(user, weekN, {
       year,
-      groupId,
+      groupId: group.id,
       nonPersonal: true,
     });
     await updateWeekIfNeeded(
@@ -519,7 +520,7 @@ async function getTeacherTimetable(
       week,
       weekNumber,
       year,
-      groupId,
+      group.id,
       opts ?? {},
       updateState,
     );
@@ -562,8 +563,7 @@ async function getTeacherTimetableWithImage(
   },
 ): Promise<{
   timetable: TeacherTimetable & { diff?: TimetableDiff };
-  image: Buffer;
-  // image: Omit<WeekImage, "data"> & { data: Buffer };
+  image: Omit<WeekImage, "data"> & { data: Buffer };
 }> {
   function updateState(
     update: RequestStateUpdate<
@@ -591,11 +591,71 @@ async function getTeacherTimetableWithImage(
 
   const preferences = getUserPreferences(user);
   const stylemap = opts?.stylemap ?? preferences.theme ?? "default";
+
+  const timetableHash = getTimetableHash(timetable);
+
+  if (!opts?.ignoreCached && timetableHash) {
+    const existingImage = await db.weekImage.findUnique({
+      where: {
+        stylemap_timetableHash: {
+          stylemap,
+          timetableHash,
+        },
+      },
+    });
+    if (existingImage) {
+      log.debug(`Found a valid image with same timetable hash. Returning`, {
+        user: user.id,
+        tag: opts?.loggingTag,
+      });
+      await db.weekImage.update({
+        where: { id: existingImage.id },
+        data: {
+          validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
+        },
+      });
+      return {
+        timetable,
+        image: Object.assign(existingImage, {
+          data: Buffer.from(existingImage.data, "base64"),
+        }),
+      };
+    } else {
+      log.debug(
+        `Could not find a valid image with same hash. Generating new. (hash:${timetableHash})`,
+        { user: user.id, tag: opts?.loggingTag },
+      );
+    }
+  }
+
+  updateState({
+    state: "generatingImage",
+    message: "Generating timetable image",
+  });
   const image = await generateTimetableImage(timetable, { stylemap });
+
+  const createdImage = await db.weekImage.upsert({
+    where: {
+      stylemap_timetableHash: {
+        stylemap: stylemap,
+        timetableHash: timetableHash,
+      },
+    },
+    create: {
+      stylemap: stylemap,
+      timetableHash: timetableHash,
+      data: image.toString("base64"),
+      validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
+    },
+    update: {
+      data: image.toString("base64"),
+      validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
+    },
+  });
 
   return {
     timetable,
-    image,
+    image: Object.assign(createdImage, { data: image }),
   };
 }
 

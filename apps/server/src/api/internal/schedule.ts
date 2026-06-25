@@ -47,6 +47,20 @@ type scheduleImageRequestUpdateCallback = (
   >,
 ) => void;
 
+type ImageGenerator = AsyncGenerator<
+  | Parameters<scheduleImageRequestUpdateCallback>[0]
+  | {
+      timetable: Timetable & { diff?: TimetableDiff };
+      image: {
+        id: number;
+        tgId: string | null;
+        data: string;
+        timetableHash: string;
+        stylemap: string;
+      };
+    }
+>;
+
 async function* streamedScheduleResponse(ctx: {
   query: z.infer<typeof scheduleRequestQuerySchema>;
   status: (code: number, message: string) => { code: number; response: string };
@@ -159,7 +173,7 @@ export const app = new Elysia()
             data: result.image.data.toString("base64"),
           }),
         }),
-      );
+      ) as ImageGenerator;
     },
     {
       query: scheduleRequestQuerySchema.extend({

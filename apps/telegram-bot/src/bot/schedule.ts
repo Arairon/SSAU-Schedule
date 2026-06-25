@@ -1,8 +1,12 @@
-import { InlineKeyboard, InputFile, type Bot } from "grammy";
+import { InlineKeyboard, type Bot } from "grammy";
 import type { Context } from "./types";
 
 import log from "@/logger";
-import { formatBigInt, formatSentence } from "@ssau-schedule/shared/utils";
+import {
+  formatBigInt,
+  formatSentence,
+  getPersonShortname,
+} from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { env } from "@/env";
 import {
@@ -17,7 +21,10 @@ import { CommandGroup } from "@grammyjs/commands";
 import { uploadScheduleImage } from "./imageUploading";
 import { api } from "@/serverClient";
 import { getUser } from "./misc";
-import type { TimetableWithImage } from "@ssau-schedule/shared/timetable";
+import type {
+  TeacherTimetableWithImage,
+  TimetableWithImage,
+} from "@ssau-schedule/shared/timetable";
 
 function answerCallbackQueryOrReply(ctx: Context, text: string) {
   if (ctx.callbackQuery) {
@@ -91,10 +98,19 @@ type User = {
 
 async function sendTimetable(
   ctx: Context,
-  user: User,
-  week: number,
-  groupId?: number,
-  opts?: { forceUpdate?: boolean },
+  {
+    user,
+    week,
+    groupId,
+    teacherId,
+    forceUpdate,
+  }: {
+    user: User;
+    week: number;
+    groupId?: number;
+    teacherId?: number;
+    forceUpdate?: boolean;
+  },
 ) {
   const isAuthed = user.authCookie;
   let weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
@@ -105,7 +121,7 @@ async function sendTimetable(
   }
   const preferences = getUserPreferences(user);
 
-  if (!groupId && !user.groupId) {
+  if (!groupId && !user.groupId && !teacherId) {
     await answerCallbackQueryIfPresent(ctx)?.catch(() => undefined);
     return ctx.reply(
       'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nНастройте группу через /options или укажите группу в запросе через "/schedule 6101-090301D"',
@@ -119,8 +135,14 @@ async function sendTimetable(
         .then((res) => res.data))!
     : null;
 
+  const teacherMode = !!teacherId;
+
+  const logTarget = teacherMode
+    ? `t${teacherId}`
+    : `g${group?.id ?? user.groupId}`;
+
   log.debug(
-    `[bot] Requested schedule ${preferences.theme}/${group?.id ?? user.groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+    `[bot] Requested schedule ${preferences.theme}/${logTarget}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
     { user: ctx?.from?.id },
   );
   const startTime = process.hrtime.bigint();
@@ -153,17 +175,23 @@ async function sendTimetable(
 
   const userId = ctx.from?.id ?? user.tgId.toString();
 
-  let timetableData: TimetableWithImage | null = null;
+  let timetableData: TimetableWithImage | TeacherTimetableWithImage | null =
+    null;
   let error = "";
 
   try {
-    const { data, error: reqError } = await api.schedule.image.stream.get({
+    const endpoint = teacherMode
+      ? api.teacher.schedule.image.stream
+      : api.schedule.image.stream;
+
+    const { data, error: reqError } = await endpoint.get({
       query: {
         userId: user?.id ?? undefined,
         week: weekNumber,
         groupId: group?.id ?? undefined,
+        teacherId: teacherId! ?? undefined,
         stylemap: preferences.theme,
-        forceUpdate: !!opts?.forceUpdate,
+        forceUpdate: !!forceUpdate,
       },
     });
     if (reqError) {
@@ -225,10 +253,14 @@ async function sendTimetable(
   }
   const { timetable, image } = timetableData;
 
+  const buttonsQuery =
+    `schedule_button_view_` +
+    (teacherMode ? `t${teacherId}` : `g${groupId ?? 0}`);
+
   const buttonsMarkup = new InlineKeyboard()
-    .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
-    .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.week}`)
-    .text("➡️", `schedule_button_view_${groupId ?? 0}/${timetable.week + 1}`)
+    .text("⬅️", `${buttonsQuery}/${timetable.week - 1}`)
+    .text("🔄", `${buttonsQuery}/${timetable.week}`)
+    .text("➡️", `${buttonsQuery}/${timetable.week + 1}`)
     .row();
 
   if (ctx?.chat?.type === "private") {
@@ -239,10 +271,7 @@ async function sendTimetable(
     ctx?.from?.id === env.SCHED_BOT_ADMIN_TGID
   ) {
     buttonsMarkup
-      .text(
-        "[admin] Обновить насильно",
-        `schedule_button_view_${groupId ?? 0}/${week}/force`,
-      )
+      .text("[admin] Обновить насильно", `${buttonsQuery}/${week}/force`)
       .row();
   }
 
@@ -257,6 +286,9 @@ async function sendTimetable(
     `Расписание на ${timetable.week} неделю` +
     weekNumberModifier +
     (group ? `\nДля группы ${group.name}` : "") +
+    (teacherMode && "teacherName" in timetable
+      ? `\nПреподаватель: ${getPersonShortname(timetable.teacherName ?? "Неизвестный Преподаватель")}`
+      : "") +
     (error ? `\n${error}` : "") +
     (timetable.diff
       ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
@@ -281,13 +313,14 @@ async function sendTimetable(
       `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
     );
 
+    const uploadCaption = `requested by ${ctx?.from?.id ?? "???"} for #${"weekId" in timetable ? timetable.weekId : `t${teacherId}`}\n${image.timetableHash}/${image.stylemap} (new)`;
     const uploaded = await uploadScheduleImage({
       api: ctx.api,
       image: {
         ...image,
         data: Buffer.from(image.data, "base64"),
       },
-      caption: `requested by ${ctx?.from?.id ?? "???"} for #${timetable.weekId}\n${image.timetableHash}/${image.stylemap} (sent new)`,
+      caption: uploadCaption,
       userId: ctx?.from?.id,
       onFallbackAttempt: () => {
         updateTempMsg(
@@ -317,13 +350,17 @@ async function sendTimetable(
   }
   const endTime = process.hrtime.bigint();
   log.debug(
-    `[bot] Image viewer ${image.stylemap}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+    `[bot] Image viewer ${image.stylemap}/${logTarget}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
     { user: ctx?.from?.id },
   );
-  ctx.session.scheduleViewer.message = msg.message_id;
-  ctx.session.scheduleViewer.chatId = msg.chat.id;
-  ctx.session.scheduleViewer.week = timetable.week;
-  ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
+  Object.assign(ctx.session.scheduleViewer, {
+    message: msg.message_id,
+    chatId: msg.chat.id,
+    week: timetable.week,
+    mode: teacherMode ? "teacher" : "group",
+    groupId: group?.id ?? undefined,
+    teacherId: teacherId ?? undefined,
+  });
 }
 
 async function sendUserTimetable(
@@ -357,7 +394,12 @@ async function sendUserTimetable(
       );
     }
 
-    await sendTimetable(ctx, user as unknown as User, week, groupId, opts);
+    await sendTimetable(ctx, {
+      user: user as unknown as User,
+      week,
+      groupId,
+      forceUpdate: opts?.forceUpdate,
+    });
   } catch (e) {
     log.error(`Failed to send timetable ${String(e)}`, { user: ctx?.from?.id });
     return ctx.reply(
@@ -374,9 +416,17 @@ async function sendUserTimetable(
 
 export async function updateTimetable(
   ctx: Context,
-  week: number,
-  groupId?: number,
-  opts?: { forceUpdate?: boolean },
+  {
+    week,
+    groupId,
+    teacherId,
+    forceUpdate,
+  }: {
+    week: number;
+    groupId?: number;
+    teacherId?: number;
+    forceUpdate?: boolean;
+  },
 ) {
   if (
     ctx.session.startedScheduleUpdateAt &&
@@ -435,7 +485,9 @@ export async function updateTimetable(
     const isAuthed = !!user.authCookie;
     const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52);
 
-    if (!groupId && !user.groupId) {
+    const teacherMode = !!teacherId;
+
+    if (!groupId && !user.groupId && !teacherMode) {
       await answerCallbackQueryIfPresent(ctx)?.catch(() => undefined);
       return ctx.reply(
         'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nНастройте группу через /options или укажите группу в запросе через "/schedule 6101-090301D"',
@@ -451,8 +503,12 @@ export async function updateTimetable(
 
     const preferences = getUserPreferences(user);
 
+    const logTarget = teacherMode
+      ? `t${teacherId}`
+      : `g${group?.id ?? user.groupId}`;
+
     log.debug(
-      `[bot.viewer] Requested schedule ${preferences.theme}/${group?.id ?? user.groupId}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+      `[bot.viewer] Requested schedule ${preferences.theme}/${logTarget}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
       { user: userId },
     );
     const startTime = process.hrtime.bigint();
@@ -468,7 +524,9 @@ export async function updateTimetable(
             caption: text,
             reply_markup: new InlineKeyboard(),
           })
-          .catch();
+          .catch(() => {
+            /* ignore */
+          });
       }
 
       if (tempMsgPromise) {
@@ -478,17 +536,23 @@ export async function updateTimetable(
       }
     }
 
-    let timetableData: TimetableWithImage | null = null;
+    let timetableData: TimetableWithImage | TeacherTimetableWithImage | null =
+      null;
     let error = "";
 
     try {
-      const { data, error: reqError } = await api.schedule.image.stream.get({
+      const endpoint = teacherMode
+        ? api.teacher.schedule.image.stream
+        : api.schedule.image.stream;
+
+      const { data, error: reqError } = await endpoint.get({
         query: {
           userId: user?.id ?? undefined,
           week: weekNumber,
           groupId: group?.id ?? undefined,
+          teacherId: teacherId! ?? undefined,
           stylemap: preferences.theme,
-          forceUpdate: !!opts?.forceUpdate,
+          forceUpdate: !!forceUpdate,
         },
       });
       if (reqError) {
@@ -553,10 +617,14 @@ export async function updateTimetable(
     }
     const { timetable, image } = timetableData;
 
+    const buttonsQuery =
+      `schedule_button_view_` +
+      (teacherMode ? `t${teacherId}` : `g${groupId ?? 0}`);
+
     const buttonsMarkup = new InlineKeyboard()
-      .text("⬅️", `schedule_button_view_${groupId ?? 0}/${timetable.week - 1}`)
-      .text("🔄", `schedule_button_view_${groupId ?? 0}/${timetable.week}`)
-      .text("➡️", `schedule_button_view_${groupId ?? 0}/${timetable.week + 1}`)
+      .text("⬅️", `${buttonsQuery}/${timetable.week - 1}`)
+      .text("🔄", `${buttonsQuery}/${timetable.week}`)
+      .text("➡️", `${buttonsQuery}/${timetable.week + 1}`)
       .row();
 
     if (ctx?.chat?.type === "private") {
@@ -569,7 +637,7 @@ export async function updateTimetable(
       buttonsMarkup
         .text(
           "[admin] Обновить насильно",
-          `schedule_button_view_${groupId ?? 0}/${week}/force`,
+          `${buttonsQuery}/${timetable.week}/force`,
         )
         .row();
     }
@@ -587,6 +655,9 @@ export async function updateTimetable(
         `Расписание на ${timetable.week} неделю` +
         weekNumberModifier +
         (group ? `\nДля группы ${group.name}` : "") +
+        (teacherMode && "teacherName" in timetable
+          ? `\nПреподаватель: ${getPersonShortname(timetable.teacherName ?? "Неизвестный Преподаватель")}`
+          : "") +
         (error ? `\n${error}` : "") +
         (timetable.diff
           ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
@@ -617,13 +688,14 @@ export async function updateTimetable(
           `Отправка изображения...\n(это может занять некоторое время, пожалуйста подождите. Во всём винить РКН)`,
         );
 
+        const uploadCaption = `requested by ${userId} for #${"weekId" in timetable ? timetable.weekId : `t${teacherId}`}\n${image.timetableHash}/${image.stylemap} (upd)`;
         const uploaded = await uploadScheduleImage({
           api: ctx.api,
           image: {
             ...image,
             data: Buffer.from(image.data, "base64"),
           },
-          caption: `requested by ${userId} for #${timetable.weekId}\n${image.timetableHash}/${image.stylemap}  (upd)`,
+          caption: uploadCaption,
           userId,
           onFallbackAttempt: () => {
             updateTempMsg(
@@ -643,14 +715,18 @@ export async function updateTimetable(
     }
     const endTime = process.hrtime.bigint();
     log.debug(
-      `[bot] Image viewer update ${image.stylemap}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+      `[bot] Image viewer update ${image.stylemap}/${logTarget}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
       { user: userId },
     );
 
-    ctx.session.scheduleViewer.message = msgId;
-    ctx.session.scheduleViewer.chatId = chat.id;
-    ctx.session.scheduleViewer.week = timetable.week;
-    ctx.session.scheduleViewer.groupId = group?.id ?? undefined;
+    Object.assign(ctx.session.scheduleViewer, {
+      message: msgId,
+      chatId: chat.id,
+      week: timetable.week,
+      mode: teacherMode ? "teacher" : "group",
+      groupId: group?.id ?? undefined,
+      teacherId: teacherId ?? undefined,
+    });
   } catch (e) {
     log.error(`Failed to update timetable msg`, {
       user: ctx?.from?.id,
@@ -666,6 +742,7 @@ async function sendTeacherTimetable(
   ctx: Context,
   week: number,
   teacherId: number,
+  forceSendNew = false,
 ) {
   log.debug(`Sending teacher timetable for teacher#${teacherId}`, {
     user: ctx?.from?.id,
@@ -679,27 +756,17 @@ async function sendTeacherTimetable(
     weekNumber = currentWeek + 1;
   }
 
-  const req = await api.teacher.schedule.image.get({
-    query: {
-      teacherId,
+  if (!forceSendNew && ctx.session.scheduleViewer?.message) {
+    return updateTimetable(ctx, {
       week: weekNumber,
-      userId: user.id,
-    },
-  });
-
-  const timetable = req.data;
-  if (!timetable) {
-    return ctx.reply("Не удалось получить расписание преподавателя");
+      teacherId,
+    });
   }
 
-  log.debug(`Sending actual image for teacher#${teacherId}`, {
-    user: ctx?.from?.id,
-  });
-  await ctx.reply(
-    "Пробуем отправить расписание. Расписания преподавателей всё ещё в разработке, многого не ждать.",
-  );
-  return ctx.api.sendPhoto(ctx.chat!.id, new InputFile(timetable.image), {
-    caption: ``,
+  return sendTimetable(ctx, {
+    user: user as unknown as User,
+    week: weekNumber,
+    teacherId,
   });
 }
 
@@ -754,6 +821,7 @@ export async function initSchedule(bot: Bot<Context>) {
       chatId: ctx.chat.id,
       message: 0,
       week: 0,
+      mode: "group",
     };
     const group = /^.* (\d{4}(?:-\d*)?D?)(?: \d+)?$/
       .exec(ctx.message.text)
@@ -790,14 +858,15 @@ export async function initSchedule(bot: Bot<Context>) {
   });
 
   bot.callbackQuery(
-    /schedule_button_view_(\d+)\/(\d+)(\/force)?/,
+    /schedule_button_view_([gt])(\d+)\/(\d+)(\/force)?/,
     async (ctx) => {
       const match = ctx.match;
       if (!match || match.length < 2) return ctx.answerCallbackQuery("Ошибка");
-      const groupId = Number(match[1]);
-      const week = Number(match[2]);
-      const forceUpdate = Boolean(match[3]);
-      if (Number.isNaN(week) || Number.isNaN(groupId)) {
+      const mode = match[1] as "g" | "t";
+      const id = Number(match[2]);
+      const week = Number(match[3]);
+      const forceUpdate = Boolean(match[4]);
+      if (Number.isNaN(week) || Number.isNaN(id)) {
         log.warn(
           `Invalid view request: ${typeof ctx.match === "string" ? ctx.match : ctx.match.join()}`,
           {
@@ -806,11 +875,14 @@ export async function initSchedule(bot: Bot<Context>) {
         );
         return ctx.answerCallbackQuery("Ошибка: Неверный запрос");
       }
-      updateTimetable(ctx, week, groupId || undefined, { forceUpdate }).catch(
-        (e) => {
-          return handleError(ctx, e as Error);
-        },
-      );
+      updateTimetable(ctx, {
+        week,
+        groupId: mode === "g" ? id : undefined,
+        teacherId: mode === "t" ? id : undefined,
+        forceUpdate,
+      }).catch((e) => {
+        return handleError(ctx, e as Error);
+      });
     },
   );
 
@@ -966,12 +1038,14 @@ ${generateTextLesson(lesson)}
     void ctx.api
       .deleteMessage(ctx.message.chat.id, ctx.message.message_id)
       .catch();
+
+    console.debug(ctx.session.scheduleViewer);
     if (ctx.session.scheduleViewer.message) {
-      return updateTimetable(
-        ctx,
+      return updateTimetable(ctx, {
         week,
-        ctx.session.scheduleViewer.groupId ?? undefined,
-      );
+        groupId: ctx.session.scheduleViewer.groupId ?? undefined,
+        teacherId: ctx.session.scheduleViewer.teacherId ?? undefined,
+      });
     }
     return sendUserTimetable(ctx, week);
   });

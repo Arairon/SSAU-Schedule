@@ -285,10 +285,14 @@ export async function generateTeacherTimetable(
   const weekNumber = weekN || getWeekFromDate(now);
   const year = (opts?.year ?? 0) || getCurrentYearId();
 
+  const teacher = await db.teacher.findUnique({
+    where: { id: teacherId },
+  });
   const lessons = await getWeekTeacherLessons(teacherId, weekNumber);
 
   const timetable: TeacherTimetable = {
     teacherId,
+    teacherName: teacher?.name ?? "Неизвестный преподаватель",
     year,
     week: weekNumber,
     days: [],
