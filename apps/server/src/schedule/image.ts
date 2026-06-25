@@ -250,7 +250,7 @@ const WEEKDAYS = [
 ];
 
 export async function generateTimetableImageHtml(
-  timetable: Timetable,
+  timetable: Pick<Timetable, "days" | "week">,
   opts?: {
     stylemap?: string;
   },
@@ -359,7 +359,7 @@ async function generateTimetableImageBuffer(
 }
 
 export async function generateTimetableImage(
-  timetable: Timetable,
+  timetable: Pick<Timetable, "days" | "week">,
   opts?: {
     stylemap?: string;
   },
@@ -389,8 +389,13 @@ export async function generateTimetableImage(
   }
 
   const endTime = process.hrtime.bigint();
+  let logId = "unk";
+  if ("groupId" in timetable) logId = `g${timetable.groupId as string}`;
+  else if ("teacherId" in timetable)
+    logId = `t${timetable.teacherId as string}`;
+
   log.debug(
-    `Generated an image for week ${opts?.stylemap ?? "default"}/${timetable.groupId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
+    `Generated an image for week ${opts?.stylemap ?? "default"}/${logId}/${timetable.week}. Took ${formatBigInt(htmlTime - startTime)}ns + ${formatBigInt(endTime - htmlTime)}ns`,
   );
   return image;
 }

@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { ensureGroupExists, ensureTeacherExists } from "@/lib/misc";
 import log from "@/logger";
+import { formatName } from "@ssau-schedule/shared/utils";
 import s from "ajv-ts";
 import axios from "axios";
 
@@ -111,16 +112,10 @@ async function fetchGroupsOrTeachersInSsau(
           name: option.name,
           state: "unknown",
         });
-        log.warn(
-          `Found teacher '${option.name}' in search, but teachers are not supported yet.`,
-          {
-            user: -1,
-          },
-        );
       }
     }
 
-    return options.filter((option) => option.type === "group"); // TODO: support teachers
+    return options;
   } catch {
     log.warn(`Search for '${text}' in ssau.ru/rasp failed.`);
     return null;
@@ -210,6 +205,30 @@ export async function findGroupOrOptions(
     }
     const possibleGroups = await findGroupsOrTeachersInSsau(name);
     return possibleGroups;
+  }
+  return [];
+}
+
+export async function findTeacherOrOptions(
+  inp: { teacherName?: string; teacherId?: number } & (
+    | { teacherName: string }
+    | { teacherId: number }
+  ),
+): Promise<Omit<GroupTeacherSearchResponse, "type">[]> {
+  if (inp.teacherId) {
+    const teacher = await db.teacher.findUnique({
+      where: { id: inp.teacherId },
+    });
+    if (teacher) return [teacher];
+  }
+  if (inp.teacherName) {
+    const name = formatName(inp.teacherName.trim());
+    const existingTeachers = await db.teacher.findMany({
+      where: { name: { contains: name } },
+    });
+    if (existingTeachers.length === 1) return existingTeachers;
+    const possibleTeachers = await findGroupsOrTeachersInSsau(name);
+    return possibleTeachers;
   }
   return [];
 }

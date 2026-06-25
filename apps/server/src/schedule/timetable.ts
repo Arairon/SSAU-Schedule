@@ -11,12 +11,13 @@ import { lk } from "../ssau/lk";
 import log from "@/logger";
 import type {
   NormalizedTimetableLesson,
+  TeacherTimetable,
   Timetable,
   TimetableDay,
   TimetableDiff,
   TimetableLesson,
 } from "@ssau-schedule/shared/timetable";
-import { getWeek, getWeekLessons } from "@/lib/week";
+import { getWeek, getWeekLessons, getWeekTeacherLessons } from "@/lib/week";
 import { applyCustomization } from "./customLesson";
 import { convertLessonToTimetableLesson } from "@ssau-schedule/shared/misc";
 
@@ -60,6 +61,117 @@ function addLessonToDay(day: TimetableDay, lesson: TimetableLesson): void {
     (existing) => !sameSlotLessons.includes(existing),
   );
   day.lessons.push(primaryLesson);
+}
+
+export async function generateTimetableDays(
+  weekNumber: number,
+  lessons: Awaited<ReturnType<typeof getWeekLessons>>,
+  subgroup: number | null = null,
+): Promise<TimetableDay[]> {
+  const days: TimetableDay[] = [];
+  // Fill base with empty days
+  for (let dayNumber = 1; dayNumber <= 6; dayNumber++) {
+    // Sundays not supported. Hopefully won't have to add them later...
+    const date = getLessonDate(weekNumber, dayNumber);
+    const dayTimetable: TimetableDay = {
+      // user: user.id,
+      week: weekNumber,
+      weekday: dayNumber,
+      beginTime: new Date(date.getTime() + 86400_000), // max in day to then find min
+      endTime: date, // same
+      lessons: [],
+      lessonCount: 0,
+    };
+    days.push(dayTimetable);
+  }
+
+  const customLessons = lessons.customLessons;
+
+  // Run through all the lessons and add them to the timetable, applying customizations if needed
+  for (const lesson of lessons.all) {
+    const timetableLesson = convertLessonToTimetableLesson(lesson);
+
+    const customLesson = customLessons.find((i) => i.lessonId === lesson.id);
+    if (customLesson && customLesson.weekNumber !== weekNumber) continue; // Lesson was moved to another week
+    if (!customLesson && lesson.weekNumber !== weekNumber) continue; // Lesson is from another week and was not moved to current by CustomLesson
+    if (customLesson) {
+      applyCustomization(timetableLesson, customLesson);
+    }
+
+    const day = days[lesson.weekday - 1];
+    if (
+      subgroup &&
+      timetableLesson.subgroup &&
+      subgroup !== timetableLesson.subgroup
+    )
+      continue;
+
+    day.beginTime =
+      timetableLesson.beginTime < day.beginTime
+        ? timetableLesson.beginTime
+        : day.beginTime;
+    day.endTime =
+      timetableLesson.endTime > day.endTime
+        ? timetableLesson.endTime
+        : day.endTime;
+
+    addLessonToDay(day, timetableLesson);
+  }
+
+  // Run through all customLessons that don't have a lessonId and add them as new lessons to the timetable
+  customLessons
+    .filter((i) => i.lessonId === null)
+    .forEach((i) => {
+      const lesson: TimetableLesson = {
+        id: i.id,
+        infoId: -1,
+        type: i.type ?? LessonType.Unknown,
+        discipline: formatSentence(i.discipline ?? "Неизвестный предмет"),
+        teacher: {
+          name: i.teacher?.name ?? "Неизвестный Преподаватель",
+          id: i.teacherId,
+        },
+        isOnline: i.isOnline ?? false,
+        isIet: i.isIet ?? false,
+        building: i.building ?? "?",
+        room: i.room ?? "???",
+        subgroup: i.subgroup,
+        groups: i.groups.map((g) => g.name),
+        flows: i.flows.map((g) => g.name),
+        dayTimeSlot: i.dayTimeSlot,
+        beginTime: i.beginTime,
+        endTime: i.endTime,
+        conferenceUrl: i.conferenceUrl,
+        alts: [],
+        customized: {
+          hidden: i.hideLesson,
+          disabled: !i.isEnabled,
+          comment: i.comment,
+          customizedBy: i.userId,
+        },
+        original: null,
+      };
+
+      const day = days[i.weekday - 1];
+      if (subgroup && lesson.subgroup && subgroup !== lesson.subgroup) return;
+      day.beginTime =
+        lesson.beginTime < day.beginTime ? lesson.beginTime : day.beginTime;
+      day.endTime = lesson.endTime > day.endTime ? lesson.endTime : day.endTime;
+
+      addLessonToDay(day, lesson);
+    });
+
+  // Sort lessons in each day by time
+  for (const day of days) {
+    day.lessons.sort((a, b) => a.dayTimeSlot - b.dayTimeSlot);
+    if (day.lessonCount === 0) {
+      const t = day.beginTime;
+      day.beginTime = day.endTime;
+      day.endTime = t;
+    }
+  }
+
+  return days;
 }
 
 export async function generateTimetable(
@@ -124,107 +236,7 @@ export async function generateTimetable(
     days: [],
   };
 
-  // Fill base with empty days
-  for (let dayNumber = 1; dayNumber <= 6; dayNumber++) {
-    // Sundays not supported. Hopefully won't have to add them later...
-    const date = getLessonDate(weekNumber, dayNumber);
-    const dayTimetable: TimetableDay = {
-      // user: user.id,
-      week: weekNumber,
-      weekday: dayNumber,
-      beginTime: new Date(date.getTime() + 86400_000), // max in day to then find min
-      endTime: date, // same
-      lessons: [],
-      lessonCount: 0,
-    };
-    timetable.days.push(dayTimetable);
-  }
-
-  const customLessons = lessons.customLessons;
-
-  // Run through all the lessons and add them to the timetable, applying customizations if needed
-  for (const lesson of lessons.all) {
-    const timetableLesson = convertLessonToTimetableLesson(lesson);
-
-    const customLesson = customLessons.find((i) => i.lessonId === lesson.id);
-    if (customLesson && customLesson.weekNumber !== timetable.week) continue; // Lesson was moved to another week
-    if (!customLesson && lesson.weekNumber !== timetable.week) continue; // Lesson is from another week and was not moved to current by CustomLesson
-    if (customLesson) {
-      applyCustomization(timetableLesson, customLesson);
-    }
-
-    const day = timetable.days[lesson.weekday - 1];
-    if (
-      subgroup &&
-      timetableLesson.subgroup &&
-      subgroup !== timetableLesson.subgroup
-    )
-      continue;
-
-    day.beginTime =
-      timetableLesson.beginTime < day.beginTime
-        ? timetableLesson.beginTime
-        : day.beginTime;
-    day.endTime =
-      timetableLesson.endTime > day.endTime
-        ? timetableLesson.endTime
-        : day.endTime;
-
-    addLessonToDay(day, timetableLesson);
-  }
-
-  // Run through all customLessons that don't have a lessonId and add them as new lessons to the timetable
-  customLessons
-    .filter((i) => i.lessonId === null)
-    .forEach((i) => {
-      const lesson: TimetableLesson = {
-        id: i.id,
-        infoId: -1,
-        type: i.type ?? LessonType.Unknown,
-        discipline: formatSentence(i.discipline ?? "Неизвестный предмет"),
-        teacher: {
-          name: i.teacher?.name ?? "Неизвестный Преподаватель",
-          id: i.teacherId,
-        },
-        isOnline: i.isOnline ?? false,
-        isIet: i.isIet ?? false,
-        building: i.building ?? "?",
-        room: i.room ?? "???",
-        subgroup: i.subgroup,
-        groups: i.groups.map((g) => g.name),
-        flows: i.flows.map((g) => g.name),
-        dayTimeSlot: i.dayTimeSlot,
-        beginTime: i.beginTime,
-        endTime: i.endTime,
-        conferenceUrl: i.conferenceUrl,
-        alts: [],
-        customized: {
-          hidden: i.hideLesson,
-          disabled: !i.isEnabled,
-          comment: i.comment,
-          customizedBy: i.userId,
-        },
-        original: null,
-      };
-
-      const day = timetable.days[i.weekday - 1];
-      if (subgroup && lesson.subgroup && subgroup !== lesson.subgroup) return;
-      day.beginTime =
-        lesson.beginTime < day.beginTime ? lesson.beginTime : day.beginTime;
-      day.endTime = lesson.endTime > day.endTime ? lesson.endTime : day.endTime;
-
-      addLessonToDay(day, lesson);
-    });
-
-  // Sort lessons in each day by time
-  for (const day of timetable.days) {
-    day.lessons.sort((a, b) => a.dayTimeSlot - b.dayTimeSlot);
-    if (day.lessonCount === 0) {
-      const t = day.beginTime;
-      day.beginTime = day.endTime;
-      day.endTime = t;
-    }
-  }
+  timetable.days = await generateTimetableDays(weekNumber, lessons, subgroup);
 
   timetable.hash = getTimetableHash(timetable);
 
@@ -258,11 +270,58 @@ export async function generateTimetable(
   return timetable;
 }
 
+export async function generateTeacherTimetable(
+  user: User,
+  weekN: number,
+  teacherId: number,
+  opts?: {
+    year?: number;
+    dontCache?: boolean;
+    loggingTag?: string;
+  },
+) {
+  const startTime = process.hrtime.bigint();
+  const now = new Date();
+  const weekNumber = weekN || getWeekFromDate(now);
+  const year = (opts?.year ?? 0) || getCurrentYearId();
+
+  const teacher = await db.teacher.findUnique({
+    where: { id: teacherId },
+  });
+  const lessons = await getWeekTeacherLessons(teacherId, weekNumber);
+
+  const timetable: TeacherTimetable = {
+    teacherId,
+    teacherName: teacher?.name ?? "Неизвестный преподаватель",
+    year,
+    week: weekNumber,
+    days: [],
+    hash: "", // Will be set later, after generating the timetable
+  };
+
+  timetable.days = await generateTimetableDays(weekNumber, {
+    all: lessons,
+    customLessons: [],
+  });
+
+  timetable.hash = getTimetableHash(timetable);
+  log.debug(
+    `Generated timetable for teacher #${teacherId} in ${formatBigInt(
+      process.hrtime.bigint() - startTime,
+    )}ns`,
+    { user: user.id, tag: opts?.loggingTag },
+  );
+
+  return timetable;
+}
+
 export function flattenLesson(lesson: TimetableLesson): TimetableLesson[] {
   return [lesson, ...lesson.alts.flatMap(flattenLesson)];
 }
 
-export function flattenTimetable(timetable: Timetable): TimetableLesson[] {
+export function flattenTimetable(
+  timetable: Pick<Timetable, "days">,
+): TimetableLesson[] {
   return timetable.days.flatMap((day) =>
     day.lessons.flatMap((lesson) => flattenLesson(lesson)),
   );
@@ -304,7 +363,9 @@ function normalizeTimetableLesson(
   };
 }
 
-export function getTimetableHash(timetable: Timetable) {
+export function getTimetableHash(
+  timetable: Timetable | TeacherTimetable,
+): string {
   const normalizedLessons = flattenTimetable(timetable).map(
     normalizeTimetableLesson,
   );

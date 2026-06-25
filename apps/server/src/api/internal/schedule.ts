@@ -14,6 +14,7 @@ import {
   type RequestStateUpdate,
 } from "@ssau-schedule/shared/misc";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
+import { streamWithUpdates } from "@/lib/apiUpdateStream";
 
 const stringBool = z
   .string()
@@ -46,49 +47,19 @@ type scheduleImageRequestUpdateCallback = (
   >,
 ) => void;
 
-async function* streamWithUpdates<TUpdate, TResult, TFinal = TResult>(
-  request: (onUpdate: (update: TUpdate) => void) => Promise<TResult>,
-  mapResult: (result: TResult) => TFinal,
-) {
-  const updatesQueue: TUpdate[] = [];
-  let notifyUpdate: (() => void) | null = null;
-
-  const pushUpdate = (update: TUpdate) => {
-    updatesQueue.push(update);
-    if (notifyUpdate) {
-      notifyUpdate();
-      notifyUpdate = null;
+type ImageGenerator = AsyncGenerator<
+  | Parameters<scheduleImageRequestUpdateCallback>[0]
+  | {
+      timetable: Timetable & { diff?: TimetableDiff };
+      image: {
+        id: number;
+        tgId: string | null;
+        data: string;
+        timetableHash: string;
+        stylemap: string;
+      };
     }
-  };
-
-  const waitForUpdate = () =>
-    new Promise<void>((resolve) => {
-      notifyUpdate = resolve;
-    });
-
-  const requestPromise = request(pushUpdate);
-
-  let running = true;
-  while (running) {
-    if (updatesQueue.length > 0) {
-      yield updatesQueue.shift()!;
-      continue;
-    }
-
-    const nextEvent = await Promise.race([
-      requestPromise.then((result) => ({ type: "result" as const, result })),
-      waitForUpdate().then(() => ({ type: "update" as const })),
-    ]);
-
-    if (nextEvent.type === "result") {
-      while (updatesQueue.length > 0) {
-        yield updatesQueue.shift()!;
-      }
-      yield mapResult(nextEvent.result);
-      running = false;
-    }
-  }
-}
+>;
 
 async function* streamedScheduleResponse(ctx: {
   query: z.infer<typeof scheduleRequestQuerySchema>;
@@ -202,7 +173,30 @@ export const app = new Elysia()
             data: result.image.data.toString("base64"),
           }),
         }),
+      ) as ImageGenerator;
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+      }),
+    },
+  )
+  .get(
+    "/image/png",
+    async ({ query, status, set }) => {
+      const user = await db.user.findUnique({
+        where: { id: query.userId },
+      });
+      if (!user) return status(404, "User not found");
+
+      const { image } = await schedule.getTimetableWithImage(
+        user,
+        query.week,
+        query,
       );
+
+      set.headers["content-type"] = "image/png";
+      return image.data;
     },
     {
       query: scheduleRequestQuerySchema.extend({
