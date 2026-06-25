@@ -360,17 +360,20 @@ export async function sendTimetable(
       else if (timetable.week === currentWeek - 1)
         weekNumberModifier = " (предыдущая)";
 
-      let caption =
-        `Расписание на ${timetable.week} неделю` +
-        weekNumberModifier +
-        (group ? `\nДля группы ${group.name}` : "") +
-        (teacherMode && "teacherName" in timetable
-          ? `\nПреподаватель: ${getPersonShortname(timetable.teacherName ?? "Неизвестный Преподаватель")}`
-          : "") +
-        (error ? `\n${error}` : "") +
-        (timetable.diff
-          ? `\nОбнаружены изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
-          : "");
+      const captionLines = [
+        `📆 ${timetable.week} неделя${weekNumberModifier}`,
+        group ? `👥 ${group.name}` : "",
+        teacherMode && "teacherName" in timetable
+          ? `👤 ${getPersonShortname(timetable.teacherName ?? "Неизвестный Преподаватель")}`
+          : "",
+        error ? `⚠️ ${error}` : "",
+        timetable.diff
+          ? `📝 Изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
+          : "",
+      ].filter(Boolean);
+
+      let caption = captionLines.join("\n");
+
       if (caption.length > 1024) {
         caption = caption.slice(0, 1020) + " ...";
       }
@@ -738,6 +741,15 @@ ${generateTextLesson(lesson)}
       return ctx.reply("Группа или похожие на неё группы не найдены");
     }
     if (Array.isArray(groups)) {
+      void ctx.deleteMessage().catch(() => {
+        /* ignore */
+      });
+      log.debug(
+        `Found ${groups.length} groups matching "${ctx.message.text.trim()}"`,
+        {
+          user: ctx.from.id,
+        },
+      );
       if (groups.length === 1) {
         return sendTimetable(ctx, { week: 0, groupId: groups[0].id });
       } else {
