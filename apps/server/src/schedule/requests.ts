@@ -11,7 +11,6 @@ import {
   getTimetableHash,
   getTimetablesDiff,
 } from "./timetable";
-import { type RequestStateUpdate } from "@/lib/misc";
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { db } from "@/db";
 import type {
@@ -21,6 +20,7 @@ import type {
 } from "@ssau-schedule/shared/timetable";
 import { generateTimetableImage } from "./image";
 import { getTeacherWeekFromSsauRasp } from "@/ssau/rasp";
+import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
 
 type TimetableWeekLike = {
   timetable: Timetable | null;
@@ -307,46 +307,12 @@ async function getTimetableWithImage(
     { user: user.id, tag: opts?.loggingTag },
   );
 
-  let timetable: Timetable | null = null;
-  let usingCachedTimetable = false;
+  const timetable = await getTimetable(user, week.number, {
+    ...opts,
+    onUpdate: updateState,
+  });
 
-  if (!opts?.ignoreCached) {
-    const cachedTimetable = extractCachedTimetable(week, user.id, {
-      loggingTag: opts?.loggingTag,
-    });
-    if (cachedTimetable) {
-      timetable = cachedTimetable;
-      usingCachedTimetable = true;
-    }
-  }
-
-  await updateWeekIfNeeded(
-    user,
-    week,
-    week.number,
-    year,
-    groupId,
-    opts ?? {},
-    updateState,
-  );
-
-  if (!timetable) {
-    updateState({
-      state: "generatingTimetable",
-      message: "Generating timetable",
-    });
-    timetable = await generateTimetable(user, week.number, {
-      groupId: opts?.groupId,
-      year: opts?.year,
-      ignoreIet: opts?.ignoreIet,
-      ignoreSubgroup: opts?.ignoreSubgroup,
-      loggingTag: opts?.loggingTag,
-    });
-  }
-
-  const timetableHash = usingCachedTimetable
-    ? (week.timetableHash ?? getTimetableHash(timetable))
-    : getTimetableHash(timetable);
+  const timetableHash = getTimetableHash(timetable);
 
   if (!opts?.ignoreCached && timetableHash) {
     const existingImage = await db.weekImage.findUnique({
