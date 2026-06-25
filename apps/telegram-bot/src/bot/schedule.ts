@@ -726,6 +726,11 @@ ${generateTextLesson(lesson)}
     if (ctx.chat?.type !== "private") {
       return;
     }
+
+    // Check server connectivity and that user exists
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
+
     const groups = await api.ssau.findGroupOrOptions
       .get({ query: { name: ctx.message.text.trim() } })
       .then((res) => res.data)
@@ -751,24 +756,45 @@ ${generateTextLesson(lesson)}
     }
   });
 
-  bot.callbackQuery(/schedule_group_open_(\d+)/, async (ctx) => {
-    const match = ctx.match;
-    if (!match || match.length < 2) return ctx.answerCallbackQuery("Ошибка");
-    const groupId = Number(match[1]);
-    if (Number.isNaN(groupId) || groupId <= 0)
-      return ctx.answerCallbackQuery("Ошибка");
-    void ctx.deleteMessage().catch(() => {
-      /* ignore */
-    });
-    return sendTimetable(ctx, { week: 0, groupId }).catch((e) => {
-      return handleError(ctx, e as Error);
-    });
-  });
+  // Bot hears a teacher's name (1-3 words cyrillic)
+  bot.hears(/^([а-яА-Я]{3,}) ?([а-яА-Я]+ ?){0,2}$/, async (ctx) => {
+    if (!ctx.from || !ctx.message || !ctx.message.text) return;
+    if (ctx.chat?.type !== "private") {
+      return;
+    }
 
-  bot.callbackQuery("schedule_group_open_cancel", async (ctx) => {
-    void ctx.deleteMessage().catch(() => {
-      /* ignore */
-    });
+    const user = await getUser(ctx, { required: true });
+    if (!user) return;
+
+    const teachers = await api.ssau.findTeacherOrOptions
+      .get({ query: { name: ctx.message.text.trim() } })
+      .then((res) => res.data)
+      .catch(() => null);
+    if (!teachers || (Array.isArray(teachers) && teachers.length === 0)) {
+      return ctx.reply(
+        "Преподаватель с таким именем не найден\nПопробуйте ввести фамилию или фамилию и имя\nПример: 'Иванов' или 'Иванов Иван'",
+      );
+    }
+    if (Array.isArray(teachers)) {
+      void ctx.deleteMessage().catch(() => {
+        /* ignore */
+      });
+      log.debug(
+        `Found ${teachers.length} teachers matching "${ctx.message.text.trim()}"`,
+        {
+          user: ctx.from.id,
+        },
+      );
+      if (teachers.length === 1) {
+        return sendTimetable(ctx, {
+          week: 0,
+          teacherId: teachers[0].id,
+        });
+      } else {
+        teachers.map((t) => (t.name = getPersonShortname(t.name)));
+        return sendSelector(ctx, teachers, "teacher");
+      }
+    }
   });
 
   commands.command("ics", "Ссылка на календарь ics", async (ctx) => {
@@ -801,44 +827,6 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
  `,
       { link_preview_options: { is_disabled: true } },
     );
-  });
-
-  // Bot hears a teacher's name (1-3 words cyrillic)
-  bot.hears(/^([а-яА-Я]{3,}) ?([а-яА-Я]+ ?){0,2}$/, async (ctx) => {
-    if (!ctx.from || !ctx.message || !ctx.message.text) return;
-    if (ctx.chat?.type !== "private") {
-      return;
-    }
-
-    const teachers = await api.ssau.findTeacherOrOptions
-      .get({ query: { name: ctx.message.text.trim() } })
-      .then((res) => res.data)
-      .catch(() => null);
-    if (!teachers || (Array.isArray(teachers) && teachers.length === 0)) {
-      return ctx.reply(
-        "Преподаватель с таким именем не найден\nПопробуйте ввести фамилию или фамилию и имя\nПример: 'Иванов' или 'Иванов Иван'",
-      );
-    }
-    if (Array.isArray(teachers)) {
-      void ctx.deleteMessage().catch(() => {
-        /* ignore */
-      });
-      log.debug(
-        `Found ${teachers.length} teachers matching "${ctx.message.text.trim()}"`,
-        {
-          user: ctx.from.id,
-        },
-      );
-      if (teachers.length === 1) {
-        return sendTimetable(ctx, {
-          week: 0,
-          teacherId: teachers[0].id,
-        });
-      } else {
-        teachers.map((t) => (t.name = getPersonShortname(t.name)));
-        return sendSelector(ctx, teachers, "teacher");
-      }
-    }
   });
 
   bot.use(commands);

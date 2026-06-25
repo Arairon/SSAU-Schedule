@@ -35,6 +35,8 @@ const menuText: Record<string, string> = {
 };
 
 async function updateOptionsMsg(ctx: Context) {
+  const user = await getUser(ctx, { required: true });
+  if (!user) return; // getUser уже отправил сообщение об ошибке
   if (ctx.session.options.message === 0) {
     ctx.session.options.message = (await ctx.reply("Настройки")).message_id;
   }
@@ -46,8 +48,6 @@ async function updateOptionsMsg(ctx: Context) {
     );
   }
   const msgId = ctx.session.options.message;
-  const user = await getUser(ctx, { required: true });
-  if (!user) return; // getUser уже отправил сообщение об ошибке
   const preferences = getUserPreferences(user);
   const newText = `\
 Настройки
