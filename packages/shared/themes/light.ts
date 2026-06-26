@@ -1,6 +1,6 @@
-import { type StyleMap } from "./types";
+import type { StyleMapConfig } from "./types";
 
-export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
+export const SCHEDULE_STYLEMAP_LIGHT: StyleMapConfig = {
   name: "light",
   description: "Светлая",
   general: {
@@ -16,176 +16,82 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       text: "Пар нет :D",
     },
   },
+  lessonStyle: {
+    headerStyle: "rounded-lg text-lg",
+    barStyle: "",
+    cardStyle: "bg-white rounded-lg px-1 py-2",
+    nameStyle: "font-bold", //capitalize
+    teacherStyle: "",
+    placeStyle: "font-bold",
+    subgroupStyle: "font-bold",
+    groupListStyle: "text-sm my-1",
+    ietStyle:
+      "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
+    ietLabel: "ИОТ",
+  },
   lessonTypes: {
     Lection: {
       name: "Лекция",
-      headerStyle: "bg-green-400 rounded-lg text-lg",
-      barStyle: "bg-green-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "+ bg-green-400",
+      barStyle: "+ bg-green-400",
     },
     Practice: {
       name: "Практика",
-      headerStyle: "bg-red-400 rounded-lg text-lg",
-      barStyle: "bg-red-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "+ bg-red-400",
+      barStyle: "+ bg-red-400",
     },
     Lab: {
       name: "Лабораторная",
-      headerStyle: "bg-purple-500 rounded-lg text-lg",
-      barStyle: "bg-purple-500",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "+ bg-purple-500",
+      barStyle: "+ bg-purple-500",
     },
     Other: {
       name: "Прочее",
-      headerStyle: "bg-orange-400 rounded-lg text-lg",
-      barStyle: "bg-orange-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "+ bg-orange-400",
+      barStyle: "+ bg-orange-400",
     },
     CourseWork: {
       name: "Курсовая",
-      headerStyle: "bg-pink-500 rounded-lg text-lg hidden",
-      barStyle: "bg-pink-500",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "hidden", // bg-pink-500
+      barStyle: "+ bg-pink-500",
     },
     Consult: {
       name: "Консультация",
-      headerStyle: "bg-blue-400 rounded-lg text-lg",
-      barStyle: "bg-blue-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "+ bg-blue-400",
+      barStyle: "+ bg-blue-400",
     },
     Exam: {
       name: "Экзамен",
       headerStyle:
-        "bg-black rounded-lg text-white outline-2 outline-white text-lg",
-      barStyle: "bg-black",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+        "+ bg-black rounded-lg text-white outline-2 outline-white text-lg",
+      barStyle: "+ bg-black",
     },
     Military: {
       name: "Военка",
-      headerStyle: "bg-orange-400 rounded-lg text-lg hidden",
-      barStyle: "bg-orange-400",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "hidden", // bg-orange-400
+      barStyle: "+ bg-orange-400",
     },
     /*Test: {
       name: "Тест",
-      headerStyle: "bg-gray-700 rounded-lg text-white hidden text-lg",
-      barStyle: "bg-gray-700",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "+ bg-gray-700 rounded-lg text-white hidden text-lg",
+      barStyle: "+ bg-gray-700",
     },
     Military: {
       name: "Воен. Каф",
-      headerStyle: "bg-green-600 rounded-lg hidden text-lg",
-      barStyle: "bg-green-600",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "+ bg-green-600 rounded-lg hidden text-lg",
+      barStyle: "+ bg-green-600",
     },*/
     Window: {
       name: "Окно",
-      headerStyle: "bg-white rounded-lg hidden text-lg",
-      barStyle: "",
+      headerStyle: "hidden",
+      barStyle: "hidden",
       cardStyle: "bg-white/90 rounded-lg", //border-black border-2 border-dashed
       nameStyle: "hidden",
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
     },
     Unknown: {
       name: "Неизвестно",
-      headerStyle:
-        "bg-white rounded-lg outline-purple-500 outline-2 outline-dashed hidden text-lg",
-      barStyle: "bg-black",
-      cardStyle: "bg-white rounded-lg px-1 py-2",
-      nameStyle: "font-bold", //capitalize
-      teacherStyle: "",
-      placeStyle: "font-bold",
-      subgroupStyle: "font-bold",
-      groupListStyle: "text-sm my-1",
-      ietStyle:
-        "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
-      ietLabel: "ИОТ",
+      headerStyle: "hidden",
+      barStyle: "+ bg-black",
     },
   },
 };
