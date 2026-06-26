@@ -18,11 +18,9 @@ export const SCHEDULE_STYLEMAP_DARK: StyleMapConfig = {
     },
   },
   lessonStyle: {
-    headerStyle:
-      "border-2 border-green-400 bg-green-950 text-white rounded-lg text-lg",
+    headerStyle: "border-2 text-white rounded-lg text-lg",
     barStyle: "",
-    cardStyle:
-      "border-2 border-slate-500 bg-slate-800 text-white rounded-lg px-1 py-2",
+    cardStyle: "border-2 text-white rounded-lg px-1 py-2",
     nameStyle: "font-bold", //capitalize
     teacherStyle: "",
     placeStyle: "font-bold",
