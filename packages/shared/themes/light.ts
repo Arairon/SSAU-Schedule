@@ -26,8 +26,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -41,8 +40,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -56,8 +54,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -71,8 +68,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -86,8 +82,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -101,8 +96,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -117,8 +111,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -132,8 +125,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -147,8 +139,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -162,8 +153,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -177,8 +167,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",
@@ -193,8 +182,7 @@ export const SCHEDULE_STYLEMAP_LIGHT: StyleMap = {
       teacherStyle: "",
       placeStyle: "font-bold",
       subgroupStyle: "font-bold",
-      groupListStyle:
-        "text-xs grid grid-cols-2 grid-rows-2 grid-flow-col my-1 text-left",
+      groupListStyle: "text-sm my-1",
       ietStyle:
         "font-bold outline-2 outline-slate-400 bg-slate-300 rounded-lg my-1 py-[0.25] px-2 text-slate-600",
       ietLabel: "ИОТ",

@@ -118,9 +118,20 @@ const EMPTY_WEEK_NOTICE = `
 </div>
 `;
 
+function groupGrouplist(groups: string[]) {
+  const result: Record<string, string[]> = {};
+  groups.sort();
+  for (const group of groups) {
+    const [number, spec] = group.split("-");
+    if (!result[spec]) result[spec] = [];
+    result[spec].push(number);
+  }
+  return result;
+}
+
 function generateSingleLesson(
   lesson: TimetableLesson | null,
-  opts?: { showGrouplist?: boolean; stylemap?: string },
+  opts?: { showTeacher: boolean; showGrouplist: boolean; stylemap?: string },
 ) {
   if (lesson === null)
     return generateWindowLesson({ stylemap: opts?.stylemap });
@@ -154,7 +165,7 @@ function generateSingleLesson(
       place: lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`,
       subgroup: lesson.subgroup ? `Подгруппа: ${lesson.subgroup}` : "",
       nameStyle: style.nameStyle,
-      teacherStyle: style.teacherStyle,
+      teacherStyle: opts?.showTeacher ? style.teacherStyle : "hidden",
       placeStyle: style.placeStyle,
       subgroupStyle: style.subgroupStyle,
       ietStyle: lesson.isIet ? style.ietStyle : "hidden",
@@ -164,26 +175,23 @@ function generateSingleLesson(
         : "",
     }),
   );
-  if (opts?.showGrouplist) {
-    const groups = [...lesson.groups].sort();
-    if (groups.length <= 4) {
+  if (opts?.showGrouplist && lesson.groups.length > 0) {
+    const groups = groupGrouplist([...lesson.groups]);
+    parts.push(`<div class="${style.groupListStyle} flex flex-col gap-1">`);
+    for (const [spec, numbers] of Object.entries(groups)) {
       parts.push(
         ...[
-          `<hr class="my-1"><p class="${style.groupListStyle}">`,
-          ...groups.map((group) => `<a>${group}</a>`),
-          `</p>`,
-        ],
-      );
-    } else {
-      parts.push(
-        ...[
-          `<hr class="my-1"><p class="${style.groupListStyle}">`,
-          ...groups.slice(0, 3).map((group) => `<a>${group}</a>`),
-          `<a>...</a>`,
-          `</p>`,
+          `<div class="flex flex-row gap-1 items-center">`,
+          `<div class="grid grid-flow-row gap-x-1" style="grid-template-columns: repeat(${Math.min(numbers.length, 4)}, auto);">`,
+          ...numbers.map((group) => `<a>${group}</a>`),
+          `</div>`,
+          `<a> - </a>`,
+          `<div>${spec}</div>`,
+          `</div>`,
         ],
       );
     }
+    parts.push(`</div>`);
   }
 
   parts.push(LESSON_END);
@@ -208,7 +216,7 @@ function generateWindowLesson(opts?: { stylemap?: string }) {
 
 function generateLesson(
   lesson: TimetableLesson | null,
-  opts?: { stylemap?: string; showGrouplist?: boolean },
+  opts?: { stylemap?: string; showTeacher?: boolean; showGrouplist?: boolean },
 ) {
   if (lesson === null) {
     return (
@@ -217,13 +225,15 @@ function generateLesson(
       LESSON_GROUP_END
     );
   }
-  const showGrouplist = opts?.showGrouplist && lesson.alts.length === 0;
+  const showGrouplist = !!(opts?.showGrouplist && lesson.alts.length === 0);
+  const showTeacher = opts?.showTeacher ?? true;
   return (
     LESSON_GROUP_START +
     [lesson, ...lesson.alts]
       .map((lesson) =>
         generateSingleLesson(lesson, {
           showGrouplist: showGrouplist,
+          showTeacher: showTeacher,
           stylemap: opts?.stylemap,
         }),
       )
@@ -253,6 +263,8 @@ export async function generateTimetableImageHtml(
   timetable: Pick<Timetable, "days" | "week">,
   opts?: {
     stylemap?: string;
+    showTeacher: boolean; // default: true
+    showGrouplist: boolean; // default: false
   },
 ): Promise<string> {
   const stylemap = getStylemap(opts?.stylemap ?? "default");
@@ -299,6 +311,7 @@ export async function generateTimetableImageHtml(
     for (const lesson of day.lessons)
       column[lesson.dayTimeSlot - 1] = generateLesson(lesson, {
         stylemap: stylemap.name,
+        ...opts,
       });
     const latestLessonSlot = day.lessons.at(-1)?.dayTimeSlot ?? 0;
     colHeight = colHeight > latestLessonSlot ? colHeight : latestLessonSlot;
@@ -326,7 +339,7 @@ export async function generateTimetableImageHtml(
       for (let x = 0; x < 6; x++) {
         const lesson = cols[x][y];
         if (!lesson)
-          page.push(generateLesson(null, { stylemap: opts?.stylemap }));
+          page.push(generateLesson(null, { stylemap: stylemap.name, ...opts }));
         else page.push(lesson);
       }
     }
@@ -362,6 +375,8 @@ export async function generateTimetableImage(
   timetable: Pick<Timetable, "days" | "week">,
   opts?: {
     stylemap?: string;
+    showTeacher: boolean; // default: true
+    showGrouplist: boolean; // default: false
   },
 ): Promise<Buffer> {
   const startTime = process.hrtime.bigint();

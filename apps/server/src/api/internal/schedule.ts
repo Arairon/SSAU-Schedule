@@ -15,12 +15,8 @@ import {
 } from "@ssau-schedule/shared/misc";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { streamWithUpdates } from "@/lib/apiUpdateStream";
-
-const stringBool = z
-  .string()
-  .toLowerCase()
-  .transform((val) => val === "true")
-  .optional();
+import { generateTimetableImageHtml } from "@/schedule/image";
+import { stringBool } from "@/lib/misc";
 
 const scheduleRequestQuerySchema = z.object({
   userId: z.coerce.number().int(),
@@ -178,6 +174,32 @@ export const app = new Elysia()
     {
       query: scheduleRequestQuerySchema.extend({
         stylemap: z.string().optional(),
+      }),
+    },
+  )
+  .get(
+    "/image/html",
+    async ({ query, status, set }) => {
+      const user = await db.user.findUnique({
+        where: { id: query.userId },
+      });
+      if (!user) return status(404, "User not found");
+
+      const timetable = await schedule.getTimetable(user, query.week, query);
+      const html = await generateTimetableImageHtml(timetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      });
+
+      set.headers["content-type"] = "text/html";
+      return html;
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(true),
+        showGrouplist: stringBool.default(false),
       }),
     },
   )

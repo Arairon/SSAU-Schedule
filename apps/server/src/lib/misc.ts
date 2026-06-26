@@ -2,6 +2,13 @@ import type { MessageEntity } from "grammy/types";
 import { db } from "@/db";
 import { type TeacherType } from "@/ssau/schemas/schedule";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
+import z from "zod";
+
+export const stringBool = z
+  .string()
+  .toLowerCase()
+  .transform((val) => val === "true" || val === "1")
+  .optional();
 
 export async function ensureGroupExists(group: {
   id: number;

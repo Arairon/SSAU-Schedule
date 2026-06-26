@@ -359,7 +359,11 @@ async function getTimetableWithImage(
     state: "generatingImage",
     message: "Generating timetable image",
   });
-  const image = await generateTimetableImage(timetable, { stylemap });
+  const image = await generateTimetableImage(timetable, {
+    stylemap,
+    showTeacher: true,
+    showGrouplist: false,
+  });
 
   const createdImage = await db.weekImage.upsert({
     where: {
@@ -646,7 +650,11 @@ async function getTeacherTimetableWithImage(
     state: "generatingImage",
     message: "Generating timetable image",
   });
-  const image = await generateTimetableImage(timetable, { stylemap });
+  const image = await generateTimetableImage(timetable, {
+    stylemap,
+    showTeacher: false,
+    showGrouplist: true,
+  });
 
   const createdImage = await db.weekImage.upsert({
     where: {
