@@ -757,7 +757,7 @@ ${generateTextLesson(lesson)}
   });
 
   // Bot hears a teacher's name (1-3 words cyrillic)
-  bot.hears(/^([а-яА-Я]{3,}) ?([а-яА-Я]+ ?){0,2}$/, async (ctx) => {
+  bot.hears(/^([а-яА-ЯёЁ]{3,}) ?([а-яА-ЯёЁ]+ ?){0,2}$/, async (ctx) => {
     if (!ctx.from || !ctx.message || !ctx.message.text) return;
     if (ctx.chat?.type !== "private") {
       return;
