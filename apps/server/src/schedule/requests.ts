@@ -359,7 +359,11 @@ async function getTimetableWithImage(
     state: "generatingImage",
     message: "Generating timetable image",
   });
-  const image = await generateTimetableImage(timetable, { stylemap });
+  const image = await generateTimetableImage(timetable, {
+    stylemap,
+    showTeacher: true,
+    showGrouplist: false,
+  });
 
   const createdImage = await db.weekImage.upsert({
     where: {
@@ -509,9 +513,9 @@ async function getTeacherTimetable(
     },
   );
 
-  let updatedGroupCount = 0;
+  // let updatedGroupCount = 0;
   for (const [id, name] of Object.entries(groups)) {
-    updatedGroupCount++;
+    // updatedGroupCount++;
     const group = { id: parseInt(id), name };
     await ensureGroupExists(group);
     const week = await getWeek(user, weekN, {
@@ -528,10 +532,11 @@ async function getTeacherTimetable(
       opts ?? {},
       (upd) => {
         if (upd.state === "updatingWeek") {
-          updateState({
-            state: "updatingTeacher",
-            message: `Обновляем расписание по группам ${updatedGroupCount}/${groupCount}`,
-          });
+          /* ignore */
+          // updateState({
+          //   state: "updatingTeacher",
+          //   message: `Обновляем расписание по группам ${updatedGroupCount}/${groupCount}`,
+          // });
         } else {
           updateState(upd);
         }
@@ -645,7 +650,11 @@ async function getTeacherTimetableWithImage(
     state: "generatingImage",
     message: "Generating timetable image",
   });
-  const image = await generateTimetableImage(timetable, { stylemap });
+  const image = await generateTimetableImage(timetable, {
+    stylemap,
+    showTeacher: false,
+    showGrouplist: true,
+  });
 
   const createdImage = await db.weekImage.upsert({
     where: {

@@ -1,6 +1,8 @@
 import { db } from "@/db";
 import type { WeekImage } from "@/generated/prisma/client";
 import { streamWithUpdates } from "@/lib/apiUpdateStream";
+import { stringBool } from "@/lib/misc";
+import { generateTimetableImageHtml } from "@/schedule/image";
 import { schedule } from "@/schedule/requests";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
@@ -110,6 +112,37 @@ export const app = new Elysia()
     },
   )
   .get(
+    "/schedule/image/html",
+    async ({ query, status, set }) => {
+      const user = await db.user.findUnique({
+        where: { id: query.userId },
+      });
+      if (!user) return status(404, "User not found");
+
+      const week = query.week ?? getWeekFromDate(new Date());
+      const timetable = await schedule.getTeacherTimetable(
+        user,
+        week,
+        query.teacherId,
+      );
+      const html = await generateTimetableImageHtml(timetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      });
+
+      set.headers["content-type"] = "text/html";
+      return html;
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(false),
+        showGrouplist: stringBool.default(true),
+      }),
+    },
+  )
+  .get(
     "/schedule/image/png",
     async ({ query, status, set }) => {
       const user = await db.user.findUnique({
@@ -125,7 +158,7 @@ export const app = new Elysia()
       );
 
       set.headers["content-type"] = "image/png";
-      return image;
+      return image.data;
     },
     {
       query: scheduleRequestQuerySchema,
