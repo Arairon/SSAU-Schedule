@@ -7,12 +7,18 @@ import { bot } from "@/bot";
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {
+    beforeHandle: async ({ headers, status }) => {
+      if (
+        headers["x-internal-api-secret"] !==
+        env.SCHED_SERVER_INTERNAL_API_SECRET
+      ) {
+        return status(403, "Forbidden");
+      }
+    },
     headers: z.object({
-      "x-internal-api-secret": z
-        .string()
-        .refine((val) => val === env.SCHED_SERVER_INTERNAL_API_SECRET, {
-          message: "Invalid internal API secret",
-        }),
+      "x-internal-api-secret": z.string({
+        error: "Missing internal API secret",
+      }),
     }),
   },
   (app) =>

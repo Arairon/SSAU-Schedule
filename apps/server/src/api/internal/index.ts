@@ -1,6 +1,6 @@
+import z from "zod";
 import { env } from "@/env";
 import { Elysia } from "elysia";
-import z from "zod";
 import { app as routesCache } from "./cache";
 import { app as routesGroupChat } from "./groupchat";
 import { app as routesMisc } from "./misc";
@@ -15,12 +15,18 @@ import log from "@/logger";
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {
+    beforeHandle: async ({ headers, status }) => {
+      if (
+        headers["x-internal-api-secret"] !==
+        env.SCHED_SERVER_INTERNAL_API_SECRET
+      ) {
+        return status(403, "Forbidden");
+      }
+    },
     headers: z.object({
-      "x-internal-api-secret": z
-        .string()
-        .refine((val) => val === env.SCHED_SERVER_INTERNAL_API_SECRET, {
-          message: "Invalid internal API secret",
-        }),
+      "x-internal-api-secret": z.string({
+        error: "Missing internal API secret",
+      }),
     }),
   },
   (app) =>

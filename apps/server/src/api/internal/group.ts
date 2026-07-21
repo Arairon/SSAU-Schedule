@@ -4,11 +4,12 @@ import z from "zod";
 
 export const app = new Elysia().get(
   "/id/:id",
-  async ({ params }) => {
+  async ({ params, status }) => {
     const res = await db.group.findUnique({
       where: { id: params.id },
     });
-    return res as { id: number; name: string } | null;
+    if (!res) return status(404);
+    return res as { id: number; name: string };
   },
   {
     params: z.object({

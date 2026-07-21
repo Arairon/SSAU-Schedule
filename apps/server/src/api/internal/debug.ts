@@ -2,10 +2,14 @@ import { env } from "@/env";
 import { scrapeLoginRequest } from "@/ssau/loginScrape";
 import Elysia from "elysia";
 
-export const app = new Elysia().post("/scrapeSsauLogin", async ({ status }) => {
-  if (env.NODE_ENV !== "development") return status(403, "Forbidden");
+export const app = new Elysia()
+  .guard({
+    beforeHandle: async ({ status }) => {
+      if (env.NODE_ENV !== "development") return status(403, "Forbidden");
+    },
+  })
+  .post("/scrapeSsauLogin", async ({}) => {
+    const req = await scrapeLoginRequest();
 
-  const req = await scrapeLoginRequest();
-
-  return req;
-});
+    return req;
+  });
