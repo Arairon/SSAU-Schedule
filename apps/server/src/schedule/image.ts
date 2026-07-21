@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
-import {
-  type TimetableLesson,
-  type Timetable,
+import type {
+  DrawableTimetable,
+  DrawableLesson,
 } from "@ssau-schedule/shared/timetable";
 import { formatBigInt, getPersonShortname } from "@ssau-schedule/shared/utils";
 import { getLessonDate } from "@ssau-schedule/shared/date";
@@ -130,7 +130,7 @@ function groupGrouplist(groups: string[]) {
 }
 
 function generateSingleLesson(
-  lesson: TimetableLesson | null,
+  lesson: DrawableLesson | null,
   opts?: { showTeacher: boolean; showGrouplist: boolean; stylemap?: string },
 ) {
   if (lesson === null)
@@ -147,7 +147,7 @@ function generateSingleLesson(
     }),
   );
 
-  function getCustomizationIndicator(lesson: TimetableLesson) {
+  function getCustomizationIndicator(lesson: DrawableLesson): string {
     if (!lesson.customized) return ""; // Not customized
     if (!lesson.original?.id) return "+"; // Adds a new one
     if (lesson.customized.hidden) return "-"; // Overwrites and removes original
@@ -215,7 +215,7 @@ function generateWindowLesson(opts?: { stylemap?: string }) {
 }
 
 function generateLesson(
-  lesson: TimetableLesson | null,
+  lesson: DrawableLesson | null,
   opts?: { stylemap?: string; showTeacher?: boolean; showGrouplist?: boolean },
 ) {
   if (lesson === null) {
@@ -260,7 +260,7 @@ const WEEKDAYS = [
 ];
 
 export async function generateTimetableImageHtml(
-  timetable: Pick<Timetable, "days" | "week">,
+  timetable: DrawableTimetable,
   opts?: {
     stylemap?: string;
     showTeacher: boolean; // default: true
@@ -372,7 +372,7 @@ async function generateTimetableImageBuffer(
 }
 
 export async function generateTimetableImage(
-  timetable: Pick<Timetable, "days" | "week">,
+  timetable: DrawableTimetable,
   opts?: {
     stylemap?: string;
     showTeacher: boolean; // default: true

@@ -1,4 +1,4 @@
-type LessonType =
+export type LessonType =
   | "Lection"
   | "Lab"
   | "Practice"
@@ -9,6 +9,49 @@ type LessonType =
   | "Window"
   | "CourseWork"
   | "Unknown";
+
+export interface DrawableLesson {
+  dayTimeSlot: number;
+  beginTime: Date;
+  endTime: Date;
+  type: LessonType;
+  discipline: string;
+  teacher: {
+    name: string;
+  };
+  isOnline: boolean;
+  building: string | null;
+  room: string | null;
+  isIet: boolean;
+  subgroup: number | null;
+  groups: string[];
+  flows: string[];
+  alts: DrawableLesson[];
+  customized: LessonCustomizationInfo | null;
+  original: {
+    id: number;
+  } | null
+}
+
+export interface DrawableDay {
+  week: number;
+  weekday: number;
+  beginTime: Date;
+  endTime: Date;
+  lessons: DrawableLesson[];
+}
+export interface DrawableTimetable {
+  week: number;
+  year: number;
+  days: DrawableDay[];
+}
+
+interface LessonCustomizationInfo {
+  hidden: boolean;
+  disabled: boolean;
+  comment: string;
+  customizedBy: number;
+}
 
 export type TimetableLesson = {
   id: number;
@@ -31,12 +74,7 @@ export type TimetableLesson = {
   endTime: Date;
   conferenceUrl: string | null;
   original: TimetableLesson | null;
-  customized: {
-    hidden: boolean;
-    disabled: boolean;
-    comment: string;
-    customizedBy: number;
-  } | null;
+  customized: LessonCustomizationInfo | null;
   alts: TimetableLesson[];
 };
 
