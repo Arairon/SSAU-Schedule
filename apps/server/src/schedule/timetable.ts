@@ -10,7 +10,8 @@ import { db } from "@/db";
 import { lk } from "../ssau/lk";
 import log from "@/logger";
 import type {
-  NormalizedTimetableLesson,
+  DrawableLesson,
+  DrawableTimetable,
   TeacherTimetable,
   Timetable,
   TimetableDay,
@@ -315,107 +316,112 @@ export async function generateTeacherTimetable(
   return timetable;
 }
 
-export function flattenLesson(lesson: TimetableLesson): TimetableLesson[] {
-  return [lesson, ...lesson.alts.flatMap(flattenLesson)];
+export function flattenLesson<T extends DrawableLesson>(lesson: T): T[] {
+  if (!lesson.alts || lesson.alts.length === 0) return [lesson];
+  return [lesson, ...(lesson.alts as T[]).flatMap(flattenLesson)];
 }
 
-export function flattenTimetable(
-  timetable: Pick<Timetable, "days">,
-): TimetableLesson[] {
+export function flattenTimetable<T extends DrawableLesson>(
+  timetable: { days: { lessons: T[] }[] },
+): T[] {
   return timetable.days.flatMap((day) =>
     day.lessons.flatMap((lesson) => flattenLesson(lesson)),
   );
 }
 
-function normalizeTimetableLesson(
-  lesson: TimetableLesson,
-): NormalizedTimetableLesson {
-  const normalizeStringArray = (values: string[]) => [...values].sort();
+// // Was used for hashing
+// function normalizeTimetableLesson(
+//   lesson: TimetableLesson,
+// ): NormalizedTimetableLesson {
+//   const normalizeStringArray = (values: string[]) => [...values].sort();
 
+//   return {
+//     id: lesson.id,
+//     infoId: lesson.infoId,
+//     type: lesson.type,
+//     discipline: lesson.discipline,
+//     teacher: {
+//       name: lesson.teacher.name,
+//       id: lesson.teacher.id,
+//     },
+//     isOnline: lesson.isOnline,
+//     isIet: lesson.isIet,
+//     building: lesson.building,
+//     room: lesson.room,
+//     subgroup: lesson.subgroup,
+//     groups: normalizeStringArray(lesson.groups),
+//     flows: normalizeStringArray(lesson.flows),
+//     dayTimeSlot: lesson.dayTimeSlot,
+//     beginTime: new Date(lesson.beginTime).getTime(),
+//     endTime: new Date(lesson.endTime).getTime(),
+//     conferenceUrl: lesson.conferenceUrl,
+//     customized: lesson.customized
+//       ? {
+//         hidden: lesson.customized.hidden,
+//         disabled: lesson.customized.disabled,
+//         comment: lesson.customized.comment,
+//         customizedBy: lesson.customized.customizedBy,
+//       }
+//       : null,
+//   };
+// }
+
+function normalizeDrawableLesson(lesson: DrawableLesson): DrawableLesson {
   return {
-    id: lesson.id,
-    infoId: lesson.infoId,
+    dayTimeSlot: lesson.dayTimeSlot,
+    beginTime: new Date(lesson.beginTime),
+    endTime: new Date(lesson.endTime),
     type: lesson.type,
     discipline: lesson.discipline,
-    teacher: {
-      name: lesson.teacher.name,
-      id: lesson.teacher.id,
-    },
+    teacher: lesson.teacher ? { name: lesson.teacher.name } : null,
     isOnline: lesson.isOnline,
-    isIet: lesson.isIet,
     building: lesson.building,
     room: lesson.room,
+    isIet: lesson.isIet,
     subgroup: lesson.subgroup,
-    groups: normalizeStringArray(lesson.groups),
-    flows: normalizeStringArray(lesson.flows),
-    dayTimeSlot: lesson.dayTimeSlot,
-    beginTime: new Date(lesson.beginTime).getTime(),
-    endTime: new Date(lesson.endTime).getTime(),
-    conferenceUrl: lesson.conferenceUrl,
-    customized: lesson.customized
-      ? {
-          hidden: lesson.customized.hidden,
-          disabled: lesson.customized.disabled,
-          comment: lesson.customized.comment,
-          customizedBy: lesson.customized.customizedBy,
-        }
-      : null,
-  };
+    groups: [...lesson.groups].sort(),
+    flows: [...lesson.flows].sort(),
+  }
 }
 
 export function getTimetableHash(
-  timetable: Timetable | TeacherTimetable,
+  timetable: DrawableTimetable,
 ): string {
   const normalizedLessons = flattenTimetable(timetable).map(
-    normalizeTimetableLesson,
+    normalizeDrawableLesson,
   );
-  const withSortKey = normalizedLessons.map((lesson) => {
-    const sortTuple = [
-      lesson.id,
-      lesson.infoId,
-      lesson.dayTimeSlot,
-      lesson.beginTime,
-      lesson.endTime,
-      lesson.type,
-      lesson.discipline,
-      lesson.teacher.id ?? -1,
-      lesson.teacher.name,
-      lesson.isOnline ? 1 : 0,
-      lesson.isIet ? 1 : 0,
-      lesson.subgroup ?? -1,
-      lesson.building ?? "",
-      lesson.room ?? "",
-      lesson.conferenceUrl ?? "",
-    ] as const;
-    return {
-      lesson,
-      sortTuple,
-      jsonKey: JSON.stringify(lesson),
-    };
-  });
 
-  withSortKey.sort((a, b) => {
-    for (let i = 0; i < a.sortTuple.length; i++) {
-      const left = a.sortTuple[i];
-      const right = b.sortTuple[i];
+  const sortKeys = [
+    "beginTime",
+    "dayTimeSlot",
+    "discipline",
+    "room",
+    "subgroup"
+  ] as const
+
+  normalizedLessons.sort((a, b) => {
+    for (const key of sortKeys) {
+      const left = a[key];
+      const right = b[key];
       if (left === right) continue;
       if (typeof left === "number" && typeof right === "number") {
         return left - right;
+      }
+      if (left instanceof Date && right instanceof Date) {
+        return left.getTime() - right.getTime();
       }
       const leftStr = String(left);
       const rightStr = String(right);
       if (leftStr < rightStr) return -1;
       if (leftStr > rightStr) return 1;
     }
-    if (a.jsonKey < b.jsonKey) return -1;
-    if (a.jsonKey > b.jsonKey) return 1;
     return 0;
   });
 
   return md5(
     JSON.stringify({
       week: timetable.week,
-      lessons: withSortKey.map((entry) => entry.lesson),
+      lessons: normalizedLessons,
     }),
   );
 }
@@ -449,11 +455,11 @@ export function getTimetablesDiff(
     conferenceUrl: lesson.conferenceUrl,
     customized: lesson.customized
       ? {
-          hidden: lesson.customized.hidden,
-          disabled: lesson.customized.disabled,
-          comment: lesson.customized.comment,
-          customizedBy: lesson.customized.customizedBy,
-        }
+        hidden: lesson.customized.hidden,
+        disabled: lesson.customized.disabled,
+        comment: lesson.customized.comment,
+        customizedBy: lesson.customized.customizedBy,
+      }
       : null,
   });
 
