@@ -41,10 +41,11 @@ const HTML_HEAD = `\
 <!--<link rel="stylesheet" href="./timetable.css">-->
 <meta charset="UTF-8">
 </head>
-<body class="bg-black flex flex-col gap-2 w-full items-stretch p-2">
+<body class="bg-black w-full items-stretch">
+<div id="timetable-root" class="w-fit p-2 flex flex-col gap-2">
 <style>${CSS}</style>`;
 
-const HTML_SIZER = `<style>body{width:{width};height:{height};}</style>\n`;
+const HTML_SIZER = `<style>#timetable-root{width:{width};min-height:{minHeight};height:auto;}</style>\n`;
 
 const HTML_HEADER_WEEK = `\
 <header class="{headerStyle} items-center flex flex-col p-1">
@@ -81,6 +82,7 @@ const HTML_HEADER_TIMESLOT = `\
 
 const HTML_END = `\
 </main>
+</div>
 </body>
 </html>`;
 
@@ -274,7 +276,7 @@ export async function generateTimetableImageHtml(
   //   : "Моё расписание";
   const page: string[] = [
     HTML_HEAD,
-    format(HTML_SIZER, { width: "1600px", height: "auto" }),
+    format(HTML_SIZER, { width: "1600px", minHeight: "600px" }),
     format(HTML_HEADER_WEEK, {
       //name: scheduleName,  // {name} is currently disabled in header
       weekNumber: `${timetable.week}`,
@@ -356,14 +358,20 @@ async function generateTimetableImageBuffer(
   const page = await activeBrowser.newPage();
 
   try {
+    await page.setViewport({
+      width: 1600,
+      height: 600,
+      deviceScaleFactor: 1,
+    });
     await page.setContent(html, { waitUntil: "domcontentloaded" });
-    await page.bringToFront();
+    const root = await page.$("#timetable-root");
+    if (!root) {
+      throw new Error("Timetable root element not found.");
+    }
     return Buffer.from(
-      await page.screenshot({
-        fullPage: true,
+      await root.screenshot({
         type: "jpeg",
         quality: opts?.quality ?? 80,
-        optimizeForSpeed: true,
       }),
     );
   } finally {
