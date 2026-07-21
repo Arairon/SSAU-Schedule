@@ -66,11 +66,11 @@ const app = new Elysia()
       );
     }
   })
-  .onAfterResponse(async ({ request, set, responseValue }) => {
+  .onAfterResponse(async ({ request, set }) => {
     const requestId = set.headers["x-request-id"];
     const requestStart = Number(set.headers["x-request-time"]);
     const requestTime = Date.now() - requestStart;
-    const status = (responseValue as { status?: number })?.status ?? "unk";
+    const status = set.status ?? "unk";
 
     log.debug(`-> ${request.method[0]} ${status} – ${requestTime}ms`, {
       user: requestId,
