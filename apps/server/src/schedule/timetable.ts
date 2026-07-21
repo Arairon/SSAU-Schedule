@@ -412,7 +412,12 @@ export function getTimetableHash(
     return 0;
   });
 
-  return md5(JSON.stringify(withSortKey.map((entry) => entry.lesson)));
+  return md5(
+    JSON.stringify({
+      week: timetable.week,
+      lessons: withSortKey.map((entry) => entry.lesson),
+    }),
+  );
 }
 
 export function getTimetablesDiff(

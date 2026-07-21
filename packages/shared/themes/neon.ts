@@ -13,7 +13,7 @@ export const SCHEDULE_STYLEMAP_NEON: StyleMapConfig = {
     },
     emptyWeek: {
       style:
-        "border-white bg-black text-white rounded-lg text-center text-lg font-bold py-12",
+        "border-2 border-white bg-black text-white rounded-lg text-center text-lg font-bold py-12",
       text: "Пар нет :D",
     },
   },
