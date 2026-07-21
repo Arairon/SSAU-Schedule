@@ -57,7 +57,7 @@ function getCookie(rawcookie: string) {
   // if (!token.exp) return null;
   const update = {
     authCookie: cookie,
-    authCookieExpiresAt: new Date(530_000), // add 30sec to avoid losing auth
+    authCookieExpiresAt: new Date(Date.now() + 330_000), // add 30sec to avoid losing auth
     sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
   };
   return update;
@@ -371,8 +371,16 @@ async function updateCookie(user: User) {
     };
   }
   if (cookie.includes("auth=;")) {
-    log.warn(`Empty cookie: ${cookie}. Ignoring and assuming validity`, {
+    log.warn(`Received empty cookie. Assuming validity and extending session`, {
       user: user.id,
+      object: { cookie },
+    });
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        authCookieExpiresAt: new Date(Date.now() + 330_000), // add 30sec to avoid losing auth
+        sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
+      },
     });
     return { ok: true };
   }
