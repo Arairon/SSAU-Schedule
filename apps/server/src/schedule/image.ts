@@ -225,11 +225,11 @@ function generateLesson(
       LESSON_GROUP_END
     );
   }
-  const showGrouplist = !!(opts?.showGrouplist && lesson.alts.length === 0);
+  const showGrouplist = !!(opts?.showGrouplist && (!lesson.alts || lesson.alts.length === 0));
   const showTeacher = opts?.showTeacher ?? true;
   return (
     LESSON_GROUP_START +
-    [lesson, ...lesson.alts]
+    [lesson, ...lesson.alts ?? []]
       .map((lesson) =>
         generateSingleLesson(lesson, {
           showGrouplist: showGrouplist,
@@ -356,7 +356,7 @@ async function generateTimetableImageBuffer(
   const page = await activeBrowser.newPage();
 
   try {
-    await page.setContent(html);
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
     await page.bringToFront();
     return Buffer.from(
       await page.screenshot({

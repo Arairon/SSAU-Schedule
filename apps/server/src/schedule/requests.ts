@@ -495,7 +495,7 @@ async function getTeacherTimetable(
 
   const groups: Record<number, string> = {};
   for (const day of raspSchedule.value.days) {
-    for (const lesson of day) {
+    for (const lesson of day.lessons) {
       for (const group of lesson.groups) {
         groups[group.id] = group.name;
       }
@@ -576,21 +576,21 @@ async function getTeacherTimetableWithImage(
         | "generatingTimetable"
         | "generatingImage"
         | "error"
-      >,
+      >
     ) => void;
   },
 ): Promise<{
   timetable: TeacherTimetable & { diff?: TimetableDiff };
   image: Omit<WeekImage, "data"> & { data: Buffer };
 }> {
+  type supportedStates =
+    | "updatingTeacher"
+    | "updatingWeek"
+    | "generatingTimetable"
+    | "generatingImage"
+    | "error"
   function updateState(
-    update: RequestStateUpdate<
-      | "updatingTeacher"
-      | "updatingWeek"
-      | "generatingTimetable"
-      | "generatingImage"
-      | "error"
-    >,
+    update: RequestStateUpdate<supportedStates>
   ) {
     if (opts?.onUpdate) opts.onUpdate(update);
   }

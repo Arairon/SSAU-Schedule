@@ -152,14 +152,14 @@ export function formatTimetableDiff(
     lesson: TimetableLesson;
     old?: Partial<TimetableLesson>;
   }[] = [
-    ...diff.added.map((lesson) => ({ type: "added" as const, lesson })),
-    ...diff.removed.map((lesson) => ({ type: "removed" as const, lesson })),
-    ...diff.modified.map(({ old, new: lesson }) => ({
-      type: "modified" as const,
-      old,
-      lesson,
-    })),
-  ];
+      ...diff.added.map((lesson) => ({ type: "added" as const, lesson })),
+      ...diff.removed.map((lesson) => ({ type: "removed" as const, lesson })),
+      ...diff.modified.map(({ old, new: lesson }) => ({
+        type: "modified" as const,
+        old,
+        lesson,
+      })),
+    ];
   const typePriority: Record<(typeof changes)[number]["type"], number> = {
     modified: 0,
     removed: 1,
@@ -343,6 +343,10 @@ export type RequestStateUpdate<T extends string> = {
   message?: string;
 };
 
+export type RequestStateUpdateWithData<T extends string, K> = {
+  data: K;
+} & RequestStateUpdate<T>;
+
 export function groupContinousLessons(
   lessons: TimetableLesson[],
 ): TimetableLesson[] {
@@ -373,9 +377,9 @@ export function groupContinousLessons(
       grouped.push(
         currentGroup.length > 1
           ? {
-              ...currentGroup[0],
-              endTime: currentGroup.at(-1)!.endTime,
-            }
+            ...currentGroup[0],
+            endTime: currentGroup.at(-1)!.endTime,
+          }
           : prev,
       );
       currentGroup = [curr];
@@ -385,9 +389,9 @@ export function groupContinousLessons(
   grouped.push(
     currentGroup.length > 1
       ? {
-          ...currentGroup[0],
-          endTime: currentGroup.at(-1)!.endTime,
-        }
+        ...currentGroup[0],
+        endTime: currentGroup.at(-1)!.endTime,
+      }
       : currentGroup[0],
   );
 

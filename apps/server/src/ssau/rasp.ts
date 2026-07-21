@@ -1,4 +1,4 @@
-import type { LessonType } from "@ssau-schedule/shared/timetable";
+import type { DrawableTimetable, LessonType } from "@ssau-schedule/shared/timetable";
 import { getLessonTypeFromName } from "@ssau-schedule/shared/misc";
 import log from "@/logger";
 import axios from "axios";
@@ -14,8 +14,8 @@ type RaspLesson = {
   isOnline: boolean;
   type: LessonType;
   dayTimeSlot: number;
-  beginTime: number;
-  endTime: number;
+  beginTime: Date;
+  endTime: Date;
   teacher: {
     name: string;
     id: number;
@@ -26,14 +26,54 @@ type RaspLesson = {
     name: string;
     subgroup: number | null;
   }[];
+  flows: [];
+  isIet: false;
   subgroup: number | null;
 };
+
+type RaspScheduleDay = {
+  week: number;
+  weekday: number;
+  beginTime: Date;
+  endTime: Date;
+  lessons: RaspLesson[];
+}
 
 export type RaspSchedule = {
   week: number;
   year: number;
-  days: RaspLesson[][];
+  days: RaspScheduleDay[];
+  groups: Record<number, string>
 };
+
+export function convertRaspScheduleToDrawable(schedule: RaspSchedule): DrawableTimetable {
+  const drawableSchedule: DrawableTimetable = {
+    week: schedule.week,
+    year: schedule.year,
+    days: schedule.days.map((day) => ({
+      week: day.week,
+      weekday: day.weekday,
+      beginTime: day.beginTime,
+      endTime: day.endTime,
+      lessons: day.lessons.map((lesson) => ({
+        dayTimeSlot: lesson.dayTimeSlot,
+        beginTime: lesson.beginTime,
+        endTime: lesson.endTime,
+        type: lesson.type,
+        discipline: lesson.discipline,
+        teacher: lesson.teacher ? { name: lesson.teacher.name } : null,
+        isOnline: lesson.isOnline,
+        building: lesson.building,
+        room: lesson.room,
+        isIet: false,
+        subgroup: lesson.subgroup,
+        groups: lesson.groups.map((g) => g.name),
+        flows: [],
+      })),
+    })),
+  };
+  return drawableSchedule;
+}
 
 function parseSsauRaspTimetableCard(page: string) {
   const $ = cheerio.load(page);
@@ -58,14 +98,24 @@ function parseSsauRaspTimetableCard(page: string) {
       ),
     );
   }
+
   const schedule: RaspSchedule = {
     week: parseInt(weekNumberRaw),
     year: getCurrentYearId(),
-    days: [[], [], [], [], [], []],
+    days: [],
+    groups: {}
   };
   const items = table.children(".schedule__item").slice(7); // slice table headers
   const tableHeight = table.children(".schedule__time").length;
   for (let dayIndex = 0; dayIndex < 6; dayIndex++) {
+    const day: RaspScheduleDay = {
+      week: schedule.week,
+      weekday: dayIndex + 1,
+      beginTime: getLessonDate(schedule.week, dayIndex + 2), // set to tomorrow as a maximum
+      endTime: getLessonDate(schedule.week, dayIndex + 1), // set to today as a minimum
+      lessons: [],
+    }
+    schedule.days.push(day);
     for (let timeSlotIndex = 0; timeSlotIndex < tableHeight; timeSlotIndex++) {
       const lessonElement = items.eq(timeSlotIndex * 6 + dayIndex);
       if (lessonElement.children().length === 0) {
@@ -86,12 +136,21 @@ function parseSsauRaspTimetableCard(page: string) {
         building: null,
         room: null,
         isOnline: true,
-        beginTime: new Date(lessonTime + timeslot.beginDelta).getTime(),
-        endTime: new Date(lessonTime + timeslot.endDelta).getTime(),
+        beginTime: new Date(lessonTime + timeslot.beginDelta),
+        endTime: new Date(lessonTime + timeslot.endDelta),
         teacher: null,
         groups: [],
         subgroup: null,
+        flows: [],
+        isIet: false,
       };
+
+      if (day.beginTime > lesson.beginTime) {
+        day.beginTime = new Date(lesson.beginTime);
+      }
+      if (day.endTime < lesson.endTime) {
+        day.endTime = new Date(lesson.endTime);
+      }
 
       lessonElement.find(".schedule__group").each((_, el) => {
         const groupId = /groupId=(\d+)/.exec($(el).attr("href") ?? "")?.[1];
@@ -101,11 +160,13 @@ function parseSsauRaspTimetableCard(page: string) {
           ? parseInt(subgroupRaw.replace(")", ""))
           : null;
         if (groupId && groupName) {
+          const id = parseInt(groupId);
           lesson.groups.push({
-            id: parseInt(groupId),
+            id: id,
             name: groupName,
             subgroup: subgroup,
           });
+          schedule.groups[id] = groupName;
           if (lesson.subgroup && subgroup && lesson.subgroup !== subgroup) {
             lesson.subgroup = -1;
           }
@@ -125,7 +186,11 @@ function parseSsauRaspTimetableCard(page: string) {
         lesson.isOnline = false;
       }
 
-      schedule.days[dayIndex].push(lesson);
+      day.lessons.push(lesson);
+    }
+    if (day.beginTime.getTime() > day.endTime.getTime()) {
+      day.beginTime = getLessonDate(schedule.week, dayIndex + 1);
+      day.endTime = day.beginTime;
     }
   }
   return ok(schedule);
@@ -142,6 +207,7 @@ export async function getTeacherWeekFromSsauRasp({
     `Fetching schedule for teacher ${staffId} for week ${selectedWeek} from ssau.ru/rasp`,
     { tag: "rasp" },
   );
+  const startTime = Date.now();
   const req = await axios.get<string>(`https://ssau.ru/rasp`, {
     params: { staffId, selectedWeek },
     validateStatus: () => true,
@@ -161,13 +227,18 @@ export async function getTeacherWeekFromSsauRasp({
     state: $(".info-block__description").text().trim(),
   };
   schedule.value.days.map((day) => {
-    day.map((lesson) => {
+    day.lessons.map((lesson) => {
       lesson.teacher = teacher;
     });
   });
+  const endTime = Date.now();
+  log.debug(
+    `Fetched schedule for teacher ${staffId} for week ${selectedWeek} from ssau.ru/rasp in ${endTime - startTime}ms`,
+    { tag: "rasp" },
+  );
   return schedule;
 }
 
-export async function getGroupWeekFromSsauRasp({}) {
+export async function getGroupWeekFromSsauRasp({ }) {
   return new Error("Not implemented");
 }

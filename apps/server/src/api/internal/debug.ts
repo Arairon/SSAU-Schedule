@@ -8,7 +8,7 @@ export const app = new Elysia()
       if (env.NODE_ENV !== "development") return status(403, "Forbidden");
     },
   })
-  .post("/scrapeSsauLogin", async ({}) => {
+  .post("/scrapeSsauLogin", async ({ }) => {
     const req = await scrapeLoginRequest();
 
     return req;

@@ -2,8 +2,9 @@ import { db } from "@/db";
 import type { WeekImage } from "@/generated/prisma/client";
 import { streamWithUpdates } from "@/lib/apiUpdateStream";
 import { stringBool } from "@/lib/misc";
-import { generateTimetableImageHtml } from "@/schedule/image";
+import { generateTimetableImage, generateTimetableImageHtml } from "@/schedule/image";
 import { schedule } from "@/schedule/requests";
+import { convertRaspScheduleToDrawable, getTeacherWeekFromSsauRasp } from "@/ssau/rasp";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
 import type {
@@ -42,21 +43,21 @@ type teacherScheduleImageRequestUpdateCallback = (
     | "generatingTimetable"
     | "generatingImage"
     | "error"
-  >,
+  >
 ) => void;
 
 type ImageGenerator = AsyncGenerator<
   | Parameters<teacherScheduleImageRequestUpdateCallback>[0]
   | {
-      timetable: TeacherTimetable & { diff?: TimetableDiff };
-      image: {
-        id: number;
-        tgId: string | null;
-        data: string;
-        timetableHash: string;
-        stylemap: string;
-      };
-    }
+    timetable: TeacherTimetable & { diff?: TimetableDiff };
+    image: {
+      id: number;
+      tgId: string | null;
+      data: string;
+      timetableHash: string;
+      stylemap: string;
+    };
+  }
 >;
 
 export const app = new Elysia()
@@ -212,4 +213,124 @@ export const app = new Elysia()
         stylemap: z.string().optional(),
       }),
     },
-  );
+  )
+  // ssau.ru/rasp endpoints
+  .get(
+    "/rasp_schedule/json",
+    async ({ query, status }) => {
+      const week = query.week ?? getWeekFromDate(new Date());
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      });
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP");
+      }
+
+      return raspSchedule.value;
+    },
+    {
+      query: scheduleRequestQuerySchema,
+    }
+  )
+  .get(
+    "/rasp_schedule/image",
+    async ({ query, status }) => {
+      const week = query.week ?? getWeekFromDate(new Date());
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      });
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP");
+      }
+
+      const drawableTimetable = convertRaspScheduleToDrawable(raspSchedule.value);
+      const image = await generateTimetableImage(drawableTimetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      });
+
+      return {
+        timetable: drawableTimetable,
+        image: image.toBase64(),
+      };
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(false),
+        showGrouplist: stringBool.default(true),
+      }),
+    }
+  )
+  .get(
+    "/rasp_schedule/image/png",
+    async ({ query, status, set }) => {
+      const week = query.week ?? getWeekFromDate(new Date());
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      });
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP");
+      }
+
+      const drawableTimetable = convertRaspScheduleToDrawable(raspSchedule.value);
+      const image = await generateTimetableImage(drawableTimetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      });
+
+      set.headers["content-type"] = "image/png";
+      return image;
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(false),
+        showGrouplist: stringBool.default(true),
+      }),
+    }
+  )
+  .get(
+    "/rasp_schedule/image/html",
+    async ({ query, status, set }) => {
+      const week = query.week ?? getWeekFromDate(new Date());
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      });
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP");
+      }
+
+      const drawableTimetable = convertRaspScheduleToDrawable(raspSchedule.value);
+      const html = await generateTimetableImageHtml(drawableTimetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      });
+
+      set.headers["content-type"] = "text/html";
+      return html;
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(false),
+        showGrouplist: stringBool.default(true),
+      }),
+    }
+  )
+

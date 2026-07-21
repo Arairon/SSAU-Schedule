@@ -18,7 +18,7 @@ export interface DrawableLesson {
   discipline: string;
   teacher: {
     name: string;
-  };
+  } | null;
   isOnline: boolean;
   building: string | null;
   room: string | null;
@@ -26,9 +26,9 @@ export interface DrawableLesson {
   subgroup: number | null;
   groups: string[];
   flows: string[];
-  alts: DrawableLesson[];
-  customized: LessonCustomizationInfo | null;
-  original: {
+  alts?: DrawableLesson[];
+  customized?: LessonCustomizationInfo | null;
+  original?: {
     id: number;
   } | null
 }
