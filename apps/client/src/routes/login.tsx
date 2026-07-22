@@ -1,10 +1,10 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { CheckIcon } from 'lucide-react'
+import { isTMA } from '@tma.js/sdk-react'
 import { useAuthState } from '@/hooks/useAuth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { loginUsingToken } from '@/api/auth'
 
 export const Route = createFileRoute('/login')({
   component: RouteComponent,
@@ -13,23 +13,26 @@ export const Route = createFileRoute('/login')({
     if (auth.user?.groupId) {
       throw redirect({ to: "/schedule" })
     }
-    if (auth.isAuthorized) {
+    if (auth.user && !auth.user.groupId) {
       throw redirect({ to: "/lk/login" })
+    }
+    if (isTMA()) {
+      throw redirect({ to: "/tg-wait" })
     }
   }
 })
 
 function RouteComponent() {
   const navigate = useNavigate()
-  const { isAuthorized, } = useAuthState()
+  const { user } = useAuthState()
   const [token, setToken] = useState("")
 
   useEffect(() => {
-    if (isAuthorized) navigate({ to: "/" });
-  }, [isAuthorized])
+    if (user) navigate({ to: "/" });
+  }, [user])
 
   function confirm() {
-    if (token) loginUsingToken(token)
+    if (token) window.localStorage.setItem('auth-token', token)
     
     navigate({ to: "." })
   }

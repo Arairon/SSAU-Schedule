@@ -5,7 +5,6 @@ import { detectImageMimeType } from "@ssau-schedule/shared/utils";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";
 import z from "zod";
-import { GetScheduleQuerySchema } from "@ssau-schedule/contracts/v0/schedule";
 
 export const app = new Elysia<"/schedule", WithAuth>({ prefix: "/schedule" })
   .get(
@@ -16,18 +15,34 @@ export const app = new Elysia<"/schedule", WithAuth>({ prefix: "/schedule" })
       }
 
       const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-      const group = await findGroup({
-        groupId: query.groupId,
-        groupName: query.group,
-      });
+
+      let groupId: number | undefined = undefined;
+      if (query.groupId || query.group) {
+        if (query.groupId) {
+          groupId = (await findGroup({
+            groupId: query.groupId,
+          }))?.id;
+        } else if (query.group) {
+          groupId = (await findGroup({
+            groupName: query.group,
+          }))?.id;
+        }
+      }
+
       const timetable = await schedule.getTimetable(user, query.week, {
         ignoreCached: true,
-        groupId: (group?.id ?? 0) || undefined,
+        groupId: (groupId ?? 0) || undefined,
       });
 
       return timetable;
     },
-    { query: GetScheduleQuerySchema },
+    {
+      query: z.object({
+        week: z.coerce.number().optional().default(0),
+        group: z.string().optional(),
+        groupId: z.coerce.number().optional(),
+      })
+    },
   )
   .get(
     "/image/:hash/:stylemap",

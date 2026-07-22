@@ -4,9 +4,10 @@ import { toast } from "sonner";
 import { getLessonDate, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { useState } from "react";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap"
-import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
+import { stylemap } from "./ScheduleViewer";
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
+import type { CustomizationData, LessonDateTime } from "@/lib/types";
 import type { LessonType } from "@ssau-schedule/shared/themes/types";
-import { lessonStyles } from "@/components/ScheduleViewer";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Toggle } from "@/components/ui/toggle";
@@ -15,8 +16,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { applyCustomization } from '@/lib/utils';
 import useEditorState from "@/hooks/useEditorState";
 
-function EditableLesson({ base, time, customizationData, setData }: { base: Omit<ScheduleLessonType, "alts"> | null, time: LessonDateTime, customizationData: Partial<CustomizationData>, setData: (data: Partial<CustomizationData>) => void }) {
-  const defaultBase: Omit<ScheduleLessonType, "alts"> = {
+function EditableLesson({ base, time, customizationData, setData }: { base: Omit<TimetableLesson, "alts"> | null, time: LessonDateTime, customizationData: Partial<CustomizationData>, setData: (data: Partial<CustomizationData>) => void }) {
+  const defaultBase: Omit<TimetableLesson, "alts"> = {
     id: -1,
     infoId: -1,
     discipline: "",
@@ -36,6 +37,8 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
     isIet: false,
     isOnline: false,
     subgroup: null,
+    groups: [],
+    flows: [],
   }
   const lesson = applyCustomization(base || defaultBase, customizationData)
 
@@ -68,7 +71,7 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
     });
   }
 
-  const s = lessonStyles[lesson.type as LessonType] ?? lessonStyles.Unknown;
+  const s = stylemap.lessonTypes[lesson.type as LessonType];
   return (
     <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50" : "")}>
       <div className={"rounded-xl p-1 " + s.barStyle}></div>
@@ -131,7 +134,7 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
               <SelectValue placeholder="?" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(lessonStyles).map(([type, data]) =>
+              {Object.entries(stylemap.lessonTypes).map(([type, data]) =>
                 <SelectItem key={type} value={type}>{data.name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -147,7 +150,7 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
   )
 }
 
-export default function ScheduleLessonEditor({ lesson = null, time }: { lesson?: Omit<ScheduleLessonType, "alts"> | null, time: LessonDateTime }) {
+export default function ScheduleLessonEditor({ lesson = null, time }: { lesson?: Omit<TimetableLesson, "alts"> | null, time: LessonDateTime }) {
   // TODO: Move to EditorState
   const { customizationData, setCustomizationData } = useEditorState();
   const [isDateSelectorOpen, setDateSelectorOpen] = useState(false)

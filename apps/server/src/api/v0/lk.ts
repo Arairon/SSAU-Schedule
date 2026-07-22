@@ -2,7 +2,7 @@ import { lk } from "@/ssau/lk";
 import { db } from "@/db";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";
-import { LkLoginBodySchema } from "@ssau-schedule/contracts/v0/lk";
+import z from "zod";
 
 export const app = new Elysia<"/lk", WithAuth>({ prefix: "/lk" }).post(
   "/login",
@@ -25,6 +25,10 @@ export const app = new Elysia<"/lk", WithAuth>({ prefix: "/lk" }).post(
     });
   },
   {
-    body: LkLoginBodySchema,
+    body: z.object({
+      username: z.string().min(1),
+      password: z.string().min(1),
+      saveCredentials: z.boolean().default(false),
+    }),
   },
 );

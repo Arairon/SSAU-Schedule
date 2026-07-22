@@ -12,17 +12,17 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { loginIntoSSAU } from '@/api/lk'
 import { useAuthState } from '@/hooks/useAuth'
-import { loginUsingCookie } from '@/api/auth'
+
 
 export const Route = createFileRoute('/lk/login')({
   component: RouteComponent,
   beforeLoad: (_ctx) => {
     const auth = useAuthState.getState()
-    if (!auth.isAuthorized) {
+    if (!auth.user) {
       throw redirect({to: "/login"})
     }
     // Already authed
-    if (auth.user?.groupId) {
+    if (auth.user.groupId) {
       throw redirect({to: "/schedule"})
     }
   }

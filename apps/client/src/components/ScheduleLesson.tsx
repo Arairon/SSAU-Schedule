@@ -2,9 +2,10 @@ import { BellIcon, BellOffIcon, PenIcon, PlusIcon, TrashIcon } from "lucide-reac
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
 import type { LessonType } from "@ssau-schedule/shared/themes/types";
-import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
-import { lessonStyles } from "@/components/ScheduleViewer";
+import type { CustomizationData, LessonDateTime } from "@/lib/types";
+import { stylemap } from "@/components/ScheduleViewer";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,7 +20,7 @@ import { getLessonCustomization } from "@/lib/utils";
 
 export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?: boolean, time?: LessonDateTime | null }) {
   const { openEditDialog } = useEditorState();
-  const s = lessonStyles.Window;
+  const s = stylemap.lessonTypes.Window;
 
   const isMobile = useIsMobile()
 
@@ -45,7 +46,7 @@ export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?
   )
 }
 
-export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLessonType | null; hasMenu?: boolean }) {
+export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: TimetableLesson | null; hasMenu?: boolean }) {
   if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
   return (
     <div className="flex flex-col gap-1">
@@ -59,7 +60,7 @@ export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLes
 
 }
 
-export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonType, "alts"> | null }) {
+export function ScheduleSingleLesson({ lesson }: { lesson: TimetableLesson | null }) {
   if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
   let customized: "added" | "removed" | "modified" | null = null;
   if (lesson.customized) {
@@ -82,8 +83,8 @@ export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonTy
       case "modified": return <span>*</span>
     }
   }
-  const style = lessonStyles;
-  const s = style[lesson.type as LessonType] ?? style.Unknown;
+  const style = stylemap.lessonTypes;
+  const s = style[lesson.type];
   return (
     <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50 opacity-50" : "")}>
       <div className={"rounded-xl p-1 " + s.barStyle}></div>
@@ -108,7 +109,7 @@ export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonTy
 
 type CustomizationDataPayload = Partial<CustomizationData> & {weekNumber:number, weekday: number, dayTimeSlot: number}
 
-export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { lesson: Omit<ScheduleLessonType, "alts"> | null; hasMenu?: boolean }) {
+export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { lesson: TimetableLesson | null; hasMenu?: boolean }) {
   const { openEditDialog, openDeleteDialog } = useEditorState()
   const queryClient = useQueryClient()
   const toggleHidden = useMutation({
@@ -169,8 +170,8 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
     }
   }
 
-  const style = lessonStyles;
-  const s = style[lesson.type as LessonType] ?? style.Unknown;
+  const style = stylemap.lessonTypes;
+  const s = style[lesson.type as LessonType];
   if (!hasMenu)
     return (
       <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50 opacity-50" : "")}>

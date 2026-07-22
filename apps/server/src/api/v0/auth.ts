@@ -35,6 +35,13 @@ const CredentialsSchema = z
   .strict()
   .required();
 
+type redactedUser = {
+  id: number;
+  tgId: string;
+  password: string | null;
+  authCookie: boolean;
+}
+
 function redactUser(
   user: {
     id: number;
@@ -42,7 +49,7 @@ function redactUser(
     password: string | null;
     authCookie: string | null;
   } | null,
-) {
+): redactedUser | null {
   if (!user) {
     return null;
   }
@@ -51,7 +58,7 @@ function redactUser(
     tgId: user.tgId.toString(),
     password: user.password ? "redacted" : null,
     authCookie: !!user.authCookie,
-  });
+  })
 }
 
 export const auth = new Elysia().resolve(
@@ -61,6 +68,19 @@ export const auth = new Elysia().resolve(
     cookie: { accessToken, refreshToken },
     set,
   }): Promise<{ auth: AuthData }> => {
+    // TODO: Remove
+    log.debug("auth.resolve called", {
+      object: {
+        headers: {
+          authorization: headers.authorization ?? null,
+        },
+        cookies: {
+          accessToken: accessToken.value,
+          refreshToken: refreshToken.value,
+        },
+      },
+      objectPretty: true
+    })
     const accessTokenCookieOptions = {
       path: "/api/v0",
       httpOnly: true,
@@ -187,9 +207,7 @@ export const auth = new Elysia().resolve(
     }
     return { auth: null };
   },
-);
-
-auth
+)
   .post(
     "/auth/login",
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

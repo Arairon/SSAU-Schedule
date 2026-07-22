@@ -1,13 +1,36 @@
-import { initClient } from '@ts-rest/core'
-import { apiContract } from '@ssau-schedule/contracts'
-
+import { retrieveRawInitData } from '@tma.js/sdk-react'
+import { treaty } from "@elysiajs/eden";
+import type { ScheduleServerApp } from "@ssau-schedule/server/src/index";
 import type { CustomizationData, ScheduleType } from '@/lib/types'
 
-const api = initClient(apiContract, {
-  baseUrl: '',
-  credentials: 'include',
-  validateResponse: true,
-})
+function safeGetInitData() {
+  try {
+    return retrieveRawInitData()
+  } catch (e) {
+    return null
+  }
+}
+
+function getAuthHeader() {
+  const initData = safeGetInitData()
+  if (initData) {
+    return `tma ${initData}`
+  }
+  return window.localStorage.getItem('auth-token') || ''
+}
+
+
+const app = treaty<ScheduleServerApp>(window.location.origin, {
+  headers: {
+    "authorization": getAuthHeader(),
+  },
+  fetch: {
+    credentials: "include",
+  }
+});
+
+export const serverApi = app;
+export const api = app.api;
 
 export async function getSchedule({
   week,
@@ -27,37 +50,29 @@ export async function getSchedule({
     }
   }
   console.log(params)
-  const res = await api.v0.schedule.getSchedule({
+  const res = await api.v0.schedule.get({
     query: {
-      week,
+      week: week ?? 0,
       group,
       groupId,
-      ignoreCached,
-    },
-    extraHeaders: {
-      authorization: window.localStorage.getItem('auth-token') || '',
-    },
+    }
   })
 
   if (res.status !== 200) {
-    throw new Error('Failed to fetch schedule: ' + res.body)
+    throw new Error('Failed to fetch schedule: ' + res)
   }
 
-  return res.body
+  return res.data as ScheduleType;
 }
 
 export async function getCurrentUser() {
-  const req = await api.v0.whoami({
-    extraHeaders: {
-      authorization: window.localStorage.getItem('auth-token') || '',
-    },
-  })
+  const req = await api.v0.auth.whoami.get()
 
   if (req.status !== 200) {
     return null
   }
 
-  return req.body
+  return req.data?.user ?? null
 }
 
 export async function addCustomLesson({
@@ -69,14 +84,14 @@ export async function addCustomLesson({
     weekNumber: number
   }
 }) {
-  const req = await api.v0.customLesson.add({
+  const req = await api.v0.customLesson.post({
     body: customizationData,
     extraHeaders: {
       authorization: window.localStorage.getItem('auth-token') || '',
     },
   })
 
-  return req.body
+  return req.data
 }
 
 export async function editCustomLesson({
@@ -89,23 +104,22 @@ export async function editCustomLesson({
     weekNumber: number
   }
 }) {
-  const req = await api.v0.customLesson.edit({
+  const req = await api.v0.customLesson.put({
     body: customizationData,
     extraHeaders: {
       authorization: window.localStorage.getItem('auth-token') || '',
     },
   })
 
-  return req.body
+  return req.data
 }
 
 export async function deleteCustomLesson({ id }: { id: number }) {
-  const req = await api.v0.customLesson.remove({
-    params: { lessonId: id.toString() },
+  const req = await api.v0.customLesson({ lessonId: id.toString() }).delete({
     extraHeaders: {
       authorization: window.localStorage.getItem('auth-token') || '',
     },
   })
 
-  return req.body
+  return req.data
 }

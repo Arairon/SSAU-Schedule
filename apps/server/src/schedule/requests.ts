@@ -486,7 +486,7 @@ async function getTeacherTimetable(
     updateState({
       state: "error",
       message:
-        "Не удалось получить расписание преподавателя. Попробуйте позже или обратитесь в поддержку.",
+        "Не удалось получить расписание преподавателя.", // Текущее расписание взято из базы данных и может быть неактуальным. Попробуйте повторить запрос позже.
     });
     throw new Error(
       `Failed to fetch teacher schedule from ssau.ru/rasp: ${raspSchedule.error.message}`,

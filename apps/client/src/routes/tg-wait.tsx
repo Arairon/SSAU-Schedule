@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { LoaderCircleIcon } from 'lucide-react'
+import { isTMA } from '@tma.js/sdk-react'
 import { useAuthState } from '@/hooks/useAuth'
 
 export const Route = createFileRoute('/tg-wait')({
@@ -10,24 +11,28 @@ export const Route = createFileRoute('/tg-wait')({
     if (auth.user?.groupId) {
       throw redirect({ to: "/schedule" })
     }
-    if (auth.isAuthorized) {
+    if (auth.user) {
       throw redirect({ to: "/lk/login" })
+    }
+    if (!isTMA()) {
+      throw redirect({ to: "/login" })
     }
   }
 })
 
 function RouteComponent() {
   const navigate = useNavigate()
-  const { isAuthorized, user } = useAuthState()
+  const { user } = useAuthState()
   const [showWarning, setShowWarning] = useState(false)
   useEffect(() => {
     if (user?.groupId) navigate({ to: "/schedule" })
-    if (isAuthorized) navigate({ to: "/lk/login" });
-  }, [isAuthorized, user])
+    if (user) navigate({ to: "/lk/login" });
+  }, [user])
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowWarning(true)
+      window.localStorage.removeItem('auth-token')
     }, 3000)
     return () => clearTimeout(timeout)
   }, [])

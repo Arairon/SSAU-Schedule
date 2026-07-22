@@ -4,7 +4,7 @@ import {
   RelayErrorResponseSchema,
   RelaySuccessResponseSchema,
   relayContract,
-} from "@ssau-schedule/contracts/v0/relay";
+} from "@ssau-schedule/contracts/relay";
 import log from "@/logger";
 
 type RelayResult = {
@@ -56,22 +56,22 @@ const relayConfig = getRelayConfig();
 
 const relayClient = relayConfig
   ? initClient(relayContract, {
-      baseUrl: relayConfig.baseUrl,
-      baseHeaders: {
-        "x-relay-key": relayConfig.relayKey,
-        "x-telegram-token": relayConfig.telegramToken,
-        ...(env.NODE_ENV === "development" &&
+    baseUrl: relayConfig.baseUrl,
+    baseHeaders: {
+      "x-relay-key": relayConfig.relayKey,
+      "x-telegram-token": relayConfig.telegramToken,
+      ...(env.NODE_ENV === "development" &&
         env.SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS
-          ? {
-              "x-vercel-protection-bypass":
-                env.SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS,
-            }
-          : {}),
-      },
-      credentials: "omit",
-      validateResponse: true,
-      throwOnUnknownStatus: true,
-    })
+        ? {
+          "x-vercel-protection-bypass":
+            env.SCHED_BOT_IMAGE_RELAY_PROTECTION_BYPASS,
+        }
+        : {}),
+    },
+    credentials: "omit",
+    validateResponse: true,
+    throwOnUnknownStatus: true,
+  })
   : null;
 
 function getRelayClient() {

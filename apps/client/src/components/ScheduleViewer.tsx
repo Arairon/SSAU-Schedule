@@ -1,12 +1,12 @@
 import { useEffect, useState, } from "react";
 import { getWeekFromDate, isSameDay } from "@ssau-schedule/shared/date";
-import { SCHEDULE_STYLEMAP_NEON } from "@ssau-schedule/shared/themes/neon"
 import { TimeSlotMap } from '@ssau-schedule/shared/timeSlotMap';
-import type { ScheduleType } from "@/lib/types";
+import { stylemaps } from "@ssau-schedule/shared/themes";
+import type { Timetable } from "@ssau-schedule/shared/timetable";
 import { ScheduleLesson, ScheduleLessonWindow } from "@/components/ScheduleLesson";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
-export const lessonStyles = SCHEDULE_STYLEMAP_NEON.lessonTypes
+export const stylemap = stylemaps.neon
 
 const WEEKDAYS = [
   { short: "__", long: "____" },
@@ -19,7 +19,7 @@ const WEEKDAYS = [
   { short: "Вс", long: "Воскресенье" },
 ];
 
-export default function ScheduleViewer({ schedule, editingEnabled = false }: { schedule: ScheduleType; editingEnabled?: boolean }) {
+export default function ScheduleViewer({ schedule, editingEnabled = false }: { schedule: Timetable; editingEnabled?: boolean }) {
   let columnHeight = schedule.days.reduce((a, day) => {
     const t = day.lessons.reduce((b, lesson) => b > lesson.dayTimeSlot ? b : lesson.dayTimeSlot, 0)
     return a > t ? a : t
@@ -143,7 +143,7 @@ export default function ScheduleViewer({ schedule, editingEnabled = false }: { s
   function timetable() {
     // Пар нет
     if (columnHeight === 0) {
-      const s = lessonStyles.Window
+      const s = stylemap.lessonTypes.Window
       if (isMobile) {
         const start = schedule.days[0].beginTime
         const end = schedule.days[5].beginTime
