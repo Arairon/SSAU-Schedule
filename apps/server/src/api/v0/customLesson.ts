@@ -1,10 +1,10 @@
-import { db } from "@/db";
+import { db } from "@/server/db";
 import {
   addCustomLesson,
   CustomizationDataSchemaPartial,
   deleteCustomLesson,
   editCustomLesson,
-} from "@/schedule/customLesson";
+} from "@/server/schedule/customLesson";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";
 import z from "zod";

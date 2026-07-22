@@ -1,9 +1,9 @@
 import { Elysia } from "elysia";
 
-import { env } from "@/env";
-import log from "@/logger";
+import { env } from "@/bot/env";
+import log from "@/bot/logger";
 
-import init_bot, { handleWebhookUpdate } from "@/bot";
+import init_bot, { handleWebhookUpdate } from "@/bot/bot";
 import { apiApp } from "./api";
 import cors from "@elysiajs/cors";
 import { api } from "./serverClient";

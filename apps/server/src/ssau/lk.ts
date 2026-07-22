@@ -1,13 +1,13 @@
 import axios, { type AxiosError } from "axios";
 // import jwt from "jsonwebtoken";
-import { type User } from "@/generated/prisma/client";
-import { creds } from "@/ssau/credentials";
-import { db } from "@/db";
-import { UserDetailsSchema, UserGroupsSchema } from "@/ssau/schemas/lk";
-import log from "@/logger";
+import { type User } from "@/server/generated/prisma/client";
+import { creds } from "@/server/ssau/credentials";
+import { db } from "@/server/db";
+import { UserDetailsSchema, UserGroupsSchema } from "@/server/ssau/schemas/lk";
+import log from "@/server/logger";
 import { type ReturnObj } from "@ssau-schedule/shared/utils";
 import { ensureGroupExists } from "../lib/misc";
-import { runtimeState, writeStateToDisk } from "@/lib/runtimeState";
+import { runtimeState, writeStateToDisk } from "@/server/lib/runtimeState";
 import { scrapeLoginRequest } from "./loginScrape";
 
 function resetAuth(

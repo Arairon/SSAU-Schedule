@@ -1,12 +1,12 @@
 import * as ics from "ics";
-import { db } from "@/db";
-import log from "@/logger";
+import { db } from "@/server/db";
+import log from "@/server/logger";
 import {
   convertLessonToTimetableLesson,
   LessonTypeIcon,
   LessonTypeName,
 } from "@ssau-schedule/shared/misc";
-import { LessonType } from "@/generated/prisma/client";
+import { LessonType } from "@/server/generated/prisma/client";
 import { applyCustomization } from "./customLesson";
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
 

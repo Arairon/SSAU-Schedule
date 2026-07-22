@@ -1,11 +1,11 @@
 import { InputFile } from "grammy";
 
-import { env } from "@/env";
-import log from "@/logger";
+import { env } from "@/bot/env";
+import log from "@/bot/logger";
 import { detectImageMimeType } from "@ssau-schedule/shared/utils";
-import { relayImageByFile } from "@/lib/telegramRelay";
+import { relayImageByFile } from "@/bot/lib/telegramRelay";
 import type { Context } from "./types";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 
 export type ScheduleUploadMode = "file" | "url" | "relay";
 

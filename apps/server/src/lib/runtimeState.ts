@@ -1,8 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import log from "@/logger";
-import { env } from "@/env";
+import log from "@/server/logger";
+import { env } from "@/server/env";
 
 const defaults = {
   ssauNextAction: "60ec26be5c78628290529c6be2e0e64c114c5502af",

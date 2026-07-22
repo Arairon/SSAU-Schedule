@@ -1,6 +1,6 @@
-import { db } from "@/db";
-import { ensureGroupExists, ensureTeacherExists } from "@/lib/misc";
-import log from "@/logger";
+import { db } from "@/server/db";
+import { ensureGroupExists, ensureTeacherExists } from "@/server/lib/misc";
+import log from "@/server/logger";
 import { formatName } from "@ssau-schedule/shared/utils";
 import s from "ajv-ts";
 import axios from "axios";

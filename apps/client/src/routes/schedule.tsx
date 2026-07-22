@@ -4,10 +4,10 @@ import { getWeekFromDate } from '@ssau-schedule/shared/date';
 import { useState } from 'react';
 import { ArrowLeftIcon, ArrowRightIcon, LoaderCircleIcon, SearchIcon, SlidersHorizontalIcon, TriangleAlertIcon } from "lucide-react"
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { getSchedule } from '@/api/api';
-import ScheduleViewerWithEditor from '@/components/ScheduleViewerWithEditor';
-import useAuth, { useAuthState } from '@/hooks/useAuth';
+import { Button } from '@/client/components/ui/button';
+import { getSchedule } from '@/client/api/api';
+import ScheduleViewerWithEditor from '@/client/components/ScheduleViewerWithEditor';
+import useAuth, { useAuthState } from '@/client/hooks/useAuth';
 
 export const Route = createFileRoute('/schedule')({
   component: App,

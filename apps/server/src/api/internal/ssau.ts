@@ -1,4 +1,4 @@
-import { findGroupOrOptions, findTeacherOrOptions } from "@/ssau/search";
+import { findGroupOrOptions, findTeacherOrOptions } from "@/server/ssau/search";
 import { Elysia, t } from "elysia";
 import z from "zod";
 

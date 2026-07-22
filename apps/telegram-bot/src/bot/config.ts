@@ -4,7 +4,7 @@ import { type Context } from "./types";
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { stylemaps } from "@ssau-schedule/shared/themes/index";
 import { CommandGroup } from "@grammyjs/commands";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 import { getUser } from "./misc";
 
 // config.ts refers to the /config command, not the bot configuration :]

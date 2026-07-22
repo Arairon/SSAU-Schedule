@@ -1,6 +1,6 @@
-import { db } from "@/db";
-import { findGroup } from "@/ssau/search";
-import { schedule } from "@/schedule/requests";
+import { db } from "@/server/db";
+import { findGroup } from "@/server/ssau/search";
+import { schedule } from "@/server/schedule/requests";
 import { detectImageMimeType } from "@ssau-schedule/shared/utils";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";

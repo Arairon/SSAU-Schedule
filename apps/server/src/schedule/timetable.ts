@@ -1,14 +1,14 @@
-import type { User } from "@/generated/prisma/client";
-import { LessonType } from "@/generated/prisma/client";
+import type { User } from "@/server/generated/prisma/client";
+import { LessonType } from "@/server/generated/prisma/client";
 import { formatSentence, md5, formatBigInt } from "@ssau-schedule/shared/utils";
 import {
   getLessonDate,
   getWeekFromDate,
   getCurrentYearId,
 } from "@ssau-schedule/shared/date";
-import { db } from "@/db";
+import { db } from "@/server/db";
 import { lk } from "../ssau/lk";
-import log from "@/logger";
+import log from "@/server/logger";
 import type {
   DrawableLesson,
   DrawableTimetable,
@@ -18,7 +18,7 @@ import type {
   TimetableDiff,
   TimetableLesson,
 } from "@ssau-schedule/shared/timetable";
-import { getWeek, getWeekLessons, getWeekTeacherLessons } from "@/lib/week";
+import { getWeek, getWeekLessons, getWeekTeacherLessons } from "@/server/lib/week";
 import { applyCustomization } from "./customLesson";
 import { convertLessonToTimetableLesson } from "@ssau-schedule/shared/misc";
 

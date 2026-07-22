@@ -1,12 +1,12 @@
-import { LessonType, type Lesson, type User } from "@/generated/prisma/client";
+import { LessonType, type Lesson, type User } from "@/server/generated/prisma/client";
 import { lk } from "./lk";
 import {
   getCurrentYearId,
   getLessonDate,
   getWeekFromDate,
 } from "@ssau-schedule/shared/date";
-import { getWeek, getWeekLessons } from "@/lib/week";
-import log from "@/logger";
+import { getWeek, getWeekLessons } from "@/server/lib/week";
+import log from "@/server/logger";
 import axios from "axios";
 import { WeekResponseSchema } from "./schemas/schedule";
 import { formatSentence } from "@ssau-schedule/shared/utils";
@@ -15,9 +15,9 @@ import {
   ensureFlowExists,
   ensureGroupExists,
   ensureTeacherExists,
-} from "@/lib/misc";
+} from "@/server/lib/misc";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
-import { db } from "@/db";
+import { db } from "@/server/db";
 
 Object.assign(axios.defaults.headers, {
   "Cache-Control": "no-cache",

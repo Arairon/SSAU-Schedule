@@ -1,11 +1,11 @@
-import { env } from "@/env";
-import log from "@/logger";
+import { env } from "@/bot/env";
+import log from "@/bot/logger";
 import { CommandGroup } from "@grammyjs/commands";
 import { getStylemap, stylemaps } from "@ssau-schedule/shared/themes/index";
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { InlineKeyboard, type Bot } from "grammy";
 import { type Context } from "./types";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 import { getUser } from "./misc";
 
 // function getCurrentOptionsText(user: User) {

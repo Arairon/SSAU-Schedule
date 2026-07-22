@@ -4,9 +4,9 @@ import { conversations } from "@grammyjs/conversations";
 // import { HttpsProxyAgent } from "https-proxy-agent";
 // import { SocksProxyAgent } from "socks-proxy-agent";
 
-import { env } from "@/env";
+import { env } from "@/bot/env";
 import { type Context, type Session } from "./types";
-import log from "@/logger";
+import log from "@/bot/logger";
 
 import { initSchedule, scheduleCommands } from "./schedule";
 import { initOptions, optionsCommands } from "./options";

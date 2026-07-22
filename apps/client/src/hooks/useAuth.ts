@@ -2,7 +2,7 @@ import z from 'zod'
 import { useQuery } from '@tanstack/react-query'
 
 import { create } from 'zustand'
-import { getCurrentUser } from '@/api/api'
+import { getCurrentUser } from '@/client/api/api'
 
 export const UserSchema = z.object({
   id: z.number(),

@@ -6,8 +6,8 @@ import {
 import { type Conversation, createConversation } from "@grammyjs/conversations";
 
 import type { Context } from "../types";
-import log from "@/logger";
-import { api } from "@/serverClient";
+import log from "@/bot/logger";
+import { api } from "@/bot/serverClient";
 import { getUser } from "../misc";
 
 const GROUP_CHANGE_CANCEL = "group_change_cancel";

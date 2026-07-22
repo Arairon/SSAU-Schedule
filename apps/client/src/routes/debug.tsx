@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/client/components/ui/button'
 
 export const Route = createFileRoute('/debug')({
   component: RouteComponent,

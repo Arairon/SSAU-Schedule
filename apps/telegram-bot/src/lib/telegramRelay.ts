@@ -1,11 +1,11 @@
-import { env } from "@/env";
+import { env } from "@/bot/env";
 import { initClient } from "@ts-rest/core";
 import {
   RelayErrorResponseSchema,
   RelaySuccessResponseSchema,
   relayContract,
 } from "@ssau-schedule/contracts/relay";
-import log from "@/logger";
+import log from "@/bot/logger";
 
 type RelayResult = {
   fileId: string;

@@ -5,7 +5,7 @@
     "moduleResolution": "nodenext",
     "rootDir": "./",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/bot/*": ["./src/*"]
     },
     "outDir": "./dist",
     "esModuleInterop": true,

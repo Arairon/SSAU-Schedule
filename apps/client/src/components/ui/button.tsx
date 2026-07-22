@@ -3,7 +3,7 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority"
 import type { VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/client/lib/utils"
 
 // <Button variant={"outline"} className='min-w-16 grow border-2 dark:border-slate-600 dark:bg-slate-900'
 

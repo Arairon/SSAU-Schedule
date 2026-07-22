@@ -2,9 +2,9 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { CheckIcon } from 'lucide-react'
 import { isTMA } from '@tma.js/sdk-react'
-import { useAuthState } from '@/hooks/useAuth'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { useAuthState } from '@/client/hooks/useAuth'
+import { Input } from '@/client/components/ui/input'
+import { Button } from '@/client/components/ui/button'
 
 export const Route = createFileRoute('/login')({
   component: RouteComponent,

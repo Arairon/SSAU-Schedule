@@ -4,8 +4,8 @@ import {
   invalidateDailyNotificationsForAll,
   scheduleDailyNotificationsForAll,
   uploadWeekImagesWithoutTgId,
-} from "@/lib/tasks";
-import { db } from "@/db";
+} from "@/server/lib/tasks";
+import { db } from "@/server/db";
 import z from "zod";
 
 export const app = new Elysia()

@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
-import type { CustomizationData, LessonDateTime } from "@/lib/types";
-import { getLessonCustomization } from "@/lib/utils";
+import type { CustomizationData, LessonDateTime } from "@/client/lib/types";
+import { getLessonCustomization } from "@/client/lib/utils";
 
 interface EditorState {
   isEditDialogOpen: boolean;

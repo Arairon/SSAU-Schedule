@@ -1,4 +1,4 @@
-import { env } from "@/env";
+import { env } from "@/server/env";
 import { treaty } from "@elysiajs/eden";
 
 import type { ScheduleTelegramBotApp } from "@ssau-schedule/telegram-bot/src/index";

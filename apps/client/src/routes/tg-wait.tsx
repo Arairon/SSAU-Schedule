@@ -2,7 +2,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { LoaderCircleIcon } from 'lucide-react'
 import { isTMA } from '@tma.js/sdk-react'
-import { useAuthState } from '@/hooks/useAuth'
+import { useAuthState } from '@/client/hooks/useAuth'
 
 export const Route = createFileRoute('/tg-wait')({
   component: RouteComponent,

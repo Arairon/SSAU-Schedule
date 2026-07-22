@@ -1,4 +1,4 @@
-import { getUserIcsByUserId, getUserIcsByUUID } from "@/schedule/ics";
+import { getUserIcsByUserId, getUserIcsByUUID } from "@/server/schedule/ics";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";
 import z from "zod";

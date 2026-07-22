@@ -13,8 +13,8 @@ import {
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import type { DayButton } from "react-day-picker";
 
-import { cn } from "@/lib/utils"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/client/lib/utils"
+import { Button, buttonVariants } from "@/client/components/ui/button"
 
 function Calendar({
   className,

@@ -30,7 +30,9 @@
     "noUncheckedSideEffectImports": true,
     "rootDir": "./",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/client/*": ["./src/*"],
+      "@/server/*": ["../server/src/*"],
+      "@/bot/*": ["../telegram-bot/src/*"]
     }
   }
 }

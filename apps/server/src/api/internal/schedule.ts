@@ -1,8 +1,8 @@
 import Elysia from "elysia";
 import z from "zod";
 
-import { db } from "@/db";
-import { schedule } from "@/schedule/requests";
+import { db } from "@/server/db";
+import { schedule } from "@/server/schedule/requests";
 import type {
   Timetable,
   TimetableDiff,
@@ -14,9 +14,9 @@ import {
   type RequestStateUpdate,
 } from "@ssau-schedule/shared/misc";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
-import { streamWithUpdates } from "@/lib/apiUpdateStream";
-import { generateTimetableImageHtml } from "@/schedule/image";
-import { stringBool } from "@/lib/misc";
+import { streamWithUpdates } from "@/server/lib/apiUpdateStream";
+import { generateTimetableImageHtml } from "@/server/schedule/image";
+import { stringBool } from "@/server/lib/misc";
 
 const scheduleRequestQuerySchema = z.object({
   userId: z.coerce.number().int(),

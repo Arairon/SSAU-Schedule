@@ -6,15 +6,15 @@ import { useState } from "react";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap"
 import { stylemap } from "./ScheduleViewer";
 import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
-import type { CustomizationData, LessonDateTime } from "@/lib/types";
+import type { CustomizationData, LessonDateTime } from "@/client/lib/types";
 import type { LessonType } from "@ssau-schedule/shared/themes/types";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { Toggle } from "@/components/ui/toggle";
-import { Calendar } from "@/components/ui/calendar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { applyCustomization } from '@/lib/utils';
-import useEditorState from "@/hooks/useEditorState";
+import { Input } from "@/client/components/ui/input";
+import { Select, SelectContent, SelectItem } from "@/client/components/ui/select";
+import { Toggle } from "@/client/components/ui/toggle";
+import { Calendar } from "@/client/components/ui/calendar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/client/components/ui/collapsible";
+import { applyCustomization } from '@/client/lib/utils';
+import useEditorState from "@/client/hooks/useEditorState";
 
 function EditableLesson({ base, time, customizationData, setData }: { base: Omit<TimetableLesson, "alts"> | null, time: LessonDateTime, customizationData: Partial<CustomizationData>, setData: (data: Partial<CustomizationData>) => void }) {
   const defaultBase: Omit<TimetableLesson, "alts"> = {

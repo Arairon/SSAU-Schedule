@@ -4,19 +4,19 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
 import type { LessonType } from "@ssau-schedule/shared/themes/types";
-import type { CustomizationData, LessonDateTime } from "@/lib/types";
-import { stylemap } from "@/components/ScheduleViewer";
-import { Button } from "@/components/ui/button";
+import type { CustomizationData, LessonDateTime } from "@/client/lib/types";
+import { stylemap } from "@/client/components/ScheduleViewer";
+import { Button } from "@/client/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useIsMobile } from "@/hooks/useIsMobile";
-import useEditorState from "@/hooks/useEditorState";
-import { addCustomLesson, editCustomLesson } from "@/api/api";
-import { getLessonCustomization } from "@/lib/utils";
+} from "@/client/components/ui/dropdown-menu"
+import { useIsMobile } from "@/client/hooks/useIsMobile";
+import useEditorState from "@/client/hooks/useEditorState";
+import { addCustomLesson, editCustomLesson } from "@/client/api/api";
+import { getLessonCustomization } from "@/client/lib/utils";
 
 export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?: boolean, time?: LessonDateTime | null }) {
   const { openEditDialog } = useEditorState();

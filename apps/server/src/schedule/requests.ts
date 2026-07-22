@@ -1,8 +1,8 @@
-import type { User, WeekImage } from "@/generated/prisma/client";
-import { getWeek } from "@/lib/week";
-import log from "@/logger";
-import { updateWeekForUser } from "@/ssau/lessons";
-import { lk } from "@/ssau/lk";
+import type { User, WeekImage } from "@/server/generated/prisma/client";
+import { getWeek } from "@/server/lib/week";
+import log from "@/server/logger";
+import { updateWeekForUser } from "@/server/ssau/lessons";
+import { lk } from "@/server/ssau/lk";
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
 import {
@@ -12,16 +12,16 @@ import {
   getTimetablesDiff,
 } from "./timetable";
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
-import { db } from "@/db";
+import { db } from "@/server/db";
 import type {
   TeacherTimetable,
   Timetable,
   TimetableDiff,
 } from "@ssau-schedule/shared/timetable";
 import { generateTimetableImage } from "./image";
-import { getTeacherWeekFromSsauRasp } from "@/ssau/rasp";
+import { getTeacherWeekFromSsauRasp } from "@/server/ssau/rasp";
 import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
-import { ensureGroupExists } from "@/lib/misc";
+import { ensureGroupExists } from "@/server/lib/misc";
 
 type TimetableWeekLike = {
   timetable: Timetable | null;

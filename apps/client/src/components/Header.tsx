@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Loader2Icon } from 'lucide-react'
-import useAuth from '@/hooks/useAuth'
+import useAuth from '@/client/hooks/useAuth'
 
 
 export default function Header() {

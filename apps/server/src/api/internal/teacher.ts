@@ -1,10 +1,10 @@
-import { db } from "@/db";
-import type { WeekImage } from "@/generated/prisma/client";
-import { streamWithUpdates } from "@/lib/apiUpdateStream";
-import { stringBool } from "@/lib/misc";
-import { generateTimetableImage, generateTimetableImageHtml } from "@/schedule/image";
-import { schedule } from "@/schedule/requests";
-import { convertRaspScheduleToDrawable, getTeacherWeekFromSsauRasp } from "@/ssau/rasp";
+import { db } from "@/server/db";
+import type { WeekImage } from "@/server/generated/prisma/client";
+import { streamWithUpdates } from "@/server/lib/apiUpdateStream";
+import { stringBool } from "@/server/lib/misc";
+import { generateTimetableImage, generateTimetableImageHtml } from "@/server/schedule/image";
+import { schedule } from "@/server/schedule/requests";
+import { convertRaspScheduleToDrawable, getTeacherWeekFromSsauRasp } from "@/server/ssau/rasp";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
 import type {

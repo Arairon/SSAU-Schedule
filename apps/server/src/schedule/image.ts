@@ -8,14 +8,14 @@ import type {
 } from "@ssau-schedule/shared/timetable";
 import { formatBigInt, getPersonShortname } from "@ssau-schedule/shared/utils";
 import { getLessonDate } from "@ssau-schedule/shared/date";
-import log from "@/logger";
-import { env } from "@/env";
+import log from "@/server/logger";
+import { env } from "@/server/env";
 import { getStylemap } from "@ssau-schedule/shared/themes/index";
 import {
   getBrowser,
   resetBrowserState,
   shouldRetryBrowserOperation,
-} from "@/lib/browser";
+} from "@/server/lib/browser";
 
 const CURRENT_DIR = __dirname;
 const GENERATED_CSS_PATH =

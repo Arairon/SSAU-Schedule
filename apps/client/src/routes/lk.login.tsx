@@ -3,24 +3,24 @@ import { useState } from 'react'
 import { InfoIcon } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Button } from '@/components/ui/button'
+import { Input } from '@/client/components/ui/input'
+import { Label } from '@/client/components/ui/label'
+import { Checkbox } from '@/client/components/ui/checkbox'
+import { Button } from '@/client/components/ui/button'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
-import { useIsMobile } from '@/hooks/useIsMobile'
+} from '@/client/components/ui/popover'
+import { useIsMobile } from '@/client/hooks/useIsMobile'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { loginIntoSSAU } from '@/api/lk'
-import useAuth, { useAuthState } from '@/hooks/useAuth'
+} from '@/client/components/ui/tooltip'
+import { loginIntoSSAU } from '@/client/api/lk'
+import useAuth, { useAuthState } from '@/client/hooks/useAuth'
 
 export const Route = createFileRoute('/lk/login')({
   component: RouteComponent,

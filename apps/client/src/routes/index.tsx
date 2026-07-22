@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useAuthState } from '@/hooks/useAuth'
+import { useAuthState } from '@/client/hooks/useAuth'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,

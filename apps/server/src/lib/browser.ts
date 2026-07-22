@@ -1,5 +1,5 @@
-import { env } from "@/env";
-import log from "@/logger";
+import { env } from "@/server/env";
+import log from "@/server/logger";
 import type { Browser } from "puppeteer";
 import Puppeteer from "puppeteer";
 

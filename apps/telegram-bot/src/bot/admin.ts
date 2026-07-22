@@ -1,10 +1,10 @@
 import type { Bot } from "grammy";
 import { type Context } from "./types";
-import log from "@/logger";
-import { env } from "@/env";
+import log from "@/bot/logger";
+import { env } from "@/bot/env";
 import { CommandGroup } from "@grammyjs/commands";
 import { formatBigInt } from "@ssau-schedule/shared/utils";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 import type { MessageEntity } from "grammy/types";
 import { getUser } from "./misc";
 

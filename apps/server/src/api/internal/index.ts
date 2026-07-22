@@ -1,5 +1,5 @@
 import z from "zod";
-import { env } from "@/env";
+import { env } from "@/server/env";
 import { Elysia } from "elysia";
 import { app as routesCache } from "./cache";
 import { app as routesGroupChat } from "./groupchat";
@@ -11,7 +11,7 @@ import { app as routesUser } from "./user";
 import { app as routesGroup } from "./group";
 import { app as routesTeacher } from "./teacher";
 import { app as routesDebug } from "./debug";
-import log from "@/logger";
+import log from "@/server/logger";
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {

@@ -1,7 +1,7 @@
 import { type MessageEntity } from "grammy/types";
 import { AsyncTask, CronJob } from "toad-scheduler";
-import { db } from "@/db";
-import log from "@/logger";
+import { db } from "@/server/db";
+import log from "@/server/logger";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
 import { schedule } from "../schedule/requests";
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
@@ -11,7 +11,7 @@ import {
   generateTextLesson,
 } from "@ssau-schedule/shared/misc";
 import { DayString, getUserPreferences } from "@ssau-schedule/shared/utils";
-import type { User } from "@/generated/prisma/client";
+import type { User } from "@/server/generated/prisma/client";
 import { lk } from "../ssau/lk";
 import type {
   TimetableDiff,

@@ -1,8 +1,8 @@
 import Elysia from "elysia";
 import z from "zod";
 
-import { db } from "@/db";
-import type { GroupChat, User } from "@/generated/prisma/client";
+import { db } from "@/server/db";
+import type { GroupChat, User } from "@/server/generated/prisma/client";
 
 type GroupChatWithUser = GroupChat & {
   user: User | null;

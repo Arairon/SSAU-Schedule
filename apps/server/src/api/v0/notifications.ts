@@ -1,9 +1,9 @@
-import { db } from "@/db";
+import { db } from "@/server/db";
 import type { WithAuth } from "./auth";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
-} from "@/lib/tasks";
+} from "@/server/lib/tasks";
 import Elysia from "elysia";
 
 export const app = new Elysia<"/notifications", WithAuth>({

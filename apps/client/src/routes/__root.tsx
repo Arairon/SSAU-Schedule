@@ -4,12 +4,12 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import { init } from "@tma.js/sdk-react"
 import type { QueryClient } from '@tanstack/react-query'
-import Header from '@/components/Header'
+import Header from '@/client/components/Header'
 
-import TanStackQueryDevtools from '@/integrations/tanstack-query/devtools'
+import TanStackQueryDevtools from '@/client/integrations/tanstack-query/devtools'
 
 
-import { Toaster } from '@/components/ui/sonner'
+import { Toaster } from '@/client/components/ui/sonner'
 
 try {
   init()

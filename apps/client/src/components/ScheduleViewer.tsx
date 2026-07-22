@@ -3,8 +3,8 @@ import { getWeekFromDate, isSameDay } from "@ssau-schedule/shared/date";
 import { TimeSlotMap } from '@ssau-schedule/shared/timeSlotMap';
 import { stylemaps } from "@ssau-schedule/shared/themes";
 import type { Timetable } from "@ssau-schedule/shared/timetable";
-import { ScheduleLesson, ScheduleLessonWindow } from "@/components/ScheduleLesson";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { ScheduleLesson, ScheduleLessonWindow } from "@/client/components/ScheduleLesson";
+import { useIsMobile } from "@/client/hooks/useIsMobile";
 
 export const stylemap = stylemaps.neon
 

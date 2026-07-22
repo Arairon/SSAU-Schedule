@@ -1,5 +1,5 @@
-import { LessonType } from "@/generated/prisma/enums";
-import log from "@/logger";
+import { LessonType } from "@/server/generated/prisma/enums";
+import log from "@/server/logger";
 
 const LessonTypeMap = [
   LessonType.Unknown,

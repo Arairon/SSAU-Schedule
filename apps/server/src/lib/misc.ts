@@ -1,6 +1,6 @@
 import type { MessageEntity } from "grammy/types";
-import { db } from "@/db";
-import { type TeacherType } from "@/ssau/schemas/schedule";
+import { db } from "@/server/db";
+import { type TeacherType } from "@/server/ssau/schemas/schedule";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import z from "zod";
 

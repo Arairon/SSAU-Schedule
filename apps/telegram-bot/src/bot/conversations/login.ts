@@ -6,9 +6,9 @@ import {
 import { type Conversation, createConversation } from "@grammyjs/conversations";
 
 import type { Context } from "../types";
-import log from "@/logger";
+import log from "@/bot/logger";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 
 async function loginConversation(
   conversation: Conversation,

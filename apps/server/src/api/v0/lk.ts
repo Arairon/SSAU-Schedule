@@ -1,5 +1,5 @@
-import { lk } from "@/ssau/lk";
-import { db } from "@/db";
+import { lk } from "@/server/ssau/lk";
+import { db } from "@/server/db";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";
 import z from "zod";

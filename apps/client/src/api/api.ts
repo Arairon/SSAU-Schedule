@@ -1,7 +1,7 @@
 import { retrieveRawInitData } from '@tma.js/sdk-react'
 import { treaty } from "@elysiajs/eden";
 import type { ScheduleServerApp } from "@ssau-schedule/server/src/index";
-import type { CustomizationData } from '@/lib/types'
+import type { CustomizationData } from '@/client/lib/types'
 
 function safeGetInitData() {
   try {

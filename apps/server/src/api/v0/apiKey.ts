@@ -1,6 +1,6 @@
-import { db } from "@/db";
+import { db } from "@/server/db";
 import type { WithAuth } from "./auth";
-import { createApiKeyAndStore, validateApiKey } from "@/lib/apiKey";
+import { createApiKeyAndStore, validateApiKey } from "@/server/lib/apiKey";
 import Elysia from "elysia";
 import z from "zod";
 

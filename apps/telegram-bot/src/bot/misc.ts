@@ -1,6 +1,6 @@
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 import type { Context } from "./types";
-import log from "@/logger";
+import log from "@/bot/logger";
 import type { RedactedUserWithGroup } from "@ssau-schedule/server/src/api/internal/user";
 
 /**

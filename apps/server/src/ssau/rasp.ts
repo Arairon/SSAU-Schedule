@@ -1,6 +1,6 @@
 import type { DrawableTimetable, LessonType } from "@ssau-schedule/shared/timetable";
 import { getLessonTypeFromName } from "@ssau-schedule/shared/misc";
-import log from "@/logger";
+import log from "@/server/logger";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { ok, err } from "neverthrow";

@@ -31,7 +31,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve('./src/'),
+      '@/client': path.resolve('./src/'),
     },
   }
 })

@@ -1,12 +1,12 @@
 import Elysia from "elysia";
 import z from "zod";
 
-import { db } from "@/db";
+import { db } from "@/server/db";
 import {
   invalidateDailyNotificationsForAll,
   invalidateDailyNotificationsForTarget,
-} from "@/lib/tasks";
-import type { WeekImageWhereInput } from "@/generated/prisma/models";
+} from "@/server/lib/tasks";
+import type { WeekImageWhereInput } from "@/server/generated/prisma/models";
 
 const InvalidateWeekSchema = z
   .object({

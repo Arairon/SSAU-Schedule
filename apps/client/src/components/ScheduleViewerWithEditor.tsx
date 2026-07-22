@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Timetable } from "@ssau-schedule/shared/timetable";
-import type { CustomizationData } from "@/lib/types";
-import ScheduleViewer from "@/components/ScheduleViewer";
+import type { CustomizationData } from "@/client/lib/types";
+import ScheduleViewer from "@/client/components/ScheduleViewer";
 
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import ScheduleLessonEditor from "@/components/ScheduleLessonEditor";
-import useEditorState from "@/hooks/useEditorState";
-import { addCustomLesson, deleteCustomLesson, editCustomLesson } from "@/api/api";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/client/components/ui/dialog";
+import { Button } from "@/client/components/ui/button";
+import ScheduleLessonEditor from "@/client/components/ScheduleLessonEditor";
+import useEditorState from "@/client/hooks/useEditorState";
+import { addCustomLesson, deleteCustomLesson, editCustomLesson } from "@/client/api/api";
 
 
 type CustomizationDataPayload = Partial<CustomizationData> & {weekNumber:number, weekday: number, dayTimeSlot: number}

@@ -1,5 +1,5 @@
-import { getBrowser } from "@/lib/browser";
-import log from "@/logger";
+import { getBrowser } from "@/server/lib/browser";
+import log from "@/server/logger";
 
 type ScrapedRequest = { headers: Record<string, string> };
 export async function scrapeLoginRequest(): Promise<ScrapedRequest | null> {

@@ -1,11 +1,11 @@
 import { InlineKeyboard, type Bot } from "grammy";
 import { type Context } from "./types";
 import { CommandGroup } from "@grammyjs/commands";
-import { env } from "@/env";
+import { env } from "@/bot/env";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
-import log from "@/logger";
+import log from "@/bot/logger";
 import { getDefaultSession } from ".";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 import { getUser } from "./misc";
 
 async function reset(_ctx: Context, userId: number) {

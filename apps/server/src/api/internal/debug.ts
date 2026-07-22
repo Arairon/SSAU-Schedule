@@ -1,5 +1,5 @@
-import { env } from "@/env";
-import { scrapeLoginRequest } from "@/ssau/loginScrape";
+import { env } from "@/server/env";
+import { scrapeLoginRequest } from "@/server/ssau/loginScrape";
 import Elysia from "elysia";
 
 export const app = new Elysia()

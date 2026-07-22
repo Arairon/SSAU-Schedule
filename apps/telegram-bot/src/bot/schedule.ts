@@ -1,14 +1,14 @@
 import { InlineKeyboard, type Bot } from "grammy";
 import type { Context } from "./types";
 
-import log from "@/logger";
+import log from "@/bot/logger";
 import {
   formatBigInt,
   formatSentence,
   getPersonShortname,
 } from "@ssau-schedule/shared/utils";
 import { getWeekFromDate } from "@ssau-schedule/shared/date";
-import { env } from "@/env";
+import { env } from "@/bot/env";
 import {
   formatLesson,
   formatTimetableDiff,
@@ -19,7 +19,7 @@ import { handleError } from ".";
 import { openSettings } from "./options";
 import { CommandGroup } from "@grammyjs/commands";
 import { uploadScheduleImage } from "./imageUploading";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 import { getUser } from "./misc";
 import type {
   TeacherTimetableWithImage,

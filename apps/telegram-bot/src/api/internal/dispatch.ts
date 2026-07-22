@@ -1,6 +1,6 @@
-import { bot } from "@/bot";
-import { uploadScheduleImage } from "@/bot/imageUploading";
-import log from "@/logger";
+import { bot } from "@/bot/bot";
+import { uploadScheduleImage } from "@/bot/bot/imageUploading";
+import log from "@/bot/logger";
 import Elysia from "elysia";
 import type { GrammyError } from "grammy";
 import type { MessageEntity } from "grammy/types";

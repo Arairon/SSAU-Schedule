@@ -1,9 +1,9 @@
 import { CommandGroup } from "@grammyjs/commands";
 import type { Context } from "./types";
 import { InlineKeyboard, type Bot } from "grammy";
-import { api } from "@/serverClient";
-import { env } from "@/env";
-import log from "@/logger";
+import { api } from "@/bot/serverClient";
+import { env } from "@/bot/env";
+import log from "@/bot/logger";
 
 export const feedbackCommands = new CommandGroup<Context>();
 

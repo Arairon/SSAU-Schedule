@@ -1,18 +1,18 @@
 import Elysia from "elysia";
 import z from "zod";
 
-import { db } from "@/db";
-import type { User } from "@/generated/prisma/client";
+import { db } from "@/server/db";
+import type { User } from "@/server/generated/prisma/client";
 import {
   getUserPreferences,
   UserPreferencesSchema,
 } from "@ssau-schedule/shared/utils";
-import { lk } from "@/ssau/lk";
+import { lk } from "@/server/ssau/lk";
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
-} from "@/lib/tasks";
-import { getUserIcsByUserId } from "@/schedule/ics";
+} from "@/server/lib/tasks";
+import { getUserIcsByUserId } from "@/server/schedule/ics";
 
 export const UserSchema = z.object({
   id: z.number(),

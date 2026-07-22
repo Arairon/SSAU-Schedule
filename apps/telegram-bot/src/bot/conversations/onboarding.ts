@@ -6,12 +6,12 @@ import {
 import { type Conversation, createConversation } from "@grammyjs/conversations";
 
 import type { Context } from "../types";
-import log from "@/logger";
+import log from "@/bot/logger";
 import { getUserPreferences } from "@ssau-schedule/shared/utils";
 import { stylemaps } from "@ssau-schedule/shared/themes/index";
 import { getPersonShortname } from "@ssau-schedule/shared/utils";
 import { changeUserGroupById } from "./groupChange";
-import { api } from "@/serverClient";
+import { api } from "@/bot/serverClient";
 
 const ONBOARD_CANCEL = "onboard_cancel";
 const ONBOARD_MODE_AUTHED = "onboard_mode_authed";

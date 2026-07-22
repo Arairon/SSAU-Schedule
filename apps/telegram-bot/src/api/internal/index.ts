@@ -1,9 +1,9 @@
-import { env } from "@/env";
+import { env } from "@/bot/env";
 import { Elysia } from "elysia";
 import z from "zod";
 import { app as routesDispatch } from "./dispatch";
-import log from "@/logger";
-import { bot } from "@/bot";
+import log from "@/bot/logger";
+import { bot } from "@/bot/bot";
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {
