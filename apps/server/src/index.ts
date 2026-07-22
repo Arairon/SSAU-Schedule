@@ -98,7 +98,7 @@ const app = new Elysia()
       if (!(await index.exists())) {
         return status(404);
       }
-      return file;
+      return index;
     }
     return file;
   });

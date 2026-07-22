@@ -72,11 +72,11 @@ export const app = new Elysia()
       const where = body.all
         ? {}
         : {
-            ...(body.owner !== undefined ? { owner: body.owner } : {}),
-            ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
-            ...(body.year !== undefined ? { year: body.year } : {}),
-            ...(body.number !== undefined ? { number: body.number } : {}),
-          };
+          ...(body.owner !== undefined ? { owner: body.owner } : {}),
+          ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
+          ...(body.year !== undefined ? { year: body.year } : {}),
+          ...(body.number !== undefined ? { number: body.number } : {}),
+        };
 
       const result = await db.week.updateMany({
         where,
@@ -154,12 +154,12 @@ export const app = new Elysia()
     async ({ body }) => {
       const action = body.hard
         ? (filter: WeekImageWhereInput) =>
-            db.weekImage.deleteMany({ where: filter })
+          db.weekImage.deleteMany({ where: filter })
         : (filter: WeekImageWhereInput) =>
-            db.weekImage.updateMany({
-              where: filter,
-              data: { validUntil: new Date() },
-            });
+          db.weekImage.updateMany({
+            where: filter,
+            data: { validUntil: new Date() },
+          });
       let res: Awaited<ReturnType<typeof action>>;
       if (body.all) {
         res = await action({});

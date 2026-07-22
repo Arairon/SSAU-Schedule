@@ -28,23 +28,23 @@ export async function generateUserIcs(
   const now = new Date();
   const normalLessons = user.groupId
     ? await db.lesson.findMany({
-        where: {
-          validUntil: { gt: now },
-          groups: { some: { id: user.groupId } },
-          //subgroup: user.subgroup ?? undefined,
-        },
-        include: { groups: true, teacher: true },
-      })
+      where: {
+        validUntil: { gt: now },
+        groups: { some: { id: user.groupId } },
+        //subgroup: user.subgroup ?? undefined,
+      },
+      include: { groups: true, teacher: true },
+    })
     : [];
   const ietLessons = preferences.showIet
     ? await db.lesson.findMany({
-        where: {
-          validUntil: { gt: now },
-          flows: { some: { user: { some: { id: user.id } } } },
-          //subgroup: user.subgroup ?? undefined, //TODO: Figure out if subgroups belong on IET
-        },
-        include: { flows: true, teacher: true },
-      })
+      where: {
+        validUntil: { gt: now },
+        flows: { some: { user: { some: { id: user.id } } } },
+        //subgroup: user.subgroup ?? undefined, //TODO: Figure out if subgroups belong on IET
+      },
+      include: { flows: true, teacher: true },
+    })
     : [];
 
   // Fetch custom lessons for this user

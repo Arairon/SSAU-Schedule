@@ -5,11 +5,11 @@ export const Route = createFileRoute('/')({
   component: RouteComponent,
   beforeLoad: (_ctx) => {
     const auth = useAuthState.getState()
-    if (!auth.isAuthorized)
+    if (!auth.user)
       throw redirect({
         to: "/login"
       })
-    if (!auth.user?.groupId)
+    if (!auth.user.groupId)
       throw redirect({
         to: "/lk/login"
       })

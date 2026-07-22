@@ -1,4 +1,4 @@
-import { URL, fileURLToPath } from 'node:url'
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import { devtools } from '@tanstack/devtools-vite'
 import viteReact from '@vitejs/plugin-react'
@@ -27,11 +27,11 @@ export default defineConfig({
       autoCodeSplitting: true,
     }),
     viteReact(),
-    tailwindcss(),
+    tailwindcss()
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@': path.resolve('./src/'),
     },
-  },
+  }
 })

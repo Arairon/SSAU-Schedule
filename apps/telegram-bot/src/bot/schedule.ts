@@ -173,9 +173,9 @@ export async function sendTimetable(
 
     const group = groupId
       ? (await api.group
-          .id({ id: groupId ?? user.groupId! })
-          .get()
-          .then((res) => res.data))!
+        .id({ id: groupId ?? user.groupId! })
+        .get()
+        .then((res) => res.data))!
       : null;
 
     const preferences = getUserPreferences(user);
@@ -496,9 +496,9 @@ export async function initSchedule(bot: Bot<Context>) {
       ?.at(1);
     const groupIds = group
       ? await api.ssau.findGroupOrOptions
-          .get({ query: { name: group } })
-          .then((res) => res.data)
-          .catch(() => null)
+        .get({ query: { name: group } })
+        .then((res) => res.data)
+        .catch(() => null)
       : undefined;
     let groupId: number | undefined = undefined;
     if (group || groupIds) {

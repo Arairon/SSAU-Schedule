@@ -1,7 +1,7 @@
 import { retrieveRawInitData } from '@tma.js/sdk-react'
 import { treaty } from "@elysiajs/eden";
 import type { ScheduleServerApp } from "@ssau-schedule/server/src/index";
-import type { CustomizationData, ScheduleType } from '@/lib/types'
+import type { CustomizationData } from '@/lib/types'
 
 function safeGetInitData() {
   try {
@@ -42,7 +42,7 @@ export async function getSchedule({
   group?: string
   groupId?: number
   ignoreCached?: boolean
-}): Promise<ScheduleType> {
+}) {
   const params = new URLSearchParams()
   for (const [k, v] of Object.entries({ week, group, groupId, ignoreCached })) {
     if (v !== undefined) {
@@ -62,7 +62,7 @@ export async function getSchedule({
     throw new Error('Failed to fetch schedule: ' + res)
   }
 
-  return res.data as ScheduleType;
+  return res.data;
 }
 
 export async function getCurrentUser() {

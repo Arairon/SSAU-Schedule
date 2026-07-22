@@ -279,11 +279,10 @@ export async function initAdmin(bot: Bot<Context>) {
       return ctx.reply(`\
 Вы: ${user.fullname ?? "Неизвестный Пользователь"}
 Ваша группа: ${user.group?.name ?? "Отсутствует"} ${user.subgroup ? `(Подгруппа: ${user.subgroup})` : ""}
-${
-  user.authCookie
-    ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
-    : `Вы не вошли в ЛК`
-}
+${user.authCookie
+          ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
+          : `Вы не вошли в ЛК`
+        }
 `);
       // Уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
     },

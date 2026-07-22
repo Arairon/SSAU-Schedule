@@ -32,6 +32,7 @@ ENV PUPPETEER_DISABLE_DEV_SHM_USAGE=true
 ENV CHROME_PATH=/usr/bin/chromium-browser
 ENV SCHED_SERVER_DATABASE_URL=localhost
 
+RUN bun run db:generate
 RUN bun run build
 
 FROM oven/bun:1.3.5-alpine AS chrome

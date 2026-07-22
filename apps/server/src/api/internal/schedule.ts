@@ -46,15 +46,15 @@ type scheduleImageRequestUpdateCallback = (
 type ImageGenerator = AsyncGenerator<
   | Parameters<scheduleImageRequestUpdateCallback>[0]
   | {
-      timetable: Timetable & { diff?: TimetableDiff };
-      image: {
-        id: number;
-        tgId: string | null;
-        data: string;
-        timetableHash: string;
-        stylemap: string;
-      };
-    }
+    timetable: Timetable & { diff?: TimetableDiff };
+    image: {
+      id: number;
+      tgId: string | null;
+      data: string;
+      timetableHash: string;
+      stylemap: string;
+    };
+  }
 >;
 
 async function* streamedScheduleResponse(ctx: {

@@ -101,13 +101,13 @@ export async function updateWeekForUser(
   // Process week
   const knownLessons = someoneElsesGroup
     ? await getWeekLessons(user, weekNumber, opts.groupId, {
-        ignoreIet: true,
-        ignorePreferences: true,
-      })
+      ignoreIet: true,
+      ignorePreferences: true,
+    })
     : await getWeekLessons(user, weekNumber, undefined, {
-        ignoreIet: false, // Get known lessons regardless of iet. They will be filtered out later
-        ignorePreferences: true,
-      });
+      ignoreIet: false, // Get known lessons regardless of iet. They will be filtered out later
+      ignorePreferences: true,
+    });
   const updatedTeachers: number[] = [];
   const updatedGroups: number[] = [];
   const updatedFlows: number[] = [];
@@ -193,23 +193,23 @@ export async function updateWeekForUser(
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
             ? {
-                connectOrCreate: {
-                  where: {
-                    owner_groupId_year_number: {
-                      owner: week.owner,
-                      groupId: week.groupId,
-                      year: week.year,
-                      number: lessonInfo.week,
-                    },
-                  },
-                  create: {
+              connectOrCreate: {
+                where: {
+                  owner_groupId_year_number: {
                     owner: week.owner,
                     groupId: week.groupId,
                     year: week.year,
                     number: lessonInfo.week,
                   },
                 },
-              }
+                create: {
+                  owner: week.owner,
+                  groupId: week.groupId,
+                  year: week.year,
+                  number: lessonInfo.week,
+                },
+              },
+            }
             : undefined, // Current week is handled separately with lessonsInThisWeek
       };
       const lesson = Object.assign({}, weekInfo, info);
@@ -308,23 +308,23 @@ export async function updateWeekForUser(
           week:
             lessonInfo.week !== week.number // Create placeholder for other weeks
               ? {
-                  connectOrCreate: {
-                    where: {
-                      owner_groupId_year_number: {
-                        owner: week.owner,
-                        groupId: week.groupId,
-                        year: week.year,
-                        number: lessonInfo.week,
-                      },
-                    },
-                    create: {
+                connectOrCreate: {
+                  where: {
+                    owner_groupId_year_number: {
                       owner: week.owner,
                       groupId: week.groupId,
                       year: week.year,
                       number: lessonInfo.week,
                     },
                   },
-                }
+                  create: {
+                    owner: week.owner,
+                    groupId: week.groupId,
+                    year: week.year,
+                    number: lessonInfo.week,
+                  },
+                },
+              }
               : undefined, // Current week is handled separately with lessonsInThisWeek
         };
         const lesson = Object.assign({}, individualInfo, info);

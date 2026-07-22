@@ -15,11 +15,11 @@ function serializeGroupChat(groupChat: GroupChatWithUser) {
     tgId: tgId.toString(),
     user: user
       ? {
-          ...user,
-          tgId: user.tgId.toString(),
-          password: user.password ? "redacted" : null,
-          authCookie: !!user.authCookie,
-        }
+        ...user,
+        tgId: user.tgId.toString(),
+        password: user.password ? "redacted" : null,
+        authCookie: !!user.authCookie,
+      }
       : null,
   };
 }

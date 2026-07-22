@@ -335,7 +335,7 @@ async function updateCookie(user: User) {
   } catch (e) {
     log.warn(
       "Failed to update cookie: failed to get cookie.\n" +
-        (e ? JSON.stringify(e) : ""),
+      (e ? JSON.stringify(e) : ""),
       {
         user: user.id,
       },

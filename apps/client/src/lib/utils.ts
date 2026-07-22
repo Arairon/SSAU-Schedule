@@ -55,12 +55,12 @@ export function getLessonCustomization(
 }
 
 export function applyCustomization(
-  originalLesson: Omit<ScheduleLessonType, 'alts'>,
+  originalLesson: Omit<TimetableLesson, 'alts'>,
   custom: Partial<CustomizationData>,
 ) {
   const lesson = Object.assign({}, originalLesson)
 
-  lesson.original = Object.assign({}, lesson)
+  lesson.original = Object.assign({}, lesson, { alts: [] })
   lesson.customized = {
     hidden: custom.hideLesson ?? lesson.customized?.hidden ?? false,
     disabled: !(custom.isEnabled ?? !lesson.customized?.disabled),
