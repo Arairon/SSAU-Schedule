@@ -1,7 +1,7 @@
-import { retrieveRawInitData } from '@tma.js/sdk-react'
-import { treaty } from "@elysiajs/eden";
-import type { ScheduleServerApp } from "@ssau-schedule/server/src/index";
-import type { CustomizationData } from '@/client/lib/types'
+import { retrieveRawInitData } from "@tma.js/sdk-react"
+import { treaty } from "@elysiajs/eden"
+import type { ScheduleServerApp } from "@ssau-schedule/server/src/index"
+import type { CustomizationData } from "@/client/lib/types"
 
 function safeGetInitData() {
   try {
@@ -16,21 +16,20 @@ function getAuthHeader() {
   if (initData) {
     return `tma ${initData}`
   }
-  return window.localStorage.getItem('auth-token') || ''
+  return window.localStorage.getItem("auth-token") || ""
 }
-
 
 const app = treaty<ScheduleServerApp>(window.location.origin, {
   headers: {
-    "authorization": getAuthHeader(),
+    authorization: getAuthHeader(),
   },
   fetch: {
     credentials: "include",
-  }
-});
+  },
+})
 
-export const serverApi = app;
-export const api = app.api;
+export const serverApi = app
+export const api = app.api
 
 export async function getSchedule({
   week,
@@ -55,14 +54,14 @@ export async function getSchedule({
       week: week ?? 0,
       group,
       groupId,
-    }
+    },
   })
 
   if (res.status !== 200) {
-    throw new Error('Failed to fetch schedule: ' + res)
+    throw new Error("Failed to fetch schedule: " + res)
   }
 
-  return res.data;
+  return res.data
 }
 
 export async function getCurrentUser() {
@@ -87,7 +86,7 @@ export async function addCustomLesson({
   const req = await api.v0.customLesson.post({
     body: customizationData,
     extraHeaders: {
-      authorization: window.localStorage.getItem('auth-token') || '',
+      authorization: window.localStorage.getItem("auth-token") || "",
     },
   })
 
@@ -107,7 +106,7 @@ export async function editCustomLesson({
   const req = await api.v0.customLesson.put({
     body: customizationData,
     extraHeaders: {
-      authorization: window.localStorage.getItem('auth-token') || '',
+      authorization: window.localStorage.getItem("auth-token") || "",
     },
   })
 
@@ -117,7 +116,7 @@ export async function editCustomLesson({
 export async function deleteCustomLesson({ id }: { id: number }) {
   const req = await api.v0.customLesson({ lessonId: id.toString() }).delete({
     extraHeaders: {
-      authorization: window.localStorage.getItem('auth-token') || '',
+      authorization: window.localStorage.getItem("auth-token") || "",
     },
   })
 

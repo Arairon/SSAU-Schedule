@@ -27,6 +27,7 @@
     "lint:client": "bun --filter @ssau-schedule/client lint",
     "lint:server": "bun --filter @ssau-schedule/server lint",
     "lint:bot": "bun --filter @ssau-schedule/telegram-bot lint",
-    "lint:relay": "bun --filter @ssau-schedule/telegram-relay lint"
+    "lint:relay": "bun --filter @ssau-schedule/telegram-relay lint",
+    "format": "bun --filter '*' format"
   }
 }

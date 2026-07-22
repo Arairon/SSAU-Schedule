@@ -1,12 +1,12 @@
-import Elysia from "elysia";
-import z from "zod";
+import Elysia from "elysia"
+import z from "zod"
 
-import { db } from "@/server/db";
+import { db } from "@/server/db"
 import {
   invalidateDailyNotificationsForAll,
   invalidateDailyNotificationsForTarget,
-} from "@/server/lib/tasks";
-import type { WeekImageWhereInput } from "@/server/generated/prisma/models";
+} from "@/server/lib/tasks"
+import type { WeekImageWhereInput } from "@/server/generated/prisma/models"
 
 const InvalidateWeekSchema = z
   .object({
@@ -27,7 +27,7 @@ const InvalidateWeekSchema = z
       message:
         "Provide all=true or at least one week filter: owner/groupId/year/number",
     },
-  );
+  )
 
 const InvalidateDailyNotificationsSchema = z
   .object({
@@ -36,7 +36,7 @@ const InvalidateDailyNotificationsSchema = z
   })
   .refine((data) => data.all === true || typeof data.chatId === "string", {
     message: "Provide all=true or chatId",
-  });
+  })
 
 const InvalidateUserIcsSchema = z
   .object({
@@ -45,7 +45,7 @@ const InvalidateUserIcsSchema = z
   })
   .refine((data) => data.all === true || data.userId !== undefined, {
     message: "Provide all=true or userId",
-  });
+  })
 
 const UpdateWeekImageTgIdSchema = z
   .object({
@@ -63,7 +63,7 @@ const UpdateWeekImageTgIdSchema = z
     {
       message: "Provide all=true or id or hash+stylemap",
     },
-  );
+  )
 
 export const app = new Elysia()
   .patch(
@@ -72,18 +72,18 @@ export const app = new Elysia()
       const where = body.all
         ? {}
         : {
-          ...(body.owner !== undefined ? { owner: body.owner } : {}),
-          ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
-          ...(body.year !== undefined ? { year: body.year } : {}),
-          ...(body.number !== undefined ? { number: body.number } : {}),
-        };
+            ...(body.owner !== undefined ? { owner: body.owner } : {}),
+            ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
+            ...(body.year !== undefined ? { year: body.year } : {}),
+            ...(body.number !== undefined ? { number: body.number } : {}),
+          }
 
       const result = await db.week.updateMany({
         where,
         data: { cachedUntil: new Date(0) },
-      });
+      })
 
-      return { updated: result.count };
+      return { updated: result.count }
     },
     {
       body: InvalidateWeekSchema,
@@ -94,9 +94,9 @@ export const app = new Elysia()
     async ({ body }) => {
       const result = body.all
         ? await invalidateDailyNotificationsForAll()
-        : await invalidateDailyNotificationsForTarget(body.chatId!);
+        : await invalidateDailyNotificationsForTarget(body.chatId!)
 
-      return { updated: result.count };
+      return { updated: result.count }
     },
     {
       body: InvalidateDailyNotificationsSchema,
@@ -107,23 +107,23 @@ export const app = new Elysia()
     async ({ body: { source, method } }) => {
       const filter: Parameters<
         typeof db.scheduledMessage.updateMany
-      >[0]["where"] = { wasSentAt: null };
+      >[0]["where"] = { wasSentAt: null }
       if (method === "is") {
-        filter.source = source;
+        filter.source = source
       } else if (method === "startsWith") {
-        filter.source = { startsWith: source };
+        filter.source = { startsWith: source }
       } else if (method === "endsWith") {
-        filter.source = { endsWith: source };
+        filter.source = { endsWith: source }
       } else if (method === "contains") {
-        filter.source = { contains: source };
+        filter.source = { contains: source }
       }
 
       const result = await db.scheduledMessage.updateMany({
         where: filter,
         data: { wasSentAt: new Date(0) },
-      });
+      })
 
-      return { count: result.count };
+      return { count: result.count }
     },
     {
       body: z.object({
@@ -137,13 +137,13 @@ export const app = new Elysia()
   .patch(
     "/user-ics/invalidate",
     async ({ body }) => {
-      const where = body.all ? {} : { id: body.userId! };
+      const where = body.all ? {} : { id: body.userId! }
       const result = await db.userIcs.updateMany({
         where,
         data: { validUntil: new Date(0) },
-      });
+      })
 
-      return { updated: result.count };
+      return { updated: result.count }
     },
     {
       body: InvalidateUserIcsSchema,
@@ -154,29 +154,29 @@ export const app = new Elysia()
     async ({ body }) => {
       const action = body.hard
         ? (filter: WeekImageWhereInput) =>
-          db.weekImage.deleteMany({ where: filter })
+            db.weekImage.deleteMany({ where: filter })
         : (filter: WeekImageWhereInput) =>
-          db.weekImage.updateMany({
-            where: filter,
-            data: { validUntil: new Date() },
-          });
-      let res: Awaited<ReturnType<typeof action>>;
+            db.weekImage.updateMany({
+              where: filter,
+              data: { validUntil: new Date() },
+            })
+      let res: Awaited<ReturnType<typeof action>>
       if (body.all) {
-        res = await action({});
+        res = await action({})
       } else {
         if (body.id) {
-          res = await action({ id: body.id });
+          res = await action({ id: body.id })
         } else {
           res = await action({
             timetableHash: body.hash!,
             stylemap: body.stylemap!,
-          });
+          })
         }
       }
 
-      return res as { count: number };
+      return res as { count: number }
     },
     {
       body: UpdateWeekImageTgIdSchema,
     },
-  );
+  )

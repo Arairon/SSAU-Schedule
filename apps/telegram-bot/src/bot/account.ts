@@ -1,24 +1,24 @@
-import { InlineKeyboard, type Bot } from "grammy";
-import { type Context } from "./types";
-import { CommandGroup } from "@grammyjs/commands";
-import { env } from "@/bot/env";
-import { getPersonShortname } from "@ssau-schedule/shared/utils";
-import log from "@/bot/logger";
-import { getDefaultSession } from ".";
-import { api } from "@/bot/serverClient";
-import { getUser } from "./misc";
+import { InlineKeyboard, type Bot } from "grammy"
+import { type Context } from "./types"
+import { CommandGroup } from "@grammyjs/commands"
+import { env } from "@/bot/env"
+import { getPersonShortname } from "@ssau-schedule/shared/utils"
+import log from "@/bot/logger"
+import { getDefaultSession } from "."
+import { api } from "@/bot/serverClient"
+import { getUser } from "./misc"
 
 async function reset(_ctx: Context, userId: number) {
   const user = await api.user
     .tgid({ id: userId })
     .get()
-    .then((res) => res.data);
-  if (user) await api.user.id({ id: user.id }).delete();
+    .then((res) => res.data)
+  if (user) await api.user.id({ id: user.id }).delete()
 }
 
 async function start(ctx: Context, userId: number | bigint) {
-  await api.user.new.post({ tgId: userId as unknown as bigint });
-  Object.assign(ctx.session, getDefaultSession());
+  await api.user.new.post({ tgId: userId as unknown as bigint })
+  Object.assign(ctx.session, getDefaultSession())
   await ctx.reply(
     `\
 Добро пожаловать!
@@ -35,35 +35,36 @@ async function start(ctx: Context, userId: number | bigint) {
       reply_markup: new InlineKeyboard().text("Начать", "start_onboarding"),
       link_preview_options: { is_disabled: true },
     },
-  );
+  )
 }
 
-export const accountCommands = new CommandGroup<Context>();
+export const accountCommands = new CommandGroup<Context>()
 
 export async function initAccount(bot: Bot<Context>) {
-  const commands = accountCommands;
+  const commands = accountCommands
 
   commands.command("start", "Начало/Сброс работы с ботом", async (ctx) => {
-    if (ctx.chat.type !== "private") return;
-    const userId = ctx.from?.id;
+    if (ctx.chat.type !== "private") return
+    const userId = ctx.from?.id
     if (!userId) {
       return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
         parse_mode: "HTML",
-      });
+      })
     }
-    const existingUser = await getUser(ctx);
-    if (existingUser === false) return; // getUser уже отправил сообщение об ошибке
+    const existingUser = await getUser(ctx)
+    if (existingUser === false) return // getUser уже отправил сообщение об ошибке
     if (!existingUser) {
-      return start(ctx, userId as unknown as bigint);
+      return start(ctx, userId as unknown as bigint)
     } else {
       return ctx.reply(
         `\
 Вы уверены что хотите сбросить все настройки?
 Если вы хотите поменять настройки - используйте /options
-${existingUser.authCookie
-          ? "Если вы хотите просто выйти из аккаунта - используйте /logout"
-          : "Если вы хотите войти в личный кабинет - используйте /login"
-        }
+${
+  existingUser.authCookie
+    ? "Если вы хотите просто выйти из аккаунта - используйте /logout"
+    : "Если вы хотите войти в личный кабинет - используйте /login"
+}
 Будет сброшено всё: Календари, настроки, данные для входа, группы и т.п.
         `,
         {
@@ -71,75 +72,75 @@ ${existingUser.authCookie
             .text("Отмена", "start_reset_cancel")
             .text("Да, сбросить", "start_reset_confirm"),
         },
-      );
+      )
     }
-  });
+  })
 
   bot.callbackQuery("start_onboarding", async (ctx) => {
-    log.info(`Starting onboarding conversation`, { user: ctx.from?.id });
-    await ctx.answerCallbackQuery().catch();
-    return ctx.conversation.enter("ONBOARDING");
-  });
+    log.info(`Starting onboarding conversation`, { user: ctx.from?.id })
+    await ctx.answerCallbackQuery().catch()
+    return ctx.conversation.enter("ONBOARDING")
+  })
 
   bot.callbackQuery("start_reset_cancel", async (ctx) => {
-    log.debug("start_reset_cancel", { user: ctx.from.id });
+    log.debug("start_reset_cancel", { user: ctx.from.id })
     if (ctx.callbackQuery.message?.message_id)
       void ctx.api.deleteMessage(
         ctx.from.id,
         ctx.callbackQuery.message?.message_id,
-      );
-    await ctx.answerCallbackQuery();
-  });
+      )
+    await ctx.answerCallbackQuery()
+  })
 
   bot.callbackQuery("start_reset_confirm", async (ctx) => {
-    log.debug("start_reset_confirm", { user: ctx.from.id });
+    log.debug("start_reset_confirm", { user: ctx.from.id })
     if (ctx.callbackQuery.message?.message_id)
       void ctx.api.deleteMessage(
         ctx.from.id,
         ctx.callbackQuery.message?.message_id,
-      );
-    await ctx.answerCallbackQuery();
-    return reset(ctx, ctx.from.id).then(() => start(ctx, ctx.from.id));
-  });
+      )
+    await ctx.answerCallbackQuery()
+    return reset(ctx, ctx.from.id).then(() => start(ctx, ctx.from.id))
+  })
 
   commands.command("login", "Вход в личный кабинет", async (ctx) => {
-    if (!ctx.from) return;
-    if (ctx.chat.type !== "private") return;
-    const user = await getUser(ctx);
-    if (user === false) return; // getUser уже отправил сообщение об ошибке
+    if (!ctx.from) return
+    if (ctx.chat.type !== "private") return
+    const user = await getUser(ctx)
+    if (user === false) return // getUser уже отправил сообщение об ошибке
     if (user) {
-      ctx.session.loggedIn = true;
+      ctx.session.loggedIn = true
       if (user.username && user.password) {
         await ctx.reply(`
 Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.
 Если вы хотите выйти - используйте /logout
-      `);
-        return;
+      `)
+        return
       }
       if (user.authCookie && user.sessionExpiresAt > new Date()) {
         await ctx.reply(`
 Ваша сессия как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}' всё ещё активна.
 Если вы хотите её прервать, используйте /logout
-      `);
-        return;
+      `)
+        return
       }
     }
-    return ctx.conversation.enter("LK_LOGIN");
+    return ctx.conversation.enter("LK_LOGIN")
     //void ctx.deleteMessage(ctx.message.message_id);
     //return ctx.scene.enter("LK_LOGIN");
-  });
+  })
 
   commands.command("logout", "Выход из личного кабинета", async (ctx) => {
-    if (ctx.chat.type !== "private") return;
+    if (ctx.chat.type !== "private") return
     if (!ctx.from) {
       return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
         parse_mode: "HTML",
-      });
+      })
     }
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    const hadCredentials = user.username && user.password;
-    await api.user.id({ id: user.id }).lk.clearCredentials.post();
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const hadCredentials = user.username && user.password
+    await api.user.id({ id: user.id }).lk.clearCredentials.post()
     return ctx.reply(
       `
 Сессия завершена. ${hadCredentials ? "Данные для входа удалены." : ""}
@@ -147,26 +148,26 @@ ${existingUser.authCookie
 Если же вы собираетесь продолжать использовать текущий аккаунт - сбрасывать ничего не нужно.
       `,
       { parse_mode: "HTML" },
-    );
-  });
+    )
+  })
 
   commands.command("ics", "Ссылка на календарь ics", async (ctx) => {
-    if (ctx.chat.type !== "private") return;
+    if (ctx.chat.type !== "private") return
     if (!ctx.from) {
       return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
         parse_mode: "HTML",
-      });
+      })
     }
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
     const cal = await api.user
       .id({ id: user.id })
       .ics.get()
-      .then((res) => res.data);
+      .then((res) => res.data)
     if (!cal) {
       return ctx.reply(
         `Произошла ошибка при попытке создать календарь.\nПожалуйста попробуйте позже или свяжитесь с администратором бота`,
-      );
+      )
     }
     return ctx.reply(
       `\
@@ -178,13 +179,13 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
 Добавьте её в календарь и включите синхронизацию.
  `,
       { link_preview_options: { is_disabled: true } },
-    );
-  });
+    )
+  })
 
   commands.command("help", "Информация о боте", async (ctx) => {
-    if (ctx.chat.type !== "private") return;
-    const user = await getUser(ctx);
-    if (user === false) return; // getUser уже отправил сообщение об ошибке
+    if (ctx.chat.type !== "private") return
+    const user = await getUser(ctx)
+    if (user === false) return // getUser уже отправил сообщение об ошибке
     if (!user)
       return ctx.reply(
         `\
@@ -202,7 +203,7 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
 Автор бота: @arairon
 `,
         { link_preview_options: { is_disabled: true } },
-      );
+      )
     return ctx.reply(
       `\
 Добро пожаловать, ${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")}!
@@ -224,18 +225,18 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
 Автор бота: @arairon
 `,
       { link_preview_options: { is_disabled: true } },
-    );
-  });
+    )
+  })
 
   commands.command("app", "Переход в веб приложение", async (ctx) => {
-    void ctx.deleteMessage();
+    void ctx.deleteMessage()
     if (
       env.NODE_ENV !== "development" &&
       !(ctx.message && ctx.message.text.includes("idontcare"))
     ) {
       return ctx.reply(
         "Веб приложение всё ещё в разработке. Очень надеюсь что скоро смогу его выпустить, но на данный момент оно слишком сырое. Простите :D",
-      );
+      )
     }
     return ctx.reply(
       "Переход в веб приложение\n(Веб приложение специально не добавлено как отдельная кнопка в боте, т.к. приоритет всё же на команды)",
@@ -245,8 +246,8 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
           `https://${env.SCHED_APP_DOMAIN}/tg-wait`,
         ),
       },
-    );
-  });
+    )
+  })
 
-  bot.use(commands);
+  bot.use(commands)
 }

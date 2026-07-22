@@ -1,24 +1,24 @@
-import { db } from "@/server/db";
-import type { WithAuth } from "./auth";
+import { db } from "@/server/db"
+import type { WithAuth } from "./auth"
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
-} from "@/server/lib/tasks";
-import Elysia from "elysia";
+} from "@/server/lib/tasks"
+import Elysia from "elysia"
 
 export const app = new Elysia<"/notifications", WithAuth>({
   prefix: "/notifications",
 }).post("/reschedule", async ({ auth, status }) => {
   if (!auth) {
-    return status(403, "Unauthorized");
+    return status(403, "Unauthorized")
   }
 
-  const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-  const invResult = await invalidateDailyNotificationsForTarget(auth.tgId);
-  const updResult = await scheduleDailyNotificationsForUser(user);
+  const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
+  const invResult = await invalidateDailyNotificationsForTarget(auth.tgId)
+  const updResult = await scheduleDailyNotificationsForUser(user)
 
   return {
     removed: invResult.count,
     added: updResult?.count ?? -1,
-  };
-});
+  }
+})

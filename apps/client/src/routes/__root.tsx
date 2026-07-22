@@ -1,23 +1,22 @@
-import { Outlet, createRootRouteWithContext } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
+import { Outlet, createRootRouteWithContext } from "@tanstack/react-router"
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
+import { TanStackDevtools } from "@tanstack/react-devtools"
 
 import { init } from "@tma.js/sdk-react"
-import type { QueryClient } from '@tanstack/react-query'
-import Header from '@/client/components/Header'
+import type { QueryClient } from "@tanstack/react-query"
+import Header from "@/client/components/Header"
 
-import TanStackQueryDevtools from '@/client/integrations/tanstack-query/devtools'
+import TanStackQueryDevtools from "@/client/integrations/tanstack-query/devtools"
 
-
-import { Toaster } from '@/client/components/ui/sonner'
+import { Toaster } from "@/client/components/ui/sonner"
 
 try {
   init()
 } catch {
-  console.log("Telegram sdk failed to initialize. This is normal outside of telegram.")
+  console.log(
+    "Telegram sdk failed to initialize. This is normal outside of telegram.",
+  )
 }
-
-
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -31,11 +30,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       <Toaster />
       <TanStackDevtools
         config={{
-          position: 'bottom-right',
+          position: "bottom-right",
         }}
         plugins={[
           {
-            name: 'Tanstack Router',
+            name: "Tanstack Router",
             render: <TanStackRouterDevtoolsPanel />,
           },
           TanStackQueryDevtools,

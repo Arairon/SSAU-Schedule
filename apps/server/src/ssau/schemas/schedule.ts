@@ -1,4 +1,4 @@
-import s from "ajv-ts";
+import s from "ajv-ts"
 
 const LessonSchema = s.object({
   id: s.number(),
@@ -16,20 +16,20 @@ const LessonSchema = s.object({
       name: s.string(),
     })
     .nullable(),
-});
+})
 
 const GroupSchema = s.object({
   id: s.number(),
   name: s.string(),
   subgroup: s.number().or(s.null()),
-});
+})
 
 const TeacherSchema = s.object({
   id: s.number(),
   name: s.string(),
   state: s.string(),
-});
-export type TeacherType = s.infer<typeof TeacherSchema>;
+})
+export type TeacherType = s.infer<typeof TeacherSchema>
 
 const WeekLessonListSchema = s.object({
   id: s.number(),
@@ -62,7 +62,7 @@ const WeekLessonListSchema = s.object({
       url: s.string(),
     })
     .nullable(),
-});
+})
 
 const FlowSchema = s.object({
   id: s.number(),
@@ -77,7 +77,7 @@ const FlowSchema = s.object({
     id: s.number(),
     name: s.string(),
   }),
-});
+})
 
 const WeekIetLessonListSchema = s.object({
   id: s.number(),
@@ -106,7 +106,7 @@ const WeekIetLessonListSchema = s.object({
       url: s.string(),
     })
     .nullable(),
-});
+})
 
 export const WeekResponseSchema = s.object({
   lessons: s.array(WeekLessonListSchema),
@@ -122,4 +122,4 @@ export const WeekResponseSchema = s.object({
     isCurrent: s.boolean(),
     isElongated: s.boolean(),
   }),
-});
+})

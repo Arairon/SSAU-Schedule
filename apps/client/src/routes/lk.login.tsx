@@ -1,50 +1,50 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
-import { InfoIcon } from 'lucide-react'
-import { useMutation } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { Input } from '@/client/components/ui/input'
-import { Label } from '@/client/components/ui/label'
-import { Checkbox } from '@/client/components/ui/checkbox'
-import { Button } from '@/client/components/ui/button'
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
+import { InfoIcon } from "lucide-react"
+import { useMutation } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { Input } from "@/client/components/ui/input"
+import { Label } from "@/client/components/ui/label"
+import { Checkbox } from "@/client/components/ui/checkbox"
+import { Button } from "@/client/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/client/components/ui/popover'
-import { useIsMobile } from '@/client/hooks/useIsMobile'
+} from "@/client/components/ui/popover"
+import { useIsMobile } from "@/client/hooks/useIsMobile"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/client/components/ui/tooltip'
-import { loginIntoSSAU } from '@/client/api/lk'
-import useAuth, { useAuthState } from '@/client/hooks/useAuth'
+} from "@/client/components/ui/tooltip"
+import { loginIntoSSAU } from "@/client/api/lk"
+import useAuth, { useAuthState } from "@/client/hooks/useAuth"
 
-export const Route = createFileRoute('/lk/login')({
+export const Route = createFileRoute("/lk/login")({
   component: RouteComponent,
   beforeLoad: (_ctx) => {
     const auth = useAuthState.getState()
     if (!auth.user) {
-      throw redirect({ to: '/login' })
+      throw redirect({ to: "/login" })
     }
     // Already authed
     if (auth.user.groupId) {
-      throw redirect({ to: '/schedule' })
+      throw redirect({ to: "/schedule" })
     }
   },
 })
 
 function RouteComponent() {
   const { refetch: refetchAuth } = useAuth()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
   const [remember, setRemember] = useState(false)
   const navigate = useNavigate()
 
   const loginMutation = useMutation({
-    mutationKey: ['lk', 'login'],
+    mutationKey: ["lk", "login"],
     mutationFn: (opts: {
       username: string
       password: string
@@ -52,22 +52,22 @@ function RouteComponent() {
     }) => {
       const promise = loginIntoSSAU(opts)
       toast.promise(promise, {
-        loading: 'Пробуем войти...',
-        error: (data) => `Ошибка: ${data?.error || 'Неизвестно'}`,
-        success: 'Вход успешен!',
+        loading: "Пробуем войти...",
+        error: (data) => `Ошибка: ${data?.error || "Неизвестно"}`,
+        success: "Вход успешен!",
       })
       return promise
     },
     onSuccess: async () => {
       await refetchAuth()
-      navigate({ to: '/schedule' })
+      navigate({ to: "/schedule" })
     },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     loginMutation.mutate({ username, password, saveCredentials: remember })
-    console.log({ username, password: 'redacted', remember })
+    console.log({ username, password: "redacted", remember })
   }
 
   const isMobile = useIsMobile()
@@ -96,8 +96,8 @@ function RouteComponent() {
                 использован для повторного входа в лк в случае ошибок с
                 авторизацией.
                 <span className="text-destructive-foreground">
-                  {' '}
-                  Это менее безопасно,{' '}
+                  {" "}
+                  Это менее безопасно,{" "}
                 </span>
                 однако авторизация в ЛК довольно нестабильна, поэтому есть эта
                 функция. Если не хотите - можете не использовать
@@ -129,8 +129,8 @@ function RouteComponent() {
               использован для повторного входа в лк в случае ошибок с
               авторизацией.
               <span className="text-destructive-foreground">
-                {' '}
-                Это менее безопасно,{' '}
+                {" "}
+                Это менее безопасно,{" "}
               </span>
               однако авторизация в ЛК довольно нестабильна, поэтому есть эта
               функция. Если не хотите - можете не использовать

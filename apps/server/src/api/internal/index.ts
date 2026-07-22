@@ -1,17 +1,17 @@
-import z from "zod";
-import { env } from "@/server/env";
-import { Elysia } from "elysia";
-import { app as routesCache } from "./cache";
-import { app as routesGroupChat } from "./groupchat";
-import { app as routesMisc } from "./misc";
-import { app as routesSchedule } from "./schedule";
-import { app as routesSsau } from "./ssau";
-import { app as routesTasks } from "./tasks";
-import { app as routesUser } from "./user";
-import { app as routesGroup } from "./group";
-import { app as routesTeacher } from "./teacher";
-import { app as routesDebug } from "./debug";
-import log from "@/server/logger";
+import z from "zod"
+import { env } from "@/server/env"
+import { Elysia } from "elysia"
+import { app as routesCache } from "./cache"
+import { app as routesGroupChat } from "./groupchat"
+import { app as routesMisc } from "./misc"
+import { app as routesSchedule } from "./schedule"
+import { app as routesSsau } from "./ssau"
+import { app as routesTasks } from "./tasks"
+import { app as routesUser } from "./user"
+import { app as routesGroup } from "./group"
+import { app as routesTeacher } from "./teacher"
+import { app as routesDebug } from "./debug"
+import log from "@/server/logger"
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {
@@ -20,7 +20,7 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
         headers["x-internal-api-secret"] !==
         env.SCHED_SERVER_INTERNAL_API_SECRET
       ) {
-        return status(403, "Forbidden");
+        return status(403, "Forbidden")
       }
     },
     headers: z.object({
@@ -33,7 +33,7 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
     app
       .get("/health", () => "ok")
       .post("/botOnline", () => {
-        log.info("Bot has come online", { tag: "API", user: "bot" });
+        log.info("Bot has come online", { tag: "API", user: "bot" })
       })
       .group("/schedule", (app) => app.use(routesSchedule))
       .group("/user", (app) => app.use(routesUser))
@@ -45,4 +45,4 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
       .group("/group", (app) => app.use(routesGroup))
       .group("/teacher", (app) => app.use(routesTeacher))
       .group("/debug", (app) => app.use(routesDebug)),
-);
+)

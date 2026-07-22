@@ -1,23 +1,22 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useAuthState } from '@/client/hooks/useAuth'
+import { createFileRoute, redirect } from "@tanstack/react-router"
+import { useAuthState } from "@/client/hooks/useAuth"
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   component: RouteComponent,
   beforeLoad: (_ctx) => {
     const auth = useAuthState.getState()
     if (!auth.user)
       throw redirect({
-        to: "/login"
+        to: "/login",
       })
     if (!auth.user.groupId)
       throw redirect({
-        to: "/lk/login"
+        to: "/lk/login",
       })
     throw redirect({
-      to: "/schedule"
+      to: "/schedule",
     })
-  }
-
+  },
 })
 
 function RouteComponent() {

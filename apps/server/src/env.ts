@@ -1,8 +1,8 @@
-import { createEnv } from "@t3-oss/env-core";
-import { configDotenv } from "dotenv";
-import { z } from "zod";
+import { createEnv } from "@t3-oss/env-core"
+import { configDotenv } from "dotenv"
+import { z } from "zod"
 
-configDotenv({ quiet: true });
+configDotenv({ quiet: true })
 
 export const env = createEnv({
   server: {
@@ -84,7 +84,7 @@ export const env = createEnv({
    * explicitly specify this option as true.
    */
   emptyStringAsUndefined: true,
-});
+})
 
 // if (env.SCHED_BOT_IMAGE_UPLOAD_MODE === "relay") {
 //   if (!env.SCHED_BOT_IMAGE_DUMP_CHATID) {

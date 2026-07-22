@@ -1,31 +1,31 @@
-import { db } from "@/server/db";
-import { env } from "@/server/env";
-import { validateApiKey } from "@/server/lib/apiKey";
-import log from "@/server/logger";
+import { db } from "@/server/db"
+import { env } from "@/server/env"
+import { validateApiKey } from "@/server/lib/apiKey"
+import log from "@/server/logger"
 import {
   parse as tgParse,
   validate as tgValidate,
-} from "@tma.js/init-data-node";
-import Elysia from "elysia";
-import jwt, { type SignOptions } from "jsonwebtoken";
-import z from "zod";
+} from "@tma.js/init-data-node"
+import Elysia from "elysia"
+import jwt, { type SignOptions } from "jsonwebtoken"
+import z from "zod"
 
 export type AuthData = {
-  userId: number;
-  tgId: string;
-} | null;
+  userId: number
+  tgId: string
+} | null
 
 export type WithAuth = {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  decorator: {};
+  decorator: {}
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  store: {};
+  store: {}
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  derive: {};
+  derive: {}
   resolve: {
-    auth: AuthData | null;
-  };
-};
+    auth: AuthData | null
+  }
+}
 
 const CredentialsSchema = z
   .object({
@@ -33,25 +33,25 @@ const CredentialsSchema = z
     password: z.string().min(1),
   })
   .strict()
-  .required();
+  .required()
 
 type redactedUser = {
-  id: number;
-  tgId: string;
-  password: string | null;
-  authCookie: boolean;
+  id: number
+  tgId: string
+  password: string | null
+  authCookie: boolean
 }
 
 function redactUser(
   user: {
-    id: number;
-    tgId: bigint;
-    password: string | null;
-    authCookie: string | null;
+    id: number
+    tgId: bigint
+    password: string | null
+    authCookie: string | null
   } | null,
 ): redactedUser | null {
   if (!user) {
-    return null;
+    return null
   }
 
   return Object.assign({}, user, {
@@ -61,170 +61,171 @@ function redactUser(
   })
 }
 
-export const auth = new Elysia().resolve(
-  { as: "scoped" },
-  async ({
-    headers,
-    cookie: { accessToken, refreshToken },
-    set,
-  }): Promise<{ auth: AuthData }> => {
-    // TODO: Remove
-    log.debug("auth.resolve called", {
-      object: {
-        headers: {
-          authorization: headers.authorization ?? null,
+export const auth = new Elysia()
+  .resolve(
+    { as: "scoped" },
+    async ({
+      headers,
+      cookie: { accessToken, refreshToken },
+      set,
+    }): Promise<{ auth: AuthData }> => {
+      // TODO: Remove
+      log.debug("auth.resolve called", {
+        object: {
+          headers: {
+            authorization: headers.authorization ?? null,
+          },
+          cookies: {
+            accessToken: accessToken.value,
+            refreshToken: refreshToken.value,
+          },
         },
-        cookies: {
-          accessToken: accessToken.value,
-          refreshToken: refreshToken.value,
-        },
-      },
-      objectPretty: true
-    })
-    const accessTokenCookieOptions = {
-      path: "/api/v0",
-      httpOnly: true,
-      sameSite: "lax" as const,
-      secure: env.NODE_ENV === "production",
-      secrets: env.SCHED_SERVER_JWT_SECRET,
-    };
-
-    function issueAccessToken(
-      auth: Exclude<AuthData, null>,
-      expiresIn: SignOptions["expiresIn"],
-    ) {
-      accessToken.set({
-        value: jwt.sign(auth as object, env.SCHED_SERVER_JWT_SECRET, {
-          expiresIn,
-        }),
-        ...accessTokenCookieOptions,
-      });
-    }
-
-    if (accessToken.value) {
-      try {
-        const data = jwt.verify(
-          accessToken.value as string,
-          env.SCHED_SERVER_JWT_SECRET,
-        ) as AuthData;
-        if (data) {
-          return { auth: data };
-        }
-      } catch {
-        // log.debug("User provided invalid or expired JWT, trying refreshToken");
+        objectPretty: true,
+      })
+      const accessTokenCookieOptions = {
+        path: "/api/v0",
+        httpOnly: true,
+        sameSite: "lax" as const,
+        secure: env.NODE_ENV === "production",
+        secrets: env.SCHED_SERVER_JWT_SECRET,
       }
-    }
 
-    // No access token or invalid access token, try refresh token
-    if (refreshToken.value) {
-      // TODO: Refresh auth using refreshToken
-      // return { auth: refreshedAuthData };
-      log.error(
-        "refreshToken was passed, but is not implemented on server yer",
-      );
-    }
+      function issueAccessToken(
+        auth: Exclude<AuthData, null>,
+        expiresIn: SignOptions["expiresIn"],
+      ) {
+        accessToken.set({
+          value: jwt.sign(auth as object, env.SCHED_SERVER_JWT_SECRET, {
+            expiresIn,
+          }),
+          ...accessTokenCookieOptions,
+        })
+      }
 
-    if (!headers.authorization) {
-      return { auth: null };
-    }
-
-    const [authType = "", ...authDataParts] = headers.authorization
-      .trim()
-      .split(/\s+/);
-    const authData = authDataParts.join(" ");
-
-    if (authData === "null" && env.NODE_ENV === "development") {
-      set.headers["authorization-info"] = "Bypassed for dev";
-      const auth = {
-        userId: 1,
-        tgId: env.SCHED_BOT_ADMIN_TGID.toString(),
-      };
-      issueAccessToken(auth, "5m");
-      return { auth };
-    }
-
-    switch (authType) {
-      case "tma": {
+      if (accessToken.value) {
         try {
-          tgValidate(authData, env.SCHED_BOT_TOKEN, {
-            expiresIn: 3600,
-          });
-          const data = tgParse(authData);
-          if (!data.user) {
-            set.headers["authorization-error"] =
-              "Attempt to authorize 'tma' without user.id";
-            return { auth: null };
+          const data = jwt.verify(
+            accessToken.value as string,
+            env.SCHED_SERVER_JWT_SECRET,
+          ) as AuthData
+          if (data) {
+            return { auth: data }
           }
-          let user = await db.user.findUnique({
-            where: { tgId: data.user.id },
-          });
-          // Create user if one does not exist
-          user ??= await db.user.create({ data: { tgId: data.user.id } });
-          const auth = {
-            userId: user.id,
-            tgId: user.tgId.toString(),
-          };
-          issueAccessToken(auth, "1h");
-          // Not using refreshTokens for tma auth
-          return { auth };
-        } catch (e) {
-          set.headers["authorization-error"] = JSON.stringify(e);
-          log.warn("Unable to authorize user: " + JSON.stringify(e), {
-            user: "req-tma",
-          });
+        } catch {
+          // log.debug("User provided invalid or expired JWT, trying refreshToken");
         }
-        break;
       }
-      case "Bearer": {
-        const apiKey = await validateApiKey({
-          key: authData,
-          includeUser: true,
-        });
-        if (!apiKey) {
-          set.headers["authorization-error"] = "invalid token";
-          break;
-        }
+
+      // No access token or invalid access token, try refresh token
+      if (refreshToken.value) {
+        // TODO: Refresh auth using refreshToken
+        // return { auth: refreshedAuthData };
+        log.error(
+          "refreshToken was passed, but is not implemented on server yer",
+        )
+      }
+
+      if (!headers.authorization) {
+        return { auth: null }
+      }
+
+      const [authType = "", ...authDataParts] = headers.authorization
+        .trim()
+        .split(/\s+/)
+      const authData = authDataParts.join(" ")
+
+      if (authData === "null" && env.NODE_ENV === "development") {
+        set.headers["authorization-info"] = "Bypassed for dev"
         const auth = {
-          userId: apiKey.user.id,
-          tgId: apiKey.user.tgId.toString(),
-        };
-        issueAccessToken(auth, "1h");
-        // Not using refreshTokens for token auth
-        return { auth };
+          userId: 1,
+          tgId: env.SCHED_BOT_ADMIN_TGID.toString(),
+        }
+        issueAccessToken(auth, "5m")
+        return { auth }
       }
-      default: {
-        if (authType) {
-          set.headers["authorization-error"] = "Invalid method: " + authType;
-          log.warn(
-            "Unable to authorize user: unsupported auth type: " + authType,
-            {
-              user: "auth",
-              tag: "Ely",
-            },
-          );
+
+      switch (authType) {
+        case "tma": {
+          try {
+            tgValidate(authData, env.SCHED_BOT_TOKEN, {
+              expiresIn: 3600,
+            })
+            const data = tgParse(authData)
+            if (!data.user) {
+              set.headers["authorization-error"] =
+                "Attempt to authorize 'tma' without user.id"
+              return { auth: null }
+            }
+            let user = await db.user.findUnique({
+              where: { tgId: data.user.id },
+            })
+            // Create user if one does not exist
+            user ??= await db.user.create({ data: { tgId: data.user.id } })
+            const auth = {
+              userId: user.id,
+              tgId: user.tgId.toString(),
+            }
+            issueAccessToken(auth, "1h")
+            // Not using refreshTokens for tma auth
+            return { auth }
+          } catch (e) {
+            set.headers["authorization-error"] = JSON.stringify(e)
+            log.warn("Unable to authorize user: " + JSON.stringify(e), {
+              user: "req-tma",
+            })
+          }
+          break
+        }
+        case "Bearer": {
+          const apiKey = await validateApiKey({
+            key: authData,
+            includeUser: true,
+          })
+          if (!apiKey) {
+            set.headers["authorization-error"] = "invalid token"
+            break
+          }
+          const auth = {
+            userId: apiKey.user.id,
+            tgId: apiKey.user.tgId.toString(),
+          }
+          issueAccessToken(auth, "1h")
+          // Not using refreshTokens for token auth
+          return { auth }
+        }
+        default: {
+          if (authType) {
+            set.headers["authorization-error"] = "Invalid method: " + authType
+            log.warn(
+              "Unable to authorize user: unsupported auth type: " + authType,
+              {
+                user: "auth",
+                tag: "Ely",
+              },
+            )
+          }
         }
       }
-    }
-    return { auth: null };
-  },
-)
+      return { auth: null }
+    },
+  )
   .post(
     "/auth/login",
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async ({ body: { username, password }, status }) => {
-      return status(501, "Not implemented yet");
+      return status(501, "Not implemented yet")
     },
     {
       body: CredentialsSchema,
     },
   )
   .get("/auth", ({ auth, set }) => {
-    return { auth, error: set.headers["authorization-error"] };
+    return { auth, error: set.headers["authorization-error"] }
   })
   .get("/auth/whoami", async ({ auth, set }) => {
     const dbUser = auth?.userId
       ? await db.user.findUnique({ where: { id: auth.userId } })
-      : null;
-    const user = redactUser(dbUser);
-    return { auth, error: set.headers["authorization-error"], user };
-  });
+      : null
+    const user = redactUser(dbUser)
+    return { auth, error: set.headers["authorization-error"], user }
+  })

@@ -1,25 +1,32 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useQuery, useQueryClient, } from '@tanstack/react-query';
-import { getWeekFromDate } from '@ssau-schedule/shared/date';
-import { useState } from 'react';
-import { ArrowLeftIcon, ArrowRightIcon, LoaderCircleIcon, SearchIcon, SlidersHorizontalIcon, TriangleAlertIcon } from "lucide-react"
-import { toast } from 'sonner';
-import { Button } from '@/client/components/ui/button';
-import { getSchedule } from '@/client/api/api';
-import ScheduleViewerWithEditor from '@/client/components/ScheduleViewerWithEditor';
-import useAuth, { useAuthState } from '@/client/hooks/useAuth';
+import { createFileRoute, redirect } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getWeekFromDate } from "@ssau-schedule/shared/date"
+import { useState } from "react"
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  LoaderCircleIcon,
+  SearchIcon,
+  SlidersHorizontalIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
+import { toast } from "sonner"
+import { Button } from "@/client/components/ui/button"
+import { getSchedule } from "@/client/api/api"
+import ScheduleViewerWithEditor from "@/client/components/ScheduleViewerWithEditor"
+import useAuth, { useAuthState } from "@/client/hooks/useAuth"
 
-export const Route = createFileRoute('/schedule')({
+export const Route = createFileRoute("/schedule")({
   component: App,
-  beforeLoad: (_ctx)=>{
+  beforeLoad: (_ctx) => {
     const auth = useAuthState.getState()
     if (!auth.user) {
-      throw redirect({to: "/login"})
+      throw redirect({ to: "/login" })
     }
     if (!auth.user.groupId) {
-      throw redirect({to: "/lk/login"})
+      throw redirect({ to: "/lk/login" })
     }
-  }
+  },
 })
 
 // TODO: Better invalidateQueries
@@ -31,8 +38,8 @@ function App() {
   if (isLoading) {
     return (
       <main className="flex flex-1 flex-col items-center justify-stretch bg-slate-800 py-2 text-center text-xl text-white sm:px-2 sm:text-2xl">
-        <div className='flex min-h-[50vh] flex-col items-center justify-center'>
-          <LoaderCircleIcon size={64} className='animate-spin text-slate-400' />
+        <div className="flex min-h-[50vh] flex-col items-center justify-center">
+          <LoaderCircleIcon size={64} className="animate-spin text-slate-400" />
         </div>
       </main>
     )
@@ -41,10 +48,10 @@ function App() {
   if (!user) {
     return (
       <main className="flex flex-1 flex-col items-center justify-stretch bg-slate-800 py-2 text-center text-xl text-white sm:px-2 sm:text-2xl">
-        <div className='flex flex-col items-center gap-2 py-16'>
-          <TriangleAlertIcon size={64} className='text-red-400' />
+        <div className="flex flex-col items-center gap-2 py-16">
+          <TriangleAlertIcon size={64} className="text-red-400" />
           <a>Ошибка авторизации</a>
-          <p className='text-sm'>{authError}</p>
+          <p className="text-sm">{authError}</p>
         </div>
       </main>
     )
@@ -52,12 +59,11 @@ function App() {
   return <Schedule />
 }
 
-
 function Schedule() {
   const today = new Date()
-  const [weekNumber, setWeekNumber] = useState(getWeekFromDate(today));
+  const [weekNumber, setWeekNumber] = useState(getWeekFromDate(today))
 
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   const { isLoading, data, error } = useQuery({
     queryKey: ["schedule", weekNumber],
@@ -81,25 +87,25 @@ function Schedule() {
       retry: false,
     })
 
-
-
   function getViewer() {
     if (isLoading) {
       return (
-        <div className='flex min-h-[50vh] flex-col items-center justify-center'>
-          <LoaderCircleIcon size={64} className='animate-spin text-slate-400' />
+        <div className="flex min-h-[50vh] flex-col items-center justify-center">
+          <LoaderCircleIcon size={64} className="animate-spin text-slate-400" />
         </div>
       )
     }
 
     if (!data) {
       return (
-        <div className='flex flex-col items-center gap-2 py-16'>
-          <TriangleAlertIcon size={64} className='text-red-400' />
+        <div className="flex flex-col items-center gap-2 py-16">
+          <TriangleAlertIcon size={64} className="text-red-400" />
           <a>Произошла ошибка</a>
-          {error &&
-            <a className='text-sm'>{error.name}: {error.message}</a>
-          }
+          {error && (
+            <a className="text-sm">
+              {error.name}: {error.message}
+            </a>
+          )}
         </div>
       )
     }
@@ -109,28 +115,38 @@ function Schedule() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-stretch bg-slate-800 py-2 text-center text-xl text-white sm:px-2 sm:text-2xl">
-      <div className='flex flex-row items-center justify-between gap-4 self-stretch px-2 sm:justify-evenly'>
-        <div className='flex flex-1 flex-row justify-start gap-1'>
-          <Button className='min-w-16 grow'
-            onClick={() => setWeekNumber(weekNumber - 1)}>
-            <ArrowLeftIcon /> <span className='hidden truncate sm:block'>Предыдущая</span>
+      <div className="flex flex-row items-center justify-between gap-4 self-stretch px-2 sm:justify-evenly">
+        <div className="flex flex-1 flex-row justify-start gap-1">
+          <Button
+            className="min-w-16 grow"
+            onClick={() => setWeekNumber(weekNumber - 1)}
+          >
+            <ArrowLeftIcon />{" "}
+            <span className="hidden truncate sm:block">Предыдущая</span>
           </Button>
-          <Button className='border-2'
-            onClick={() => toast("Not implemented yet")}>
+          <Button
+            className="border-2"
+            onClick={() => toast("Not implemented yet")}
+          >
             <SearchIcon />
           </Button>
         </div>
 
-        <a className='px-2'>Неделя: {weekNumber}</a>
+        <a className="px-2">Неделя: {weekNumber}</a>
 
-        <div className='flex flex-1 flex-row justify-end gap-1'>
-          <Button className='border-2'
-            onClick={() => toast("Not implemented yet")}>
+        <div className="flex flex-1 flex-row justify-end gap-1">
+          <Button
+            className="border-2"
+            onClick={() => toast("Not implemented yet")}
+          >
             <SlidersHorizontalIcon />
           </Button>
-          <Button className='min-w-16 grow'
-            onClick={() => setWeekNumber(weekNumber + 1)}>
-            <span className='hidden truncate sm:block'>Следующая</span><ArrowRightIcon />
+          <Button
+            className="min-w-16 grow"
+            onClick={() => setWeekNumber(weekNumber + 1)}
+          >
+            <span className="hidden truncate sm:block">Следующая</span>
+            <ArrowRightIcon />
           </Button>
         </div>
       </div>

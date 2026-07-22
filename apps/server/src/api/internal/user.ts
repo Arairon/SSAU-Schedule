@@ -1,18 +1,18 @@
-import Elysia from "elysia";
-import z from "zod";
+import Elysia from "elysia"
+import z from "zod"
 
-import { db } from "@/server/db";
-import type { User } from "@/server/generated/prisma/client";
+import { db } from "@/server/db"
+import type { User } from "@/server/generated/prisma/client"
 import {
   getUserPreferences,
   UserPreferencesSchema,
-} from "@ssau-schedule/shared/utils";
-import { lk } from "@/server/ssau/lk";
+} from "@ssau-schedule/shared/utils"
+import { lk } from "@/server/ssau/lk"
 import {
   invalidateDailyNotificationsForTarget,
   scheduleDailyNotificationsForUser,
-} from "@/server/lib/tasks";
-import { getUserIcsByUserId } from "@/server/schedule/ics";
+} from "@/server/lib/tasks"
+import { getUserIcsByUserId } from "@/server/schedule/ics"
 
 export const UserSchema = z.object({
   id: z.number(),
@@ -31,29 +31,29 @@ export const UserSchema = z.object({
   lastActive: z.date(),
   createdAt: z.date(),
   updatedAt: z.date(),
-});
+})
 
-export type UserType = z.infer<typeof UserSchema>;
+export type UserType = z.infer<typeof UserSchema>
 
 export const RedactedUserSchema = UserSchema.extend({
   tgId: z.string(),
   password: z.string().nullable(),
   authCookie: z.boolean(),
-});
+})
 
-export type RedactedUser = z.infer<typeof RedactedUserSchema>;
+export type RedactedUser = z.infer<typeof RedactedUserSchema>
 
 export const RedactedUserWithGroupSchema = RedactedUserSchema.extend({
   group: z.object({ id: z.number(), name: z.string() }).nullable(),
-});
+})
 
-export type RedactedUserWithGroup = z.infer<typeof RedactedUserWithGroupSchema>;
+export type RedactedUserWithGroup = z.infer<typeof RedactedUserWithGroupSchema>
 
 export const LkLoginBodySchema = z.object({
   username: z.string(),
   password: z.string(),
   saveCredentials: z.boolean(),
-});
+})
 
 export function redactUser(user: User): z.infer<typeof RedactedUserSchema> {
   return {
@@ -62,7 +62,7 @@ export function redactUser(user: User): z.infer<typeof RedactedUserSchema> {
     tgId: user.tgId.toString(),
     password: user.password ? "redacted" : null,
     authCookie: !!user.authCookie,
-  };
+  }
 }
 
 export function redactUserWithGroup(
@@ -74,7 +74,7 @@ export function redactUserWithGroup(
     tgId: user.tgId.toString(),
     password: user.password ? "redacted" : null,
     authCookie: !!user.authCookie,
-  };
+  }
 }
 
 export const UserUpdateRequestSchema = z.object({
@@ -82,7 +82,7 @@ export const UserUpdateRequestSchema = z.object({
   preferences: UserPreferencesSchema,
   subgroup: z.number().nullable(),
   allowsAccountProxyUse: z.boolean(),
-});
+})
 
 const icsSchema = z.object({
   id: z.number(),
@@ -91,7 +91,7 @@ const icsSchema = z.object({
   data: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
-});
+})
 
 export const app = new Elysia()
   .post(
@@ -99,8 +99,8 @@ export const app = new Elysia()
     async ({ body }) => {
       const res = await db.user.create({
         data: body,
-      });
-      return redactUser(res);
+      })
+      return redactUser(res)
     },
     {
       body: z.object({
@@ -117,10 +117,10 @@ export const app = new Elysia()
       const user = await db.user.findUnique({
         where: { id: params.id },
         include: { group: true },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      return redactUserWithGroup(user);
+      return redactUserWithGroup(user)
     },
     {
       params: z.object({
@@ -138,10 +138,10 @@ export const app = new Elysia()
       const user = await db.user.findUnique({
         where: { tgId: params.id },
         include: { group: true },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      return redactUserWithGroup(user);
+      return redactUserWithGroup(user)
     },
     {
       params: z.object({
@@ -158,16 +158,16 @@ export const app = new Elysia()
     async ({ params, body, status }) => {
       const user = await db.user.findUnique({
         where: { id: params.id },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
       const updatedUser = await db.user.update({
         where: { id: user.id },
         data: body,
         include: { group: true },
-      });
+      })
 
-      return redactUserWithGroup(updatedUser);
+      return redactUserWithGroup(updatedUser)
     },
     {
       params: z.object({
@@ -185,14 +185,14 @@ export const app = new Elysia()
     async ({ params, status }) => {
       const user = await db.user.findUnique({
         where: { id: params.id },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
       await db.user.delete({
         where: { id: user.id },
-      });
+      })
 
-      return "User deleted";
+      return "User deleted"
     },
     {
       params: z.object({
@@ -207,32 +207,32 @@ export const app = new Elysia()
   .post(
     "/id/:id/lk/login",
     async ({ body, params, status }) => {
-      const user = (await db.user.findUnique({ where: { id: params.id } }))!;
-      const result = await lk.login(user, body);
+      const user = (await db.user.findUnique({ where: { id: params.id } }))!
+      const result = await lk.login(user, body)
 
       if (result.ok) {
-        const res = await lk.updateUserInfo(user);
+        const res = await lk.updateUserInfo(user)
         if (res.ok) {
           const updatedUser = await db.user.findUnique({
             where: { id: user.id },
-          });
+          })
           return {
             success: true,
             error: null,
             user: redactUser(updatedUser!),
-          };
+          }
         } else {
           return status(400, {
             success: false,
             error: `${res.error}: ${res.message}`,
-          });
+          })
         }
       }
 
       return status(400, {
         success: false,
         error: `${result.error}: ${result.message}`,
-      });
+      })
     },
     {
       params: z.object({
@@ -255,22 +255,22 @@ export const app = new Elysia()
   .post(
     "/id/:id/lk/updateInfo",
     async ({ params, status, query }) => {
-      const user = (await db.user.findUnique({ where: { id: params.id } }))!;
+      const user = (await db.user.findUnique({ where: { id: params.id } }))!
 
       const res = await lk.updateUserInfo(user, {
         overrideGroup: query.overrideGroup,
-      });
+      })
       if (res.ok) {
         return {
           success: true,
           error: null,
           user: redactUser(res.data),
-        };
+        }
       } else {
         return status(400, {
           success: false,
           error: `${res.error}: ${res.message}`,
-        });
+        })
       }
     },
     {
@@ -299,7 +299,7 @@ export const app = new Elysia()
   .post(
     "/id/:id/lk/saveCredentials",
     ({ params, body }) => {
-      return lk.saveCredentials(params.id, body);
+      return lk.saveCredentials(params.id, body)
     },
     {
       params: z.object({
@@ -317,7 +317,7 @@ export const app = new Elysia()
   .post(
     "/id/:id/lk/clearCredentials",
     async ({ params }) => {
-      await lk.resetAuth(params.id, { resetCredentials: true });
+      await lk.resetAuth(params.id, { resetCredentials: true })
     },
     {
       params: z.object({
@@ -331,12 +331,12 @@ export const app = new Elysia()
   .post(
     "/id/:id/notifications/clear",
     async ({ params, status }) => {
-      const user = await db.user.findUnique({ where: { id: params.id } });
-      if (!user) return status(404, "User not found");
+      const user = await db.user.findUnique({ where: { id: params.id } })
+      if (!user) return status(404, "User not found")
       const res = await invalidateDailyNotificationsForTarget(
         user.tgId.toString(),
-      );
-      return { cleared: res.count };
+      )
+      return { cleared: res.count }
     },
     {
       params: z.object({
@@ -351,13 +351,13 @@ export const app = new Elysia()
   .post(
     "/id/:id/notifications/reschedule",
     async ({ params, status }) => {
-      const user = await db.user.findUnique({ where: { id: params.id } });
-      if (!user) return status(404, "User not found");
+      const user = await db.user.findUnique({ where: { id: params.id } })
+      if (!user) return status(404, "User not found")
       const cleared = await invalidateDailyNotificationsForTarget(
         user.tgId.toString(),
-      );
-      const scheduled = await scheduleDailyNotificationsForUser(user);
-      return { cleared: cleared.count, scheduled: scheduled?.count ?? 0 };
+      )
+      const scheduled = await scheduleDailyNotificationsForUser(user)
+      return { cleared: cleared.count, scheduled: scheduled?.count ?? 0 }
     },
     {
       params: z.object({
@@ -374,11 +374,11 @@ export const app = new Elysia()
     async ({ params, status }) => {
       const cal: z.infer<typeof icsSchema> | null = await getUserIcsByUserId(
         params.id,
-      );
+      )
       if (!cal) {
-        return status(500, "Failed to generate ICS");
+        return status(500, "Failed to generate ICS")
       }
-      return cal;
+      return cal
     },
     {
       params: z.object({
@@ -393,14 +393,14 @@ export const app = new Elysia()
   .get(
     "/all",
     async () => {
-      const users = await db.user.findMany();
+      const users = await db.user.findMany()
       return users.map(redactUser) as unknown as z.infer<
         typeof RedactedUserSchema
-      >[];
+      >[]
     },
     {
       response: {
         200: z.array(RedactedUserSchema),
       },
     },
-  );
+  )

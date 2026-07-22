@@ -1,14 +1,14 @@
-import type { User } from "@/server/generated/prisma/client";
-import { LessonType } from "@/server/generated/prisma/client";
-import { formatSentence, md5, formatBigInt } from "@ssau-schedule/shared/utils";
+import type { User } from "@/server/generated/prisma/client"
+import { LessonType } from "@/server/generated/prisma/client"
+import { formatSentence, md5, formatBigInt } from "@ssau-schedule/shared/utils"
 import {
   getLessonDate,
   getWeekFromDate,
   getCurrentYearId,
-} from "@ssau-schedule/shared/date";
-import { db } from "@/server/db";
-import { lk } from "../ssau/lk";
-import log from "@/server/logger";
+} from "@ssau-schedule/shared/date"
+import { db } from "@/server/db"
+import { lk } from "../ssau/lk"
+import log from "@/server/logger"
 import type {
   DrawableLesson,
   DrawableTimetable,
@@ -17,51 +17,55 @@ import type {
   TimetableDay,
   TimetableDiff,
   TimetableLesson,
-} from "@ssau-schedule/shared/timetable";
-import { getWeek, getWeekLessons, getWeekTeacherLessons } from "@/server/lib/week";
-import { applyCustomization } from "./customLesson";
-import { convertLessonToTimetableLesson } from "@ssau-schedule/shared/misc";
+} from "@ssau-schedule/shared/timetable"
+import {
+  getWeek,
+  getWeekLessons,
+  getWeekTeacherLessons,
+} from "@/server/lib/week"
+import { applyCustomization } from "./customLesson"
+import { convertLessonToTimetableLesson } from "@ssau-schedule/shared/misc"
 
 function compareLessonSubgroup(
   left: TimetableLesson,
   right: TimetableLesson,
 ): number {
-  const leftSubgroup = left.subgroup ?? -1;
-  const rightSubgroup = right.subgroup ?? -1;
-  if (leftSubgroup !== rightSubgroup) return leftSubgroup - rightSubgroup;
+  const leftSubgroup = left.subgroup ?? -1
+  const rightSubgroup = right.subgroup ?? -1
+  if (leftSubgroup !== rightSubgroup) return leftSubgroup - rightSubgroup
 
-  if (left.id !== right.id) return left.id - right.id;
-  return left.discipline.localeCompare(right.discipline);
+  if (left.id !== right.id) return left.id - right.id
+  return left.discipline.localeCompare(right.discipline)
 }
 
 function addLessonToDay(day: TimetableDay, lesson: TimetableLesson): void {
   const sameSlotLessons = day.lessons.filter(
     (existing) => existing.dayTimeSlot === lesson.dayTimeSlot,
-  );
+  )
 
   if (sameSlotLessons.length === 0) {
-    day.lessonCount += 1;
-    day.lessons.push(lesson);
-    return;
+    day.lessonCount += 1
+    day.lessons.push(lesson)
+    return
   }
 
   const mergedLessons = [
     lesson,
     ...sameSlotLessons,
     ...sameSlotLessons.flatMap((existing) => existing.alts),
-  ];
+  ]
   mergedLessons.forEach((entry) => {
-    entry.alts = [];
-  });
-  mergedLessons.sort(compareLessonSubgroup);
+    entry.alts = []
+  })
+  mergedLessons.sort(compareLessonSubgroup)
 
-  const primaryLesson = mergedLessons[0];
-  primaryLesson.alts = mergedLessons.slice(1);
+  const primaryLesson = mergedLessons[0]
+  primaryLesson.alts = mergedLessons.slice(1)
 
   day.lessons = day.lessons.filter(
     (existing) => !sameSlotLessons.includes(existing),
-  );
-  day.lessons.push(primaryLesson);
+  )
+  day.lessons.push(primaryLesson)
 }
 
 export async function generateTimetableDays(
@@ -69,11 +73,11 @@ export async function generateTimetableDays(
   lessons: Awaited<ReturnType<typeof getWeekLessons>>,
   subgroup: number | null = null,
 ): Promise<TimetableDay[]> {
-  const days: TimetableDay[] = [];
+  const days: TimetableDay[] = []
   // Fill base with empty days
   for (let dayNumber = 1; dayNumber <= 6; dayNumber++) {
     // Sundays not supported. Hopefully won't have to add them later...
-    const date = getLessonDate(weekNumber, dayNumber);
+    const date = getLessonDate(weekNumber, dayNumber)
     const dayTimetable: TimetableDay = {
       // user: user.id,
       week: weekNumber,
@@ -82,41 +86,41 @@ export async function generateTimetableDays(
       endTime: date, // same
       lessons: [],
       lessonCount: 0,
-    };
-    days.push(dayTimetable);
+    }
+    days.push(dayTimetable)
   }
 
-  const customLessons = lessons.customLessons;
+  const customLessons = lessons.customLessons
 
   // Run through all the lessons and add them to the timetable, applying customizations if needed
   for (const lesson of lessons.all) {
-    const timetableLesson = convertLessonToTimetableLesson(lesson);
+    const timetableLesson = convertLessonToTimetableLesson(lesson)
 
-    const customLesson = customLessons.find((i) => i.lessonId === lesson.id);
-    if (customLesson && customLesson.weekNumber !== weekNumber) continue; // Lesson was moved to another week
-    if (!customLesson && lesson.weekNumber !== weekNumber) continue; // Lesson is from another week and was not moved to current by CustomLesson
+    const customLesson = customLessons.find((i) => i.lessonId === lesson.id)
+    if (customLesson && customLesson.weekNumber !== weekNumber) continue // Lesson was moved to another week
+    if (!customLesson && lesson.weekNumber !== weekNumber) continue // Lesson is from another week and was not moved to current by CustomLesson
     if (customLesson) {
-      applyCustomization(timetableLesson, customLesson);
+      applyCustomization(timetableLesson, customLesson)
     }
 
-    const day = days[lesson.weekday - 1];
+    const day = days[lesson.weekday - 1]
     if (
       subgroup &&
       timetableLesson.subgroup &&
       subgroup !== timetableLesson.subgroup
     )
-      continue;
+      continue
 
     day.beginTime =
       timetableLesson.beginTime < day.beginTime
         ? timetableLesson.beginTime
-        : day.beginTime;
+        : day.beginTime
     day.endTime =
       timetableLesson.endTime > day.endTime
         ? timetableLesson.endTime
-        : day.endTime;
+        : day.endTime
 
-    addLessonToDay(day, timetableLesson);
+    addLessonToDay(day, timetableLesson)
   }
 
   // Run through all customLessons that don't have a lessonId and add them as new lessons to the timetable
@@ -151,64 +155,64 @@ export async function generateTimetableDays(
           customizedBy: i.userId,
         },
         original: null,
-      };
+      }
 
-      const day = days[i.weekday - 1];
-      if (subgroup && lesson.subgroup && subgroup !== lesson.subgroup) return;
+      const day = days[i.weekday - 1]
+      if (subgroup && lesson.subgroup && subgroup !== lesson.subgroup) return
       day.beginTime =
-        lesson.beginTime < day.beginTime ? lesson.beginTime : day.beginTime;
-      day.endTime = lesson.endTime > day.endTime ? lesson.endTime : day.endTime;
+        lesson.beginTime < day.beginTime ? lesson.beginTime : day.beginTime
+      day.endTime = lesson.endTime > day.endTime ? lesson.endTime : day.endTime
 
-      addLessonToDay(day, lesson);
-    });
+      addLessonToDay(day, lesson)
+    })
 
   // Sort lessons in each day by time
   for (const day of days) {
-    day.lessons.sort((a, b) => a.dayTimeSlot - b.dayTimeSlot);
+    day.lessons.sort((a, b) => a.dayTimeSlot - b.dayTimeSlot)
     if (day.lessonCount === 0) {
-      const t = day.beginTime;
-      day.beginTime = day.endTime;
-      day.endTime = t;
+      const t = day.beginTime
+      day.beginTime = day.endTime
+      day.endTime = t
     }
   }
 
-  return days;
+  return days
 }
 
 export async function generateTimetable(
   user: User,
   weekN: number,
   opts?: {
-    groupId?: number; // User requests a group's schedule instead of personal.
-    year?: number;
-    dontCache?: boolean;
-    ignoreIet?: boolean;
-    ignoreSubgroup?: boolean;
-    loggingTag?: string;
+    groupId?: number // User requests a group's schedule instead of personal.
+    year?: number
+    dontCache?: boolean
+    ignoreIet?: boolean
+    ignoreSubgroup?: boolean
+    loggingTag?: string
   },
 ): Promise<Timetable> {
-  const startTime = process.hrtime.bigint();
-  const now = new Date();
-  const weekNumber = weekN || getWeekFromDate(now);
-  const year = (opts?.year ?? 0) || getCurrentYearId();
-  const groupId = opts?.groupId ?? user.groupId;
+  const startTime = process.hrtime.bigint()
+  const now = new Date()
+  const weekNumber = weekN || getWeekFromDate(now)
+  const year = (opts?.year ?? 0) || getCurrentYearId()
+  const groupId = opts?.groupId ?? user.groupId
 
   if (!groupId) {
     log.error(`Groupless user @getWeekTimetable`, {
       user: user.id,
       tag: opts?.loggingTag,
-    });
-    void lk.updateUserInfo(user);
-    throw new Error(`Groupless user @getWeekTimetable`);
+    })
+    void lk.updateUserInfo(user)
+    throw new Error(`Groupless user @getWeekTimetable`)
   }
 
   const week = await getWeek(user, weekN, {
     year,
     groupId,
     nonPersonal: !!opts?.groupId,
-  });
-  const isNonPersonal = week.owner === 0; // NonPersonal -> ignore iets and subgroup options
-  const subgroup = isNonPersonal || opts?.ignoreSubgroup ? null : user.subgroup;
+  })
+  const isNonPersonal = week.owner === 0 // NonPersonal -> ignore iets and subgroup options
+  const subgroup = isNonPersonal || opts?.ignoreSubgroup ? null : user.subgroup
 
   log.debug(
     `Week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number}) Generating timetable`,
@@ -216,13 +220,13 @@ export async function generateTimetable(
       user: user.id,
       tag: opts?.loggingTag,
     },
-  );
+  )
 
   const lessons = await getWeekLessons(user, weekNumber, week.groupId, {
     ignoreIet: (opts?.ignoreIet ?? false) || isNonPersonal,
     ignorePreferences: isNonPersonal,
     ignoreCustomizations: isNonPersonal,
-  });
+  })
 
   // Create base
   const timetable: Timetable = {
@@ -235,11 +239,11 @@ export async function generateTimetable(
     //withIet: (opts?.ignoreIet ?? false) || weekIsCommon,
     //isCommon: weekIsCommon,
     days: [],
-  };
+  }
 
-  timetable.days = await generateTimetableDays(weekNumber, lessons, subgroup);
+  timetable.days = await generateTimetableDays(weekNumber, lessons, subgroup)
 
-  timetable.hash = getTimetableHash(timetable);
+  timetable.hash = getTimetableHash(timetable)
 
   if (!opts?.dontCache) {
     await db.week.update({
@@ -256,19 +260,19 @@ export async function generateTimetable(
         //   },
         // },
       },
-    });
+    })
     await db.weekImage.updateMany({
       where: { timetableHash: timetable.hash },
       data: { validUntil: new Date(Date.now() + 4 * 604800_000) }, // 4 weeks
-    });
+    })
   }
   log.debug(
     `Generated timetable for week #${week.id} in ${formatBigInt(
       process.hrtime.bigint() - startTime,
     )}ns`,
     { user: user.id, tag: opts?.loggingTag },
-  );
-  return timetable;
+  )
+  return timetable
 }
 
 export async function generateTeacherTimetable(
@@ -276,20 +280,20 @@ export async function generateTeacherTimetable(
   weekN: number,
   teacherId: number,
   opts?: {
-    year?: number;
-    dontCache?: boolean;
-    loggingTag?: string;
+    year?: number
+    dontCache?: boolean
+    loggingTag?: string
   },
 ) {
-  const startTime = process.hrtime.bigint();
-  const now = new Date();
-  const weekNumber = weekN || getWeekFromDate(now);
-  const year = (opts?.year ?? 0) || getCurrentYearId();
+  const startTime = process.hrtime.bigint()
+  const now = new Date()
+  const weekNumber = weekN || getWeekFromDate(now)
+  const year = (opts?.year ?? 0) || getCurrentYearId()
 
   const teacher = await db.teacher.findUnique({
     where: { id: teacherId },
-  });
-  const lessons = await getWeekTeacherLessons(teacherId, weekNumber);
+  })
+  const lessons = await getWeekTeacherLessons(teacherId, weekNumber)
 
   const timetable: TeacherTimetable = {
     teacherId,
@@ -298,35 +302,35 @@ export async function generateTeacherTimetable(
     week: weekNumber,
     days: [],
     hash: "", // Will be set later, after generating the timetable
-  };
+  }
 
   timetable.days = await generateTimetableDays(weekNumber, {
     all: lessons,
     customLessons: [],
-  });
+  })
 
-  timetable.hash = getTimetableHash(timetable);
+  timetable.hash = getTimetableHash(timetable)
   log.debug(
     `Generated timetable for teacher #${teacherId} in ${formatBigInt(
       process.hrtime.bigint() - startTime,
     )}ns`,
     { user: user.id, tag: opts?.loggingTag },
-  );
+  )
 
-  return timetable;
+  return timetable
 }
 
 export function flattenLesson<T extends DrawableLesson>(lesson: T): T[] {
-  if (!lesson.alts || lesson.alts.length === 0) return [lesson];
-  return [lesson, ...(lesson.alts as T[]).flatMap(flattenLesson)];
+  if (!lesson.alts || lesson.alts.length === 0) return [lesson]
+  return [lesson, ...(lesson.alts as T[]).flatMap(flattenLesson)]
 }
 
-export function flattenTimetable<T extends DrawableLesson>(
-  timetable: { days: { lessons: T[] }[] },
-): T[] {
+export function flattenTimetable<T extends DrawableLesson>(timetable: {
+  days: { lessons: T[] }[]
+}): T[] {
   return timetable.days.flatMap((day) =>
     day.lessons.flatMap((lesson) => flattenLesson(lesson)),
-  );
+  )
 }
 
 // // Was used for hashing
@@ -384,56 +388,53 @@ function normalizeDrawableLesson(lesson: DrawableLesson): DrawableLesson {
   }
 }
 
-export function getTimetableHash(
-  timetable: DrawableTimetable,
-): string {
+export function getTimetableHash(timetable: DrawableTimetable): string {
   const normalizedLessons = flattenTimetable(timetable).map(
     normalizeDrawableLesson,
-  );
+  )
 
   const sortKeys = [
     "beginTime",
     "dayTimeSlot",
     "discipline",
     "room",
-    "subgroup"
+    "subgroup",
   ] as const
 
   normalizedLessons.sort((a, b) => {
     for (const key of sortKeys) {
-      const left = a[key];
-      const right = b[key];
-      if (left === right) continue;
+      const left = a[key]
+      const right = b[key]
+      if (left === right) continue
       if (typeof left === "number" && typeof right === "number") {
-        return left - right;
+        return left - right
       }
       if (left instanceof Date && right instanceof Date) {
-        return left.getTime() - right.getTime();
+        return left.getTime() - right.getTime()
       }
-      const leftStr = String(left);
-      const rightStr = String(right);
-      if (leftStr < rightStr) return -1;
-      if (leftStr > rightStr) return 1;
+      const leftStr = String(left)
+      const rightStr = String(right)
+      if (leftStr < rightStr) return -1
+      if (leftStr > rightStr) return 1
     }
-    return 0;
-  });
+    return 0
+  })
 
   return md5(
     JSON.stringify({
       week: timetable.week,
       lessons: normalizedLessons,
     }),
-  );
+  )
 }
 
 export function getTimetablesDiff(
   oldTimetable: Timetable,
   newTimetable: Timetable,
 ): TimetableDiff | null {
-  const added: TimetableLesson[] = [];
-  const removed: TimetableLesson[] = [];
-  const modified: { old: Partial<TimetableLesson>; new: TimetableLesson }[] =
-    [];
+  const added: TimetableLesson[] = []
+  const removed: TimetableLesson[] = []
+  const modified: { old: Partial<TimetableLesson>; new: TimetableLesson }[] = []
 
   const normalizeLesson = (lesson: TimetableLesson) => ({
     id: lesson.id,
@@ -455,16 +456,16 @@ export function getTimetablesDiff(
     conferenceUrl: lesson.conferenceUrl,
     customized: lesson.customized
       ? {
-        hidden: lesson.customized.hidden,
-        disabled: lesson.customized.disabled,
-        comment: lesson.customized.comment,
-        customizedBy: lesson.customized.customizedBy,
-      }
+          hidden: lesson.customized.hidden,
+          disabled: lesson.customized.disabled,
+          comment: lesson.customized.comment,
+          customizedBy: lesson.customized.customizedBy,
+        }
       : null,
-  });
+  })
 
   const getLessonKey = (lesson: TimetableLesson) =>
-    JSON.stringify(normalizeLesson(lesson));
+    JSON.stringify(normalizeLesson(lesson))
 
   const getModifiedKey = (lesson: TimetableLesson) =>
     JSON.stringify({
@@ -473,129 +474,129 @@ export function getTimetablesDiff(
       type: lesson.type,
       beginTime: new Date(lesson.beginTime).getTime(),
       endTime: new Date(lesson.endTime).getTime(),
-    });
+    })
 
   const normalizedToLessonKey: Record<string, string> = {
     teacherName: "teacher",
     teacherId: "teacher",
     isOnline: "isOnline",
-  };
+  }
 
   const getChangedOldFields = (
     oldLesson: TimetableLesson,
     newLesson: TimetableLesson,
   ): Partial<TimetableLesson> => {
-    const oldNormalized = normalizeLesson(oldLesson);
-    const newNormalized = normalizeLesson(newLesson);
-    const oldChanged: Partial<TimetableLesson> = {};
+    const oldNormalized = normalizeLesson(oldLesson)
+    const newNormalized = normalizeLesson(newLesson)
+    const oldChanged: Partial<TimetableLesson> = {}
 
-    const oldLessonRecord = oldLesson as unknown as Record<string, unknown>;
-    const oldChangedRecord = oldChanged as unknown as Record<string, unknown>;
+    const oldLessonRecord = oldLesson as unknown as Record<string, unknown>
+    const oldChangedRecord = oldChanged as unknown as Record<string, unknown>
 
     for (const [normalizedKey, oldValue] of Object.entries(oldNormalized) as [
       keyof typeof oldNormalized,
       unknown,
     ][]) {
-      const newValue = newNormalized[normalizedKey];
-      if (JSON.stringify(oldValue) === JSON.stringify(newValue)) continue;
+      const newValue = newNormalized[normalizedKey]
+      if (JSON.stringify(oldValue) === JSON.stringify(newValue)) continue
 
-      const lessonKey = normalizedToLessonKey[normalizedKey] ?? normalizedKey;
-      oldChangedRecord[lessonKey] = oldLessonRecord[lessonKey];
+      const lessonKey = normalizedToLessonKey[normalizedKey] ?? normalizedKey
+      oldChangedRecord[lessonKey] = oldLessonRecord[lessonKey]
     }
 
-    return oldChanged;
-  };
+    return oldChanged
+  }
 
-  const oldByKey = new Map<string, TimetableLesson[]>();
-  const newByKey = new Map<string, TimetableLesson[]>();
+  const oldByKey = new Map<string, TimetableLesson[]>()
+  const newByKey = new Map<string, TimetableLesson[]>()
 
   for (const lesson of flattenTimetable(oldTimetable)) {
-    const key = getLessonKey(lesson);
-    const bucket = oldByKey.get(key);
+    const key = getLessonKey(lesson)
+    const bucket = oldByKey.get(key)
     if (bucket) {
-      bucket.push(lesson);
+      bucket.push(lesson)
     } else {
-      oldByKey.set(key, [lesson]);
+      oldByKey.set(key, [lesson])
     }
   }
 
   for (const lesson of flattenTimetable(newTimetable)) {
-    const key = getLessonKey(lesson);
-    const bucket = newByKey.get(key);
+    const key = getLessonKey(lesson)
+    const bucket = newByKey.get(key)
     if (bucket) {
-      bucket.push(lesson);
+      bucket.push(lesson)
     } else {
-      newByKey.set(key, [lesson]);
+      newByKey.set(key, [lesson])
     }
   }
 
-  const keys = new Set([...oldByKey.keys(), ...newByKey.keys()]);
-  const unmatchedRemoved: TimetableLesson[] = [];
-  const unmatchedAdded: TimetableLesson[] = [];
+  const keys = new Set([...oldByKey.keys(), ...newByKey.keys()])
+  const unmatchedRemoved: TimetableLesson[] = []
+  const unmatchedAdded: TimetableLesson[] = []
 
   for (const key of keys) {
-    const oldLessons = oldByKey.get(key) ?? [];
-    const newLessons = newByKey.get(key) ?? [];
-    const matchedCount = Math.min(oldLessons.length, newLessons.length);
+    const oldLessons = oldByKey.get(key) ?? []
+    const newLessons = newByKey.get(key) ?? []
+    const matchedCount = Math.min(oldLessons.length, newLessons.length)
 
     for (let i = 0; i < matchedCount; i++) {
-      oldLessons.pop();
-      newLessons.pop();
+      oldLessons.pop()
+      newLessons.pop()
     }
 
     if (oldLessons.length > 0) {
-      unmatchedRemoved.push(...oldLessons);
+      unmatchedRemoved.push(...oldLessons)
     }
     if (newLessons.length > 0) {
-      unmatchedAdded.push(...newLessons);
+      unmatchedAdded.push(...newLessons)
     }
   }
 
   // Reclassify add/remove pairs as modified when they have the same
   // discipline, type and start/end time.
-  const addedByModifiedKey = new Map<string, TimetableLesson[]>();
+  const addedByModifiedKey = new Map<string, TimetableLesson[]>()
   for (const lesson of unmatchedAdded) {
-    const key = getModifiedKey(lesson);
-    const bucket = addedByModifiedKey.get(key);
+    const key = getModifiedKey(lesson)
+    const bucket = addedByModifiedKey.get(key)
     if (bucket) {
-      bucket.push(lesson);
+      bucket.push(lesson)
     } else {
-      addedByModifiedKey.set(key, [lesson]);
+      addedByModifiedKey.set(key, [lesson])
     }
   }
 
   for (const oldLesson of unmatchedRemoved) {
-    const key = getModifiedKey(oldLesson);
-    const candidates = addedByModifiedKey.get(key);
+    const key = getModifiedKey(oldLesson)
+    const candidates = addedByModifiedKey.get(key)
 
     if (candidates && candidates.length > 0) {
-      const newLesson = candidates.pop();
+      const newLesson = candidates.pop()
       if (newLesson) {
         modified.push({
           old: getChangedOldFields(oldLesson, newLesson),
           new: newLesson,
-        });
+        })
       }
       if (candidates.length === 0) {
-        addedByModifiedKey.delete(key);
+        addedByModifiedKey.delete(key)
       }
-      continue;
+      continue
     }
 
-    removed.push(oldLesson);
+    removed.push(oldLesson)
   }
 
   for (const lessons of addedByModifiedKey.values()) {
-    added.push(...lessons);
+    added.push(...lessons)
   }
 
   if (added.length === 0 && removed.length === 0 && modified.length === 0) {
-    return null;
+    return null
   }
 
   return {
     added,
     removed,
     modified,
-  };
+  }
 }

@@ -1,55 +1,55 @@
-import { Elysia } from "elysia";
+import { Elysia } from "elysia"
 import {
   dailyUpdate,
   invalidateDailyNotificationsForAll,
   scheduleDailyNotificationsForAll,
   uploadWeekImagesWithoutTgId,
-} from "@/server/lib/tasks";
-import { db } from "@/server/db";
-import z from "zod";
+} from "@/server/lib/tasks"
+import { db } from "@/server/db"
+import z from "zod"
 
 export const app = new Elysia()
   .post("/dailyWeekUpdate", () => {
-    return dailyUpdate();
+    return dailyUpdate()
   })
   .post("/invalidateDailyNotificationsForAll", async () => {
-    const res = await invalidateDailyNotificationsForAll();
-    return res as { count: number };
+    const res = await invalidateDailyNotificationsForAll()
+    return res as { count: number }
   })
   .post("/scheduleDailyNotificationsForAll", async () => {
-    const res = await scheduleDailyNotificationsForAll();
-    return { count: res } as { count: number };
+    const res = await scheduleDailyNotificationsForAll()
+    return { count: res } as { count: number }
   })
   .post("/uploadWeekImagesWithoutTgId", async () => {
-    const res = await uploadWeekImagesWithoutTgId();
+    const res = await uploadWeekImagesWithoutTgId()
     return res as {
-      total: number;
-      uploaded: number;
-      failed: number;
-      totalWallMs: number;
-      totalImageMs: number;
-      avgImageMs: number;
-    };
+      total: number
+      uploaded: number
+      failed: number
+      totalWallMs: number
+      totalImageMs: number
+      avgImageMs: number
+    }
   })
   .get("/unoploadedWeekImagesCount", async () => {
-    const count = await db.weekImage.count({ where: { tgId: null } });
-    return { count } as { count: number };
+    const count = await db.weekImage.count({ where: { tgId: null } })
+    return { count } as { count: number }
   })
   .post("/clearNotifications", async () => {
-    const epoch = new Date(0);
+    const epoch = new Date(0)
     const res = await db.scheduledMessage.updateMany({
       where: { wasSentAt: null },
       data: { wasSentAt: epoch },
-    });
-    return res as { count: number };
+    })
+    return res as { count: number }
   })
   .post(
     "/scheduleMessages",
     async ({ body }) => {
       const res = await db.scheduledMessage.createMany({
         data: body,
-      });
-      return res as { count: number };
+      })
+      return res as { count: number }
     },
     {
       body: z.array(
@@ -104,16 +104,16 @@ export const app = new Elysia()
           },
         })
       ).map((i) => ({ source: i.source, count: i._count._all })),
-    };
+    }
     return stats as {
-      usersCount: number;
-      usersActiveInLastMonth: number;
-      usersLoggedIn: number;
-      usersLoggedInInLastMonth: number;
-      weekCount: number;
-      weekImageCount: number;
-      userIcsCount: number;
-      groupIcsCount: number;
-      notifications: { source: string; count: number }[];
-    };
-  });
+      usersCount: number
+      usersActiveInLastMonth: number
+      usersLoggedIn: number
+      usersLoggedInInLastMonth: number
+      weekCount: number
+      weekImageCount: number
+      userIcsCount: number
+      groupIcsCount: number
+      notifications: { source: string; count: number }[]
+    }
+  })

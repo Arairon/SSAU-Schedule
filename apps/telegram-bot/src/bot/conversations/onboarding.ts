@@ -1,60 +1,56 @@
-import {
-  InlineKeyboard,
-  type Bot,
-  type Context as GrammyContext,
-} from "grammy";
-import { type Conversation, createConversation } from "@grammyjs/conversations";
+import { InlineKeyboard, type Bot, type Context as GrammyContext } from "grammy"
+import { type Conversation, createConversation } from "@grammyjs/conversations"
 
-import type { Context } from "../types";
-import log from "@/bot/logger";
-import { getUserPreferences } from "@ssau-schedule/shared/utils";
-import { stylemaps } from "@ssau-schedule/shared/themes/index";
-import { getPersonShortname } from "@ssau-schedule/shared/utils";
-import { changeUserGroupById } from "./groupChange";
-import { api } from "@/bot/serverClient";
+import type { Context } from "../types"
+import log from "@/bot/logger"
+import { getUserPreferences } from "@ssau-schedule/shared/utils"
+import { stylemaps } from "@ssau-schedule/shared/themes/index"
+import { getPersonShortname } from "@ssau-schedule/shared/utils"
+import { changeUserGroupById } from "./groupChange"
+import { api } from "@/bot/serverClient"
 
-const ONBOARD_CANCEL = "onboard_cancel";
-const ONBOARD_MODE_AUTHED = "onboard_mode_authed";
-const ONBOARD_MODE_UNAUTHED = "onboard_mode_unauthed";
+const ONBOARD_CANCEL = "onboard_cancel"
+const ONBOARD_MODE_AUTHED = "onboard_mode_authed"
+const ONBOARD_MODE_UNAUTHED = "onboard_mode_unauthed"
 
-const ONBOARD_GROUP_KEEP_LK = "onboard_group_keep_lk";
-const ONBOARD_GROUP_CHANGE = "onboard_group_change";
-const ONBOARD_GROUP_SELECT_PREFIX = "onboard_group_select_";
+const ONBOARD_GROUP_KEEP_LK = "onboard_group_keep_lk"
+const ONBOARD_GROUP_CHANGE = "onboard_group_change"
+const ONBOARD_GROUP_SELECT_PREFIX = "onboard_group_select_"
 
-const ONBOARD_THEME_PREFIX = "onboard_theme_";
+const ONBOARD_THEME_PREFIX = "onboard_theme_"
 
-const ONBOARD_SUBGROUP_BOTH = "onboard_subgroup_0";
-const ONBOARD_SUBGROUP_1 = "onboard_subgroup_1";
-const ONBOARD_SUBGROUP_2 = "onboard_subgroup_2";
+const ONBOARD_SUBGROUP_BOTH = "onboard_subgroup_0"
+const ONBOARD_SUBGROUP_1 = "onboard_subgroup_1"
+const ONBOARD_SUBGROUP_2 = "onboard_subgroup_2"
 
-const ONBOARD_NOTIFY_ENABLE = "onboard_notify_enable";
-const ONBOARD_NOTIFY_DISABLE = "onboard_notify_disable";
+const ONBOARD_NOTIFY_ENABLE = "onboard_notify_enable"
+const ONBOARD_NOTIFY_DISABLE = "onboard_notify_disable"
 
-const ONBOARD_PROXY_ALLOW = "onboard_proxy_allow";
-const ONBOARD_PROXY_DENY = "onboard_proxy_deny";
+const ONBOARD_PROXY_ALLOW = "onboard_proxy_allow"
+const ONBOARD_PROXY_DENY = "onboard_proxy_deny"
 
-const ONBOARD_LOGIN_SAVE = "onboard_login_save";
-const ONBOARD_LOGIN_DONTSAVE = "onboard_login_dontsave";
+const ONBOARD_LOGIN_SAVE = "onboard_login_save"
+const ONBOARD_LOGIN_DONTSAVE = "onboard_login_dontsave"
 
 const notificationDefaults = {
   notifyBeforeLessons: 30 * 60,
   notifyAboutNextLesson: true,
   notifyAboutNextDay: true,
   notifyAboutNextWeek: true,
-};
+}
 
 function getCallbackData(update: GrammyContext): string | null {
   if (update.callbackQuery && "data" in update.callbackQuery) {
-    return update.callbackQuery.data ?? null;
+    return update.callbackQuery.data ?? null
   }
-  return null;
+  return null
 }
 
 function getMessageText(update: GrammyContext): string | null {
   if (update.message && "text" in update.message && update.message.text) {
-    return update.message.text.trim();
+    return update.message.text.trim()
   }
-  return null;
+  return null
 }
 
 async function cancelOnboarding(
@@ -68,7 +64,7 @@ async function cancelOnboarding(
       msgId,
       "Начало работы отменено. Вы можете начать заново в любой момент через /start",
     )
-    .catch();
+    .catch()
 }
 
 async function askMode(
@@ -78,16 +74,16 @@ async function askMode(
 ): Promise<"authed" | "unauthed" | null> {
   const proxyUserExists = await conversation.external(() =>
     api.misc.findProxiableUser.get().then((res) => res.data),
-  );
+  )
 
   const keyboard = new InlineKeyboard()
     .text("С входом в ЛК", ONBOARD_MODE_AUTHED)
-    .row();
+    .row()
   if (proxyUserExists) {
-    keyboard.text("Без входа", ONBOARD_MODE_UNAUTHED).row();
+    keyboard.text("Без входа", ONBOARD_MODE_UNAUTHED).row()
   }
 
-  keyboard.text("Отмена", ONBOARD_CANCEL);
+  keyboard.text("Отмена", ONBOARD_CANCEL)
 
   await ctx.api.editMessageText(
     msg.chat.id,
@@ -95,30 +91,31 @@ async function askMode(
     `\
 Выберите режим:
 • С входом в ЛК (с поддержкой ИОТов)
-${proxyUserExists
-      ? "• Без входа (анонимно)"
-      : "\nАнонимный вход недоступен (нет пользователей, разрешивших использовать их аккаунт для прокси-запросов)"
-    }
+${
+  proxyUserExists
+    ? "• Без входа (анонимно)"
+    : "\nАнонимный вход недоступен (нет пользователей, разрешивших использовать их аккаунт для прокси-запросов)"
+}
 
 Для отмены: /cancel`,
     {
       reply_markup: keyboard,
     },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
-    if (text === "/cancel") return null;
+    const update = await conversation.wait()
+    const text = getMessageText(update)
+    if (text === "/cancel") return null
 
-    const data = getCallbackData(update);
-    if (!data) continue;
+    const data = getCallbackData(update)
+    if (!data) continue
 
-    await update.answerCallbackQuery().catch();
+    await update.answerCallbackQuery().catch()
 
-    if (data === ONBOARD_CANCEL) return null;
-    if (data === ONBOARD_MODE_AUTHED) return "authed";
-    if (data === ONBOARD_MODE_UNAUTHED) return "unauthed";
+    if (data === ONBOARD_CANCEL) return null
+    if (data === ONBOARD_MODE_AUTHED) return "authed"
+    if (data === ONBOARD_MODE_UNAUTHED) return "unauthed"
   }
 }
 
@@ -128,19 +125,19 @@ async function promptForText(
   msg: { chat: { id: number }; message_id: number },
   prompt: string,
 ): Promise<string | null> {
-  await ctx.api.editMessageText(msg.chat.id, msg.message_id, prompt);
+  await ctx.api.editMessageText(msg.chat.id, msg.message_id, prompt)
 
   while (true) {
-    const input = await conversation.waitFor("message:text");
-    const text = input.message.text?.trim();
-    if (!text) continue;
+    const input = await conversation.waitFor("message:text")
+    const text = input.message.text?.trim()
+    if (!text) continue
 
     await input.api
       .deleteMessage(input.chat.id, input.message.message_id)
-      .catch();
+      .catch()
 
-    if (text === "/cancel") return null;
-    return text;
+    if (text === "/cancel") return null
+    return text
   }
 }
 
@@ -155,8 +152,8 @@ async function runLkLogin(
       .id({ id: userId })
       .get()
       .then((res) => res.data),
-  );
-  if (!user) return { ok: false as const, cancelled: false as const };
+  )
+  if (!user) return { ok: false as const, cancelled: false as const }
 
   const username = await promptForText(
     conversation,
@@ -166,8 +163,8 @@ async function runLkLogin(
 Вход в личный кабинет
 Введите логин:
 `,
-  );
-  if (!username) return { ok: false as const, cancelled: true as const };
+  )
+  if (!username) return { ok: false as const, cancelled: true as const }
 
   const initialPassword = await promptForText(
     conversation,
@@ -178,16 +175,16 @@ async function runLkLogin(
 Логин: ${username}
 Введите пароль:
     `,
-  );
-  if (!initialPassword) return { ok: false as const, cancelled: true as const };
-  let password: string = initialPassword;
+  )
+  if (!initialPassword) return { ok: false as const, cancelled: true as const }
+  let password: string = initialPassword
 
   let loginResult = await conversation.external(() =>
     api.user
       .id({ id: userId })
       .lk.login.post({ username, password, saveCredentials: false })
       .then((res) => res.data),
-  );
+  )
 
   while (!loginResult?.success) {
     const nextPassword = await promptForText(
@@ -200,9 +197,9 @@ async function runLkLogin(
 Пароль: \*\*\*\*\*\*\*\*
 Ошибка входа: ${loginResult?.error}
 Попробуйте ввести пароль снова или отмените вход через /cancel`,
-    );
-    if (!nextPassword) return { ok: false as const, cancelled: true as const };
-    password = nextPassword;
+    )
+    if (!nextPassword) return { ok: false as const, cancelled: true as const }
+    password = nextPassword
 
     await ctx.api
       .editMessageText(
@@ -215,17 +212,17 @@ async function runLkLogin(
 Пробуем войти...
     `,
       )
-      .catch();
+      .catch()
 
     loginResult = await conversation.external(() =>
       api.user
         .id({ id: userId })
         .lk.login.post({ username, password, saveCredentials: false })
         .then((res) => res.data),
-    );
+    )
   }
 
-  const userInfo = loginResult.user;
+  const userInfo = loginResult.user
 
   await ctx.api.editMessageText(
     msg.chat.id,
@@ -245,20 +242,20 @@ async function runLkLogin(
         .row()
         .text("Отмена", ONBOARD_CANCEL),
     },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
+    const update = await conversation.wait()
+    const text = getMessageText(update)
     if (text === "/cancel")
-      return { ok: false as const, cancelled: true as const };
+      return { ok: false as const, cancelled: true as const }
 
-    const data = getCallbackData(update);
-    if (!data) continue;
-    await update.answerCallbackQuery().catch();
+    const data = getCallbackData(update)
+    if (!data) continue
+    await update.answerCallbackQuery().catch()
 
     if (data === ONBOARD_CANCEL) {
-      return { ok: false as const, cancelled: true as const };
+      return { ok: false as const, cancelled: true as const }
     }
     if (data === ONBOARD_LOGIN_SAVE) {
       await conversation.external(() =>
@@ -266,11 +263,11 @@ async function runLkLogin(
           .id({ id: user.id })
           .lk.saveCredentials.post({ username, password })
           .then(() => null),
-      );
-      return { ok: true as const, savedCredentials: true as const };
+      )
+      return { ok: true as const, savedCredentials: true as const }
     }
     if (data === ONBOARD_LOGIN_DONTSAVE) {
-      return { ok: true as const, savedCredentials: false as const };
+      return { ok: true as const, savedCredentials: false as const }
     }
   }
 }
@@ -293,32 +290,32 @@ async function askAuthedGroupMode(
         .row()
         .text("Отмена", ONBOARD_CANCEL),
     },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
-    if (text === "/cancel") return null;
+    const update = await conversation.wait()
+    const text = getMessageText(update)
+    if (text === "/cancel") return null
 
-    const data = getCallbackData(update);
-    if (!data) continue;
-    await update.answerCallbackQuery().catch();
+    const data = getCallbackData(update)
+    if (!data) continue
+    await update.answerCallbackQuery().catch()
 
-    if (data === ONBOARD_CANCEL) return null;
-    if (data === ONBOARD_GROUP_KEEP_LK) return "keep";
-    if (data === ONBOARD_GROUP_CHANGE) return "choose";
+    if (data === ONBOARD_CANCEL) return null
+    if (data === ONBOARD_GROUP_KEEP_LK) return "keep"
+    if (data === ONBOARD_GROUP_CHANGE) return "choose"
   }
 }
 
 function getGroupsKeyboard(groups: { id: number; name: string }[]) {
-  const keyboard = new InlineKeyboard();
+  const keyboard = new InlineKeyboard()
   groups.slice(0, 9).forEach((group, index) => {
-    keyboard.text(group.name, `${ONBOARD_GROUP_SELECT_PREFIX}${group.id}`);
-    if ((index + 1) % 3 === 0) keyboard.row();
-  });
-  if (groups.length % 3 !== 0) keyboard.row();
-  keyboard.text("Отмена", ONBOARD_CANCEL);
-  return keyboard;
+    keyboard.text(group.name, `${ONBOARD_GROUP_SELECT_PREFIX}${group.id}`)
+    if ((index + 1) % 3 === 0) keyboard.row()
+  })
+  if (groups.length % 3 !== 0) keyboard.row()
+  keyboard.text("Отмена", ONBOARD_CANCEL)
+  return keyboard
 }
 
 async function chooseGroupManually(
@@ -327,7 +324,7 @@ async function chooseGroupManually(
   msg: { chat: { id: number }; message_id: number },
   userId: number,
 ) {
-  let selectableGroups: { id: number; name: string }[] = [];
+  let selectableGroups: { id: number; name: string }[] = []
 
   await ctx.api.editMessageText(
     msg.chat.id,
@@ -336,41 +333,41 @@ async function chooseGroupManually(
     {
       reply_markup: new InlineKeyboard().text("Отмена", ONBOARD_CANCEL),
     },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
-    const data = getCallbackData(update);
+    const update = await conversation.wait()
+    const text = getMessageText(update)
+    const data = getCallbackData(update)
 
-    if (text === "/cancel") return null;
+    if (text === "/cancel") return null
     if (data === ONBOARD_CANCEL) {
-      await update.answerCallbackQuery().catch();
-      return null;
+      await update.answerCallbackQuery().catch()
+      return null
     }
 
     if (data?.startsWith(ONBOARD_GROUP_SELECT_PREFIX)) {
-      await update.answerCallbackQuery().catch();
-      const groupId = Number(data.slice(ONBOARD_GROUP_SELECT_PREFIX.length));
-      if (Number.isNaN(groupId) || groupId <= 0) continue;
+      await update.answerCallbackQuery().catch()
+      const groupId = Number(data.slice(ONBOARD_GROUP_SELECT_PREFIX.length))
+      if (Number.isNaN(groupId) || groupId <= 0) continue
 
-      const selected = selectableGroups.find((group) => group.id === groupId);
-      if (!selected) continue;
+      const selected = selectableGroups.find((group) => group.id === groupId)
+      if (!selected) continue
 
       const updated = await conversation.external(() =>
         changeUserGroupById(userId, selected.id),
-      );
-      return updated.group;
+      )
+      return updated.group
     }
 
-    if (!text) continue;
+    if (!text) continue
 
     if (update.chat && update.message) {
       await update.api
         .deleteMessage(update.chat.id, update.message.message_id)
         .catch(() => {
           /* ignore */
-        });
+        })
     }
 
     await ctx.api.editMessageText(
@@ -380,16 +377,16 @@ async function chooseGroupManually(
       {
         reply_markup: new InlineKeyboard().text("Отмена", ONBOARD_CANCEL),
       },
-    );
+    )
 
     const groups = await conversation.external(() =>
       api.ssau.findGroupOrOptions
         .get({ query: { name: text } })
         .then((res) => res.data),
-    );
+    )
 
     if (!groups || (Array.isArray(groups) && groups.length === 0)) {
-      selectableGroups = [];
+      selectableGroups = []
       await ctx.api.editMessageText(
         msg.chat.id,
         msg.message_id,
@@ -397,21 +394,21 @@ async function chooseGroupManually(
         {
           reply_markup: new InlineKeyboard().text("Отмена", ONBOARD_CANCEL),
         },
-      );
-      continue;
+      )
+      continue
     }
 
     if (groups.length === 1) {
       const updated = await conversation.external(() =>
         changeUserGroupById(userId, groups[0].id),
-      );
-      return updated.group;
+      )
+      return updated.group
     }
 
     selectableGroups = groups.slice(0, 9).map((group) => ({
       id: group.id,
       name: group.name,
-    }));
+    }))
 
     await ctx.api.editMessageText(
       msg.chat.id,
@@ -420,19 +417,19 @@ async function chooseGroupManually(
       {
         reply_markup: getGroupsKeyboard(selectableGroups),
       },
-    );
+    )
   }
 }
 
 function getThemesKeyboard() {
-  const keyboard = new InlineKeyboard();
+  const keyboard = new InlineKeyboard()
   Object.values(stylemaps).forEach((theme) => {
     keyboard
       .text(theme.description, `${ONBOARD_THEME_PREFIX}${theme.name}`)
-      .row();
-  });
-  keyboard.text("Отмена", ONBOARD_CANCEL);
-  return keyboard;
+      .row()
+  })
+  keyboard.text("Отмена", ONBOARD_CANCEL)
+  return keyboard
 }
 
 async function askTheme(
@@ -445,24 +442,24 @@ async function askTheme(
     msg.message_id,
     "Быстрые настройки\n\n2/3: Выберите тему",
     { reply_markup: getThemesKeyboard() },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
-    if (text === "/cancel") return null;
+    const update = await conversation.wait()
+    const text = getMessageText(update)
+    if (text === "/cancel") return null
 
-    const data = getCallbackData(update);
-    if (!data) continue;
+    const data = getCallbackData(update)
+    if (!data) continue
 
-    await update.answerCallbackQuery().catch();
+    await update.answerCallbackQuery().catch()
 
-    if (data === ONBOARD_CANCEL) return null;
-    if (!data.startsWith(ONBOARD_THEME_PREFIX)) continue;
+    if (data === ONBOARD_CANCEL) return null
+    if (!data.startsWith(ONBOARD_THEME_PREFIX)) continue
 
-    const themeName = data.slice(ONBOARD_THEME_PREFIX.length);
-    if (!stylemaps[themeName]) continue;
-    return themeName;
+    const themeName = data.slice(ONBOARD_THEME_PREFIX.length)
+    if (!stylemaps[themeName]) continue
+    return themeName
   }
 }
 
@@ -483,22 +480,22 @@ async function askSubgroup(
         .row()
         .text("Отмена", ONBOARD_CANCEL),
     },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
-    if (text === "/cancel") return null;
+    const update = await conversation.wait()
+    const text = getMessageText(update)
+    if (text === "/cancel") return null
 
-    const data = getCallbackData(update);
-    if (!data) continue;
+    const data = getCallbackData(update)
+    if (!data) continue
 
-    await update.answerCallbackQuery().catch();
+    await update.answerCallbackQuery().catch()
 
-    if (data === ONBOARD_CANCEL) return null;
-    if (data === ONBOARD_SUBGROUP_BOTH) return 0;
-    if (data === ONBOARD_SUBGROUP_1) return 1;
-    if (data === ONBOARD_SUBGROUP_2) return 2;
+    if (data === ONBOARD_CANCEL) return null
+    if (data === ONBOARD_SUBGROUP_BOTH) return 0
+    if (data === ONBOARD_SUBGROUP_1) return 1
+    if (data === ONBOARD_SUBGROUP_2) return 2
   }
 }
 
@@ -529,21 +526,21 @@ async function askNotifications(
         .row()
         .text("Отмена", ONBOARD_CANCEL),
     },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
-    if (text === "/cancel") return null;
+    const update = await conversation.wait()
+    const text = getMessageText(update)
+    if (text === "/cancel") return null
 
-    const data = getCallbackData(update);
-    if (!data) continue;
+    const data = getCallbackData(update)
+    if (!data) continue
 
-    await update.answerCallbackQuery().catch();
+    await update.answerCallbackQuery().catch()
 
-    if (data === ONBOARD_CANCEL) return null;
-    if (data === ONBOARD_NOTIFY_ENABLE) return true;
-    if (data === ONBOARD_NOTIFY_DISABLE) return false;
+    if (data === ONBOARD_CANCEL) return null
+    if (data === ONBOARD_NOTIFY_ENABLE) return true
+    if (data === ONBOARD_NOTIFY_DISABLE) return false
   }
 }
 
@@ -568,21 +565,21 @@ async function askProxyPermission(
         .row()
         .text("Отмена", ONBOARD_CANCEL),
     },
-  );
+  )
 
   while (true) {
-    const update = await conversation.wait();
-    const text = getMessageText(update);
-    if (text === "/cancel") return null;
+    const update = await conversation.wait()
+    const text = getMessageText(update)
+    if (text === "/cancel") return null
 
-    const data = getCallbackData(update);
-    if (!data) continue;
+    const data = getCallbackData(update)
+    if (!data) continue
 
-    await update.answerCallbackQuery().catch();
+    await update.answerCallbackQuery().catch()
 
-    if (data === ONBOARD_CANCEL) return null;
-    if (data === ONBOARD_PROXY_ALLOW) return true;
-    if (data === ONBOARD_PROXY_DENY) return false;
+    if (data === ONBOARD_CANCEL) return null
+    if (data === ONBOARD_PROXY_ALLOW) return true
+    if (data === ONBOARD_PROXY_DENY) return false
   }
 }
 
@@ -590,11 +587,11 @@ async function onboardingConversation(
   conversation: Conversation,
   ctx: GrammyContext,
 ) {
-  const tgUserId = ctx.from?.id;
+  const tgUserId = ctx.from?.id
   if (!tgUserId) {
     return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
       parse_mode: "HTML",
-    });
+    })
   }
 
   const user = await conversation.external(() =>
@@ -602,36 +599,36 @@ async function onboardingConversation(
       .tgid({ id: tgUserId })
       .get()
       .then((res) => res.data),
-  );
+  )
   if (!user) {
     return ctx.reply(
       "Вас не существует в базе данных. Пожалуйста пропишите /start",
-    );
+    )
   }
 
-  log.debug("Running onboarding conversation", { user: tgUserId });
+  log.debug("Running onboarding conversation", { user: tgUserId })
 
-  const msg = await ctx.reply("Приветствую!");
+  const msg = await ctx.reply("Приветствую!")
 
-  const mode = await askMode(conversation, ctx, msg);
+  const mode = await askMode(conversation, ctx, msg)
   if (!mode) {
-    await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-    return;
+    await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+    return
   }
 
   if (mode === "authed") {
-    const loginResult = await runLkLogin(conversation, ctx, msg, user.id);
+    const loginResult = await runLkLogin(conversation, ctx, msg, user.id)
     if (!loginResult.ok) {
       if (loginResult.cancelled) {
-        await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
+        await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
       } else {
         await ctx.api.editMessageText(
           msg.chat.id,
           msg.message_id,
           "Не удалось завершить вход в ЛК. Вы можете повторить /start или использовать режим без входа.",
-        );
+        )
       }
-      return;
+      return
     }
   }
 
@@ -640,14 +637,14 @@ async function onboardingConversation(
       .id({ id: user.id })
       .get()
       .then((res) => res.data),
-  );
+  )
   if (!actualUser) {
     await ctx.api.editMessageText(
       msg.chat.id,
       msg.message_id,
       "Не удалось получить пользователя из базы. Попробуйте снова через /start",
-    );
-    return;
+    )
+    return
   }
 
   if (mode === "authed" && actualUser.group) {
@@ -656,10 +653,10 @@ async function onboardingConversation(
       ctx,
       msg,
       actualUser.group.name,
-    );
+    )
     if (!groupMode) {
-      await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-      return;
+      await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+      return
     }
     if (groupMode === "choose") {
       const selectedGroup = await chooseGroupManually(
@@ -667,10 +664,10 @@ async function onboardingConversation(
         ctx,
         msg,
         user.id,
-      );
+      )
       if (!selectedGroup) {
-        await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-        return;
+        await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+        return
       }
     }
   } else {
@@ -679,37 +676,37 @@ async function onboardingConversation(
       ctx,
       msg,
       user.id,
-    );
+    )
     if (!selectedGroup) {
-      await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-      return;
+      await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+      return
     }
   }
 
-  const subgroup = await askSubgroup(conversation, ctx, msg);
+  const subgroup = await askSubgroup(conversation, ctx, msg)
   if (subgroup === null) {
-    await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-    return;
+    await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+    return
   }
 
-  const theme = await askTheme(conversation, ctx, msg);
+  const theme = await askTheme(conversation, ctx, msg)
   if (!theme) {
-    await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-    return;
+    await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+    return
   }
 
-  const notificationsEnabled = await askNotifications(conversation, ctx, msg);
+  const notificationsEnabled = await askNotifications(conversation, ctx, msg)
   if (notificationsEnabled === null) {
-    await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-    return;
+    await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+    return
   }
 
-  let allowsProxy: boolean | null = null;
+  let allowsProxy: boolean | null = null
   if (mode === "authed") {
-    allowsProxy = await askProxyPermission(conversation, ctx, msg);
+    allowsProxy = await askProxyPermission(conversation, ctx, msg)
     if (allowsProxy === null) {
-      await cancelOnboarding(ctx, msg.chat.id, msg.message_id);
-      return;
+      await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
+      return
     }
   }
 
@@ -718,29 +715,29 @@ async function onboardingConversation(
       .id({ id: user.id })
       .get()
       .then((res) => res.data),
-  );
+  )
   if (!finalUser) {
     await ctx.api.editMessageText(
       msg.chat.id,
       msg.message_id,
       "Не удалось сохранить настройки. Попробуйте снова через /start",
-    );
-    return;
+    )
+    return
   }
 
-  const preferences = getUserPreferences(finalUser);
-  preferences.theme = theme;
+  const preferences = getUserPreferences(finalUser)
+  preferences.theme = theme
   if (notificationsEnabled) {
-    preferences.notifyBeforeLessons = notificationDefaults.notifyBeforeLessons;
+    preferences.notifyBeforeLessons = notificationDefaults.notifyBeforeLessons
     preferences.notifyAboutNextLesson =
-      notificationDefaults.notifyAboutNextLesson;
-    preferences.notifyAboutNextDay = notificationDefaults.notifyAboutNextDay;
-    preferences.notifyAboutNextWeek = notificationDefaults.notifyAboutNextWeek;
+      notificationDefaults.notifyAboutNextLesson
+    preferences.notifyAboutNextDay = notificationDefaults.notifyAboutNextDay
+    preferences.notifyAboutNextWeek = notificationDefaults.notifyAboutNextWeek
   } else {
-    preferences.notifyBeforeLessons = 0;
-    preferences.notifyAboutNextLesson = false;
-    preferences.notifyAboutNextDay = false;
-    preferences.notifyAboutNextWeek = false;
+    preferences.notifyBeforeLessons = 0
+    preferences.notifyAboutNextLesson = false
+    preferences.notifyAboutNextDay = false
+    preferences.notifyAboutNextWeek = false
   }
 
   await conversation.external(async () => {
@@ -748,9 +745,9 @@ async function onboardingConversation(
       preferences,
       subgroup,
       allowsAccountProxyUse: allowsProxy ?? false,
-    });
-    await api.cache.week.invalidate.patch({ owner: user.id });
-  });
+    })
+    await api.cache.week.invalidate.patch({ owner: user.id })
+  })
 
   await ctx.api.editMessageText(
     msg.chat.id,
@@ -761,10 +758,11 @@ async function onboardingConversation(
 Группа: ${finalUser.group?.name ?? "Не выбрана"} (${subgroup || "Обе"})
 Тема: ${stylemaps[theme]?.description ?? theme}
 Уведомления: ${notificationsEnabled ? "включены" : "отключены"}
-${mode === "authed"
-      ? `Анонимный доступ: ${allowsProxy ? "разрешён (Спасибо!)" : "запрещён"}`
-      : "Если вы позже захотите войти в ЛК, используйте /login"
-    }
+${
+  mode === "authed"
+    ? `Анонимный доступ: ${allowsProxy ? "разрешён (Спасибо!)" : "запрещён"}`
+    : "Если вы позже захотите войти в ЛК, используйте /login"
+}
 
 Изменить всё можно через /options
 Получить расписание: /schedule
@@ -777,9 +775,9 @@ ${mode === "authed"
 Получить календарь для других приложений: /ics
 Спасибо, что используете бота!
 `,
-  );
+  )
 }
 
 export async function initOnboarding(bot: Bot<Context>) {
-  bot.use(createConversation(onboardingConversation, { id: "ONBOARDING" }));
+  bot.use(createConversation(onboardingConversation, { id: "ONBOARDING" }))
 }

@@ -1,76 +1,76 @@
-import { db } from "@/server/db";
-import { ensureGroupExists, ensureTeacherExists } from "@/server/lib/misc";
-import log from "@/server/logger";
-import { formatName } from "@ssau-schedule/shared/utils";
-import s from "ajv-ts";
-import axios from "axios";
+import { db } from "@/server/db"
+import { ensureGroupExists, ensureTeacherExists } from "@/server/lib/misc"
+import log from "@/server/logger"
+import { formatName } from "@ssau-schedule/shared/utils"
+import s from "ajv-ts"
+import axios from "axios"
 
 type GroupTeacherSearchResponse = {
-  id: number;
-  name: string;
-  type: "group" | "teacher";
-};
+  id: number
+  name: string
+  type: "group" | "teacher"
+}
 
 type SsauSearchCacheEntry = {
-  results: GroupTeacherSearchResponse[];
-  expiresAt: number;
-};
+  results: GroupTeacherSearchResponse[]
+  expiresAt: number
+}
 
 const ssauSearchResponseSchema = s.object({
   id: s.number(),
   url: s.string(),
   text: s.string(),
-});
+})
 
-const SSAU_SEARCH_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const SSAU_SEARCH_CACHE_MAX_ENTRIES = 5000;
+const SSAU_SEARCH_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+const SSAU_SEARCH_CACHE_MAX_ENTRIES = 5000
 
-const ssauSearchCache = new Map<string, SsauSearchCacheEntry>();
+const ssauSearchCache = new Map<string, SsauSearchCacheEntry>()
 const inFlightSsauSearches = new Map<
   string,
   Promise<GroupTeacherSearchResponse[]>
->();
+>()
 
 function pruneSsauSearchCache(now = Date.now()) {
   for (const [key, entry] of ssauSearchCache) {
     if (entry.expiresAt <= now) {
-      ssauSearchCache.delete(key);
+      ssauSearchCache.delete(key)
     }
   }
 
   while (ssauSearchCache.size > SSAU_SEARCH_CACHE_MAX_ENTRIES) {
-    const oldestKey = ssauSearchCache.keys().next().value;
-    if (!oldestKey) break;
-    ssauSearchCache.delete(oldestKey);
+    const oldestKey = ssauSearchCache.keys().next().value
+    if (!oldestKey) break
+    ssauSearchCache.delete(oldestKey)
   }
 }
 
 function normalizeSsauSearchText(text: string) {
-  return text.trim().toLowerCase();
+  return text.trim().toLowerCase()
 }
 
 function cloneSearchResults(
   results: GroupTeacherSearchResponse[],
 ): GroupTeacherSearchResponse[] {
-  return results.map((result) => ({ ...result }));
+  return results.map((result) => ({ ...result }))
 }
 
 async function fetchGroupsOrTeachersInSsau(
   text: string,
 ): Promise<GroupTeacherSearchResponse[] | null> {
-  log.debug(`Trying to find '${text}' in ssau.ru/rasp`);
+  log.debug(`Trying to find '${text}' in ssau.ru/rasp`)
   try {
     const page = await axios.get("https://ssau.ru/rasp", {
       withCredentials: true,
       responseType: "text",
-    });
-    const cookies: string[] = [];
+    })
+    const cookies: string[] = []
     page.headers["set-cookie"]?.forEach((cookie) => {
-      cookies.push(cookie.split(";")[0]);
-    });
-    const csrfRegex = /name="csrf-token".{0,3}content="(\w+)".{0,3}\/\>/m;
-    const execResult = csrfRegex.exec((page.data as string).slice(0, 200));
-    const token = execResult ? execResult[1] : undefined;
+      cookies.push(cookie.split(";")[0])
+    })
+    const csrfRegex = /name="csrf-token".{0,3}content="(\w+)".{0,3}\/\>/m
+    const execResult = csrfRegex.exec((page.data as string).slice(0, 200))
+    const token = execResult ? execResult[1] : undefined
     const resp = await axios.post(
       "https://ssau.ru/rasp/search",
       `text=${encodeURIComponent(text)}`,
@@ -82,85 +82,85 @@ async function fetchGroupsOrTeachersInSsau(
         },
         withCredentials: true,
       },
-    );
+    )
     const { success, data, error } = s
       .array(ssauSearchResponseSchema)
-      .safeParse(resp.data);
+      .safeParse(resp.data)
     if (!success) {
       log.warn(
         `Failed to parse search response for '${text}' in ssau.ru/rasp, ${error}`,
         { user: -1 },
-      );
-      return null;
+      )
+      return null
     }
 
     const options: GroupTeacherSearchResponse[] = data.map((option) => ({
       id: option.id,
       name: option.text.trim(),
       type: option.url.includes("groupId") ? "group" : "teacher",
-    }));
+    }))
 
     for (const option of options) {
       if (option.type === "group") {
         await ensureGroupExists({
           id: option.id,
           name: option.name,
-        });
+        })
       } else if (option.type === "teacher") {
         await ensureTeacherExists({
           id: option.id,
           name: option.name,
           state: "unknown",
-        });
+        })
       }
     }
 
-    return options;
+    return options
   } catch {
-    log.warn(`Search for '${text}' in ssau.ru/rasp failed.`);
-    return null;
+    log.warn(`Search for '${text}' in ssau.ru/rasp failed.`)
+    return null
   }
 }
 
 export async function findGroupsOrTeachersInSsau(
   text: string,
 ): Promise<GroupTeacherSearchResponse[]> {
-  const now = Date.now();
-  pruneSsauSearchCache(now);
+  const now = Date.now()
+  pruneSsauSearchCache(now)
 
-  const normalizedText = normalizeSsauSearchText(text);
-  const cachedEntry = ssauSearchCache.get(normalizedText);
+  const normalizedText = normalizeSsauSearchText(text)
+  const cachedEntry = ssauSearchCache.get(normalizedText)
   if (cachedEntry && cachedEntry.expiresAt > now) {
     log.debug(
       `Cache hit for '${text}' in ssau.ru/rasp search -> ${cachedEntry.results.length} results`,
-    );
-    return cloneSearchResults(cachedEntry.results);
+    )
+    return cloneSearchResults(cachedEntry.results)
   }
 
   // Deduplicate concurrent searches for the same query.
-  const inFlight = inFlightSsauSearches.get(normalizedText);
+  const inFlight = inFlightSsauSearches.get(normalizedText)
   if (inFlight) {
-    log.debug(`Waiting for in-flight search for '${text}' in ssau.ru/rasp`);
-    return cloneSearchResults(await inFlight);
+    log.debug(`Waiting for in-flight search for '${text}' in ssau.ru/rasp`)
+    return cloneSearchResults(await inFlight)
   }
 
   const request = (async () => {
-    const results = await fetchGroupsOrTeachersInSsau(normalizedText);
+    const results = await fetchGroupsOrTeachersInSsau(normalizedText)
     if (results) {
       ssauSearchCache.set(normalizedText, {
         results,
         expiresAt: now + SSAU_SEARCH_CACHE_TTL_MS,
-      });
-      return results;
+      })
+      return results
     }
-    return [];
-  })();
+    return []
+  })()
 
-  inFlightSsauSearches.set(normalizedText, request);
+  inFlightSsauSearches.set(normalizedText, request)
   try {
-    return cloneSearchResults(await request);
+    return cloneSearchResults(await request)
   } finally {
-    inFlightSsauSearches.delete(normalizedText);
+    inFlightSsauSearches.delete(normalizedText)
   }
 }
 
@@ -170,13 +170,13 @@ export async function findGroup(
     | { groupId: number }
   ),
 ) {
-  const group = await findGroupOrOptions(inp);
+  const group = await findGroupOrOptions(inp)
   if (Array.isArray(group)) {
-    if (group.length === 1) return group[0];
+    if (group.length === 1) return group[0]
   } else {
-    return group;
+    return group
   }
-  return null;
+  return null
 }
 
 export async function findGroupOrOptions(
@@ -186,27 +186,27 @@ export async function findGroupOrOptions(
   ),
 ): Promise<Omit<GroupTeacherSearchResponse, "type">[]> {
   if (inp.groupId) {
-    const group = await db.group.findUnique({ where: { id: inp.groupId } });
-    if (group) return [group];
+    const group = await db.group.findUnique({ where: { id: inp.groupId } })
+    if (group) return [group]
   }
   if (inp.groupName) {
-    const name = inp.groupName.trim();
+    const name = inp.groupName.trim()
     if (name.length >= 11) {
       // 6101-090301 (D optional)
       const existingGroup = await db.group.findFirst({
         where: { name: { startsWith: name } },
-      });
-      if (existingGroup) return [existingGroup];
+      })
+      if (existingGroup) return [existingGroup]
     } else {
       const existingGroup = await db.group.findFirst({
         where: { name: name },
-      });
-      if (existingGroup) return [existingGroup];
+      })
+      if (existingGroup) return [existingGroup]
     }
-    const possibleGroups = await findGroupsOrTeachersInSsau(name);
-    return possibleGroups;
+    const possibleGroups = await findGroupsOrTeachersInSsau(name)
+    return possibleGroups
   }
-  return [];
+  return []
 }
 
 export async function findTeacherOrOptions(
@@ -218,17 +218,17 @@ export async function findTeacherOrOptions(
   if (inp.teacherId) {
     const teacher = await db.teacher.findUnique({
       where: { id: inp.teacherId },
-    });
-    if (teacher) return [teacher];
+    })
+    if (teacher) return [teacher]
   }
   if (inp.teacherName) {
-    const name = formatName(inp.teacherName.trim());
+    const name = formatName(inp.teacherName.trim())
     const existingTeachers = await db.teacher.findMany({
       where: { name: { contains: name } },
-    });
-    if (existingTeachers.length === 1) return existingTeachers;
-    const possibleTeachers = await findGroupsOrTeachersInSsau(name);
-    return possibleTeachers;
+    })
+    if (existingTeachers.length === 1) return existingTeachers
+    const possibleTeachers = await findGroupsOrTeachersInSsau(name)
+    return possibleTeachers
   }
-  return [];
+  return []
 }

@@ -1,7 +1,6 @@
-import { Link } from '@tanstack/react-router'
-import { Loader2Icon } from 'lucide-react'
-import useAuth from '@/client/hooks/useAuth'
-
+import { Link } from "@tanstack/react-router"
+import { Loader2Icon } from "lucide-react"
+import useAuth from "@/client/hooks/useAuth"
 
 export default function Header() {
   const { isLoading } = useAuth()
@@ -19,7 +18,7 @@ export default function Header() {
         </button>
         */}
         <h1 className="flex items-center gap-2 text-3xl font-semibold text-[#36f3ff] sm:ml-4 sm:text-4xl">
-          <Link to="/schedule" className='flex items-center gap-2'>
+          <Link to="/schedule" className="flex items-center gap-2">
             <img
               src="/ssau-sched-textless.png"
               alt="SSAU-Schedule Logo"
@@ -31,7 +30,6 @@ export default function Header() {
         {isLoading && (
           <Loader2Icon className="ml-2 h-6 w-6 animate-spin text-gray-700" />
         )}
-
       </header>
 
       {/**

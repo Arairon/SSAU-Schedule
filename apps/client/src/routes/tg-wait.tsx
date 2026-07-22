@@ -1,10 +1,10 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
-import { LoaderCircleIcon } from 'lucide-react'
-import { isTMA } from '@tma.js/sdk-react'
-import { useAuthState } from '@/client/hooks/useAuth'
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
+import { LoaderCircleIcon } from "lucide-react"
+import { isTMA } from "@tma.js/sdk-react"
+import { useAuthState } from "@/client/hooks/useAuth"
 
-export const Route = createFileRoute('/tg-wait')({
+export const Route = createFileRoute("/tg-wait")({
   component: RouteComponent,
   beforeLoad: (_ctx) => {
     const auth = useAuthState.getState()
@@ -17,7 +17,7 @@ export const Route = createFileRoute('/tg-wait')({
     if (!isTMA()) {
       throw redirect({ to: "/login" })
     }
-  }
+  },
 })
 
 function RouteComponent() {
@@ -26,25 +26,27 @@ function RouteComponent() {
   const [showWarning, setShowWarning] = useState(false)
   useEffect(() => {
     if (user?.groupId) navigate({ to: "/schedule" })
-    if (user) navigate({ to: "/lk/login" });
+    if (user) navigate({ to: "/lk/login" })
   }, [user])
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowWarning(true)
-      window.localStorage.removeItem('auth-token')
+      window.localStorage.removeItem("auth-token")
     }, 3000)
     return () => clearTimeout(timeout)
   }, [])
 
   return (
-
     <main className="flex flex-1 flex-col items-center justify-stretch gap-4 bg-slate-800 py-4 text-center text-xl text-white sm:px-2 sm:text-2xl">
-      <div className='flex min-h-[50vh] flex-col items-center justify-center gap-4'>
-        <LoaderCircleIcon size={64} className='animate-spin text-slate-400' />
-        {showWarning && <p>
-          Слишком долгая загрузка. Попробуйте обновить страницу или зайдите позже
-        </p>}
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+        <LoaderCircleIcon size={64} className="animate-spin text-slate-400" />
+        {showWarning && (
+          <p>
+            Слишком долгая загрузка. Попробуйте обновить страницу или зайдите
+            позже
+          </p>
+        )}
       </div>
     </main>
   )

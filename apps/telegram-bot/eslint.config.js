@@ -1,5 +1,5 @@
-import tseslint from "typescript-eslint";
-import { defineConfig } from "eslint/config";
+import tseslint from "typescript-eslint"
+import { defineConfig } from "eslint/config"
 
 export default defineConfig(
   {
@@ -38,4 +38,4 @@ export default defineConfig(
       },
     },
   },
-);
+)

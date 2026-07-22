@@ -1,4 +1,4 @@
-import s from "ajv-ts";
+import s from "ajv-ts"
 
 export const UserDetailsSchema = s.object({
   staffId: s.number(),
@@ -15,7 +15,7 @@ export const UserDetailsSchema = s.object({
     name: s.string(),
     code: s.string(),
   }),
-});
+})
 
 export const UserGroupSchema = s.object({
   id: s.number(),
@@ -34,6 +34,6 @@ export const UserGroupSchema = s.object({
     id: s.number(),
     name: s.string(),
   }),
-});
-export type UserGroupType = s.infer<typeof UserGroupSchema>;
-export const UserGroupsSchema = s.array(UserGroupSchema);
+})
+export type UserGroupType = s.infer<typeof UserGroupSchema>
+export const UserGroupsSchema = s.array(UserGroupSchema)

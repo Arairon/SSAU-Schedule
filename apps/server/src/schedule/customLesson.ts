@@ -5,13 +5,13 @@ import type {
   CustomLesson,
   LessonType,
   User,
-} from "@/server/generated/prisma/client";
-import s from "ajv-ts";
-import log from "@/server/logger";
-import { db } from "@/server/db";
-import { getLessonDate } from "@ssau-schedule/shared/date";
-import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
-import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
+} from "@/server/generated/prisma/client"
+import s from "ajv-ts"
+import log from "@/server/logger"
+import { db } from "@/server/db"
+import { getLessonDate } from "@ssau-schedule/shared/date"
+import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap"
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable"
 
 export const CustomizationDataSchema = s.object({
   id: s.number(),
@@ -39,26 +39,26 @@ export const CustomizationDataSchema = s.object({
   targetUserIds: s.array(s.number()),
   targetGroupIds: s.array(s.number()),
   targetFlowIds: s.array(s.number()),
-});
-export type CustomizationData = s.infer<typeof CustomizationDataSchema>;
+})
+export type CustomizationData = s.infer<typeof CustomizationDataSchema>
 
 export const CustomizationDataSchemaPartial =
   CustomizationDataSchema.partial().requiredFor(
     "weekNumber",
     "weekday",
     "dayTimeSlot",
-  );
+  )
 export type CustomizationDataPartial = s.infer<
   typeof CustomizationDataSchemaPartial
->;
+>
 
 function normalizeCustomLessonData(data: CustomizationDataPartial) {
-  const normalizedData = Object.assign({}, data);
-  delete normalizedData.targetUserIds;
-  delete normalizedData.targetGroupIds;
-  delete normalizedData.targetFlowIds;
+  const normalizedData = Object.assign({}, data)
+  delete normalizedData.targetUserIds
+  delete normalizedData.targetGroupIds
+  delete normalizedData.targetFlowIds
 
-  const lessonDate = getLessonDate(data.weekNumber, data.weekday);
+  const lessonDate = getLessonDate(data.weekNumber, data.weekday)
   return Object.assign(normalizedData, {
     date: lessonDate,
     beginTime: new Date(
@@ -67,7 +67,7 @@ function normalizeCustomLessonData(data: CustomizationDataPartial) {
     endTime: new Date(
       lessonDate.getTime() + TimeSlotMap[data.dayTimeSlot].endDelta,
     ),
-  });
+  })
 }
 
 export async function addCustomLesson(
@@ -77,20 +77,20 @@ export async function addCustomLesson(
   log.debug(
     `Adding custom lesson (${customData.lessonInfoId ?? "0"}/${customData.lessonId}) with ${JSON.stringify(customData)}`,
     { user: user.id },
-  );
+  )
 
   // Extract target IDs for relations
-  const targetUserIds = customData.targetUserIds ?? [];
-  const targetGroupIds = customData.targetGroupIds ?? [];
-  const targetFlowIds = customData.targetFlowIds ?? [];
+  const targetUserIds = customData.targetUserIds ?? []
+  const targetGroupIds = customData.targetGroupIds ?? []
+  const targetFlowIds = customData.targetFlowIds ?? []
 
-  const data = normalizeCustomLessonData(customData);
-  data.userId = user.id;
+  const data = normalizeCustomLessonData(customData)
+  data.userId = user.id
 
   if (data.lessonInfoId) {
     const lessonsToOverride = await db.lesson.findMany({
       where: { infoId: data.lessonInfoId },
-    });
+    })
     const lessons = lessonsToOverride.map((lesson) => {
       const custom = normalizeCustomLessonData(
         Object.assign({}, customData, {
@@ -100,32 +100,32 @@ export async function addCustomLesson(
           weekday: lesson.weekday,
           userId: user.id,
         }),
-      );
-      return custom as CustomLesson;
-    });
-    return await db.customLesson.createMany({ data: lessons });
+      )
+      return custom as CustomLesson
+    })
+    return await db.customLesson.createMany({ data: lessons })
   }
 
   if (data.lessonId) {
     if (!(await db.lesson.findUnique({ where: { id: data.lessonId } })))
-      data.lessonId = undefined;
+      data.lessonId = undefined
   }
 
   for (const userId of targetUserIds) {
     if (!(await db.user.findUnique({ where: { id: userId } }))) {
-      throw new Error(`User with id ${userId} not found`);
+      throw new Error(`User with id ${userId} not found`)
     }
   }
 
   for (const groupId of targetGroupIds) {
     if (!(await db.group.findUnique({ where: { id: groupId } }))) {
-      throw new Error(`Group with id ${groupId} not found`);
+      throw new Error(`Group with id ${groupId} not found`)
     }
   }
 
   for (const flowId of targetFlowIds) {
     if (!(await db.flow.findUnique({ where: { id: flowId } }))) {
-      throw new Error(`Flow with id ${flowId} not found`);
+      throw new Error(`Flow with id ${flowId} not found`)
     }
   }
 
@@ -138,23 +138,23 @@ export async function addCustomLesson(
       targetGroups: { connect: targetGroupIds.map((id) => ({ id })) },
       targetFlows: { connect: targetFlowIds.map((id) => ({ id })) },
     }),
-  });
+  })
 }
 
 export async function deleteCustomLesson(user: User, lessonId: number) {
-  log.debug(`Deleting CustomLesson#${lessonId}`, { user: user.id });
+  log.debug(`Deleting CustomLesson#${lessonId}`, { user: user.id })
 
   const target = await db.customLesson.findUnique({
     where: { id: lessonId, userId: user.id },
-  });
-  if (!target) return null;
+  })
+  if (!target) return null
 
   if (target.lessonInfoId) {
     return await db.customLesson.deleteMany({
       where: { lessonInfoId: target.lessonInfoId, userId: user.id },
-    });
+    })
   }
-  return await db.customLesson.delete({ where: { id: target.id } });
+  return await db.customLesson.delete({ where: { id: target.id } })
 }
 
 export async function editCustomLesson(
@@ -164,50 +164,50 @@ export async function editCustomLesson(
   log.debug(
     `Editing ${customData.lessonInfoId ?? "0"}/${customData.lessonId} with ${JSON.stringify(customData)}`,
     { user: user.id },
-  );
+  )
 
   log.debug(
     `Adding custom lesson (${customData.lessonInfoId ?? "0"}/${customData.lessonId}) with ${JSON.stringify(customData)}`,
     { user: user.id },
-  );
+  )
 
   // Extract target IDs for relations
-  const targetUserIds = customData.targetUserIds ?? [];
-  const targetGroupIds = customData.targetGroupIds ?? [];
-  const targetFlowIds = customData.targetFlowIds ?? [];
+  const targetUserIds = customData.targetUserIds ?? []
+  const targetGroupIds = customData.targetGroupIds ?? []
+  const targetFlowIds = customData.targetFlowIds ?? []
 
-  const data = normalizeCustomLessonData(customData);
-  data.id = customData.id;
-  data.userId = user.id;
+  const data = normalizeCustomLessonData(customData)
+  data.id = customData.id
+  data.userId = user.id
 
   for (const userId of targetUserIds) {
     if (!(await db.user.findUnique({ where: { id: userId } }))) {
-      throw new Error(`User with id ${userId} not found`);
+      throw new Error(`User with id ${userId} not found`)
     }
   }
 
   for (const groupId of targetGroupIds) {
     if (!(await db.group.findUnique({ where: { id: groupId } }))) {
-      throw new Error(`Group with id ${groupId} not found`);
+      throw new Error(`Group with id ${groupId} not found`)
     }
   }
 
   for (const flowId of targetFlowIds) {
     if (!(await db.flow.findUnique({ where: { id: flowId } }))) {
-      throw new Error(`Flow with id ${flowId} not found`);
+      throw new Error(`Flow with id ${flowId} not found`)
     }
   }
 
   const target = await db.customLesson.findUnique({
     where: { id: data.id, userId: user.id },
-  });
-  if (!target) return null;
+  })
+  if (!target) return null
 
   if (target.lessonInfoId) {
     const lessonsToOverride = await db.customLesson.findMany({
       where: { lessonInfoId: target.lessonInfoId, userId: user.id },
-    });
-    const lessons = [] as unknown[];
+    })
+    const lessons = [] as unknown[]
     for (const lesson of lessonsToOverride) {
       const custom = normalizeCustomLessonData(
         Object.assign({}, customData, {
@@ -219,7 +219,7 @@ export async function editCustomLesson(
           weekday: lesson.weekday,
           userId: user.id,
         }),
-      ) as CustomLesson;
+      ) as CustomLesson
       lessons.push(
         await db.customLesson.update({
           where: { id: lesson.id },
@@ -229,14 +229,14 @@ export async function editCustomLesson(
             targetFlows: { set: targetFlowIds.map((id) => ({ id })) },
           }),
         }),
-      );
+      )
     }
-    return lessons;
+    return lessons
   }
 
   if (data.lessonId) {
     if (!(await db.lesson.findUnique({ where: { id: data.lessonId } })))
-      data.lessonId = undefined;
+      data.lessonId = undefined
   }
 
   return await db.customLesson.update({
@@ -249,26 +249,26 @@ export async function editCustomLesson(
       targetGroups: { set: targetGroupIds.map((id) => ({ id })) },
       targetFlows: { set: targetFlowIds.map((id) => ({ id })) },
     }),
-  });
+  })
 }
 
 export function applyCustomization(
   lesson: TimetableLesson,
   customLesson: CustomLesson & {
-    groups: Group[];
-    flows: Flow[];
-    teacher: Teacher | null;
-    user: User;
+    groups: Group[]
+    flows: Flow[]
+    teacher: Teacher | null
+    user: User
   },
 ) {
   // DateTime customization is applied beforehand.
-  lesson.original = Object.assign({}, lesson);
+  lesson.original = Object.assign({}, lesson)
   lesson.customized = {
     hidden: customLesson.hideLesson,
     disabled: !customLesson.isEnabled,
     customizedBy: customLesson.userId,
     comment: customLesson.comment,
-  };
+  }
 
   const propsToCopy: (keyof TimetableLesson & keyof CustomLesson)[] = [
     "discipline",
@@ -282,20 +282,20 @@ export function applyCustomization(
     "dayTimeSlot",
     "beginTime",
     "endTime",
-  ];
+  ]
   const changes: Partial<CustomLesson> = Object.fromEntries(
     Object.entries(customLesson).filter(
       ([k, v]) => v && (propsToCopy as string[]).includes(k),
     ),
-  );
-  Object.assign(lesson, changes);
+  )
+  Object.assign(lesson, changes)
   if (customLesson.teacher)
     lesson.teacher = {
       name: customLesson.teacher.name,
       id: customLesson.teacherId,
-    };
+    }
   if (customLesson.groups)
-    lesson.groups = customLesson.groups.map((g) => g.name);
-  if (customLesson.flows) lesson.flows = customLesson.flows.map((f) => f.name);
-  lesson.id = customLesson.id;
+    lesson.groups = customLesson.groups.map((g) => g.name)
+  if (customLesson.flows) lesson.flows = customLesson.flows.map((f) => f.name)
+  lesson.id = customLesson.id
 }

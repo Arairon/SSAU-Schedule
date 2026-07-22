@@ -1,18 +1,18 @@
-import { CommandGroup } from "@grammyjs/commands";
-import type { Context } from "./types";
-import { InlineKeyboard, type Bot } from "grammy";
-import { api } from "@/bot/serverClient";
-import { env } from "@/bot/env";
-import log from "@/bot/logger";
+import { CommandGroup } from "@grammyjs/commands"
+import type { Context } from "./types"
+import { InlineKeyboard, type Bot } from "grammy"
+import { api } from "@/bot/serverClient"
+import { env } from "@/bot/env"
+import log from "@/bot/logger"
 
-export const feedbackCommands = new CommandGroup<Context>();
+export const feedbackCommands = new CommandGroup<Context>()
 
 export async function initFeedback(bot: Bot<Context>) {
-  const commands = feedbackCommands;
+  const commands = feedbackCommands
 
   commands.command("bug", "Сообщить об ошибке", async (ctx) => {
-    const user = ctx.from;
-    if (!user) return;
+    const user = ctx.from
+    if (!user) return
 
     const { data, error } = await api.tasks.scheduleMessages.post([
       {
@@ -27,7 +27,7 @@ Time: ${new Date().toISOString()}
         entities: [],
         source: `bugReport/${user.id}`,
       },
-    ]);
+    ])
 
     log.info(
       `Bug report from @${user.username} (${user.first_name}${user.last_name ? ` ${user.last_name}` : ""})`,
@@ -35,7 +35,7 @@ Time: ${new Date().toISOString()}
         user: user.id,
         tag: "BUG",
       },
-    );
+    )
 
     if (error || !data?.count) {
       return ctx.reply(
@@ -44,7 +44,7 @@ Time: ${new Date().toISOString()}
 Пожалуйста, попробуйте еще раз позже или свяжитесь с администратором бота.\
 `,
         { parse_mode: "HTML" },
-      );
+      )
     }
 
     return ctx.reply(
@@ -60,22 +60,22 @@ Time: ${new Date().toISOString()}
           .text("Да, уведомить меня", "bugReportNotify")
           .row(),
       },
-    );
-  });
+    )
+  })
 
   bot.callbackQuery("bugReportCancel", async (ctx) => {
-    const msg = ctx.callbackQuery.message;
-    if (!msg) return;
+    const msg = ctx.callbackQuery.message
+    if (!msg) return
 
     log.info(`User has CANCELLED the bug report`, {
       user: ctx.from.id,
       tag: "BUG",
-    });
+    })
 
     await api.cache.notifications.invalidate.bySource.patch({
       source: `bugReport/${ctx.from.id}`,
       method: "is",
-    });
+    })
 
     await ctx.api.editMessageText(
       msg.chat.id,
@@ -83,19 +83,19 @@ Time: ${new Date().toISOString()}
       `\
 Не вопрос, но если столкнётесь с какими-либо ошибками в будущем - пожалуйста пропишите /bug [сообщение] что бы я знал где искать ошибки :D\
 `,
-    );
+    )
 
-    return ctx.answerCallbackQuery();
-  });
+    return ctx.answerCallbackQuery()
+  })
 
   bot.callbackQuery("bugReportDontNotify", async (ctx) => {
-    const msg = ctx.callbackQuery.message;
-    if (!msg) return;
+    const msg = ctx.callbackQuery.message
+    if (!msg) return
 
     log.info(`User has asked to NOT be notified`, {
       user: ctx.from.id,
       tag: "BUG",
-    });
+    })
 
     await ctx.api.editMessageText(
       msg.chat.id,
@@ -104,19 +104,19 @@ Time: ${new Date().toISOString()}
 Сообщение отправлено!
 Спасибо за помощь в улучшении бота.
 `,
-    );
+    )
 
-    return ctx.answerCallbackQuery();
-  });
+    return ctx.answerCallbackQuery()
+  })
 
   bot.callbackQuery("bugReportNotify", async (ctx) => {
-    const msg = ctx.callbackQuery.message;
-    if (!msg) return;
+    const msg = ctx.callbackQuery.message
+    if (!msg) return
 
     log.info(`User has asked to be notified`, {
       user: ctx.from.id,
       tag: "BUG",
-    });
+    })
 
     await ctx.api.editMessageText(
       msg.chat.id,
@@ -126,11 +126,11 @@ Time: ${new Date().toISOString()}
 Спасибо за помощь в улучшении бота.
 Постараюсь уведомить вас, когда эта ошибка будет исправлена. (Надеюсь не забуду...)
 `,
-    );
+    )
 
-    return ctx.answerCallbackQuery();
-  });
+    return ctx.answerCallbackQuery()
+  })
 
-  bot.use(commands);
-  return commands;
+  bot.use(commands)
+  return commands
 }
