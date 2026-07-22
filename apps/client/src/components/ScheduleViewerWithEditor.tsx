@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { CustomizationData, ScheduleType } from "@/lib/types";
+import type { Timetable } from "@ssau-schedule/shared/timetable";
+import type { CustomizationData } from "@/lib/types";
 import ScheduleViewer from "@/components/ScheduleViewer";
 
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,7 +13,7 @@ import { addCustomLesson, deleteCustomLesson, editCustomLesson } from "@/api/api
 
 type CustomizationDataPayload = Partial<CustomizationData> & {weekNumber:number, weekday: number, dayTimeSlot: number}
 
-export default function ScheduleViewerWithEditor({ schedule }: { schedule: ScheduleType; }) {
+export default function ScheduleViewerWithEditor({ schedule }: { schedule: Timetable; }) {
   const { isDeleteDialogOpen, isEditDialogOpen, close, lesson, time: lessonTimeslot, customizationData } = useEditorState()
   const queryClient = useQueryClient()
 

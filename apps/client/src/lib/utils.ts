@@ -2,14 +2,15 @@ import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { getWeekFromDate } from '@ssau-schedule/shared/date'
 import type { ClassValue } from 'clsx'
-import type { CustomizationData, ScheduleLessonType } from '@/lib/types'
+import type { CustomizationData } from '@/lib/types'
+import type { TimetableLesson } from '@ssau-schedule/shared/timetable'
 
 export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs))
 }
 
 export function getLessonCustomization(
-  lesson: Omit<ScheduleLessonType, 'alts'>,
+  lesson: Omit<TimetableLesson, 'alts'>,
 ): Partial<CustomizationData> {
   const original = lesson.original ?? ({} as any)
 
@@ -42,7 +43,7 @@ export function getLessonCustomization(
 
   for (const prop of basicProps) {
     if ((lesson as any)[prop] !== original[prop]) {
-      ;(data as any)[prop] = lesson[prop]
+      ; (data as any)[prop] = lesson[prop]
     }
   }
 

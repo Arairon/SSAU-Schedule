@@ -1,11 +1,12 @@
 import { create } from "zustand"
-import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable";
+import type { CustomizationData, LessonDateTime } from "@/lib/types";
 import { getLessonCustomization } from "@/lib/utils";
 
 interface EditorState {
   isEditDialogOpen: boolean;
   isDeleteDialogOpen: boolean;
-  lesson: Omit<ScheduleLessonType, "alts"> | null;
+  lesson: Omit<TimetableLesson, "alts"> | null;
   time: LessonDateTime | null;
   customizationData: Partial<CustomizationData>;
   setCustomizationData: (data: Partial<CustomizationData>) => void
@@ -14,8 +15,8 @@ interface EditorState {
   // onEditCancel: () => void;
   // onDeleteCancel: () => void;
 
-  openDeleteDialog: (options: { lesson: Omit<ScheduleLessonType, "alts"> }) => void;
-  openEditDialog: (options: { lesson: Omit<ScheduleLessonType, "alts"> | null, time: LessonDateTime }) => void;
+  openDeleteDialog: (options: { lesson: Omit<TimetableLesson, "alts"> }) => void;
+  openEditDialog: (options: { lesson: Omit<TimetableLesson, "alts"> | null, time: LessonDateTime }) => void;
 
   close: () => void;
 }

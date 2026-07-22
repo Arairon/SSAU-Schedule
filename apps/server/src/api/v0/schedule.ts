@@ -5,6 +5,7 @@ import { detectImageMimeType } from "@ssau-schedule/shared/utils";
 import type { WithAuth } from "./auth";
 import Elysia from "elysia";
 import z from "zod";
+import type { TimetableWithDiff } from "@ssau-schedule/shared/timetable";
 
 export const app = new Elysia<"/schedule", WithAuth>({ prefix: "/schedule" })
   .get(
@@ -34,7 +35,7 @@ export const app = new Elysia<"/schedule", WithAuth>({ prefix: "/schedule" })
         groupId: (groupId ?? 0) || undefined,
       });
 
-      return timetable;
+      return timetable as TimetableWithDiff;
     },
     {
       query: z.object({
