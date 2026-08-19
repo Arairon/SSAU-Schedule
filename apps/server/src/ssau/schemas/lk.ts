@@ -1,39 +1,39 @@
-import s from "ajv-ts";
+import z from "zod"
 
-export const UserDetailsSchema = s.object({
-  staffId: s.number(),
-  fullName: s.string(),
-  name: s.string(),
-  surname: s.string(),
-  secondname: s.string(),
-  avatar: s.string(),
-  login: s.string(),
-  permissions: s.array(s.any()), // Was number, became string. Fuck my life.
-  staticPages: s.array(s.any()),
-  studentLevel: s.object({
-    id: s.number(),
-    name: s.string(),
-    code: s.string(),
+export const UserDetailsSchema = z.object({
+  staffId: z.coerce.number(),
+  fullName: z.string(),
+  name: z.string(),
+  surname: z.string(),
+  secondname: z.string(),
+  avatar: z.string(),
+  login: z.string(),
+  permissions: z.array(z.any()), // Was number, became string. Fuck my life.
+  staticPages: z.array(z.any()),
+  studentLevel: z.object({
+    id: z.coerce.number(),
+    name: z.string(),
+    code: z.string(),
   }),
-});
+})
 
-export const UserGroupSchema = s.object({
-  id: s.number(),
-  name: s.string(),
-  spec: s.object({
-    id: s.number(),
-    name: s.string(),
-    code: s.string(),
+export const UserGroupSchema = z.object({
+  id: z.coerce.number(),
+  name: z.string(),
+  spec: z.object({
+    id: z.coerce.number(),
+    name: z.string(),
+    code: z.string(),
   }),
-  studyForm: s.object({
-    id: s.number(),
-    name: s.string(),
-    code: s.string(),
+  studyForm: z.object({
+    id: z.coerce.number(),
+    name: z.string(),
+    code: z.string(),
   }),
-  studyLevel: s.object({
-    id: s.number(),
-    name: s.string(),
+  studyLevel: z.object({
+    id: z.coerce.number(),
+    name: z.string(),
   }),
-});
-export type UserGroupType = s.infer<typeof UserGroupSchema>;
-export const UserGroupsSchema = s.array(UserGroupSchema);
+})
+export type UserGroupType = z.infer<typeof UserGroupSchema>
+export const UserGroupsSchema = z.array(UserGroupSchema)

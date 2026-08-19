@@ -1,15 +1,15 @@
-import Elysia from "elysia";
-import z from "zod";
+import Elysia from "elysia"
+import z from "zod"
 
-import { db } from "@/db";
-import type { GroupChat, User } from "@/generated/prisma/client";
+import { db } from "@/server/db"
+import type { GroupChat, User } from "@/server/generated/prisma/client"
 
 type GroupChatWithUser = GroupChat & {
-  user: User | null;
-};
+  user: User | null
+}
 
 function serializeGroupChat(groupChat: GroupChatWithUser) {
-  const { tgId, user, ...rest } = groupChat;
+  const { tgId, user, ...rest } = groupChat
   return {
     ...rest,
     tgId: tgId.toString(),
@@ -21,7 +21,7 @@ function serializeGroupChat(groupChat: GroupChatWithUser) {
           authCookie: !!user.authCookie,
         }
       : null,
-  };
+  }
 }
 
 const GroupChatCreateSchema = z.object({
@@ -29,9 +29,9 @@ const GroupChatCreateSchema = z.object({
   groupId: z.coerce.number().int().nullable().optional(),
   userId: z.coerce.number().int().nullable().optional(),
   updatesEnabled: z.boolean().optional(),
-});
+})
 
-const GroupChatPatchSchema = GroupChatCreateSchema.partial();
+const GroupChatPatchSchema = GroupChatCreateSchema.partial()
 
 export const app = new Elysia()
   .get(
@@ -40,10 +40,10 @@ export const app = new Elysia()
       const groupChat = await db.groupChat.findUnique({
         where: { id: params.id },
         include: { user: true },
-      });
-      if (!groupChat) return status(404, "GroupChat not found");
+      })
+      if (!groupChat) return status(404, "GroupChat not found")
 
-      return serializeGroupChat(groupChat);
+      return serializeGroupChat(groupChat)
     },
     {
       params: z.object({
@@ -57,10 +57,10 @@ export const app = new Elysia()
       const groupChat = await db.groupChat.findUnique({
         where: { tgId: params.id },
         include: { user: true },
-      });
-      if (!groupChat) return status(404, "GroupChat not found");
+      })
+      if (!groupChat) return status(404, "GroupChat not found")
 
-      return serializeGroupChat(groupChat);
+      return serializeGroupChat(groupChat)
     },
     {
       params: z.object({
@@ -74,9 +74,9 @@ export const app = new Elysia()
       const groupChat = await db.groupChat.create({
         data: body,
         include: { user: true },
-      });
+      })
 
-      return status(201, serializeGroupChat(groupChat));
+      return status(201, serializeGroupChat(groupChat))
     },
     {
       body: GroupChatCreateSchema,
@@ -87,16 +87,16 @@ export const app = new Elysia()
     async ({ params, body, status }) => {
       const existing = await db.groupChat.findUnique({
         where: { id: params.id },
-      });
-      if (!existing) return status(404, "GroupChat not found");
+      })
+      if (!existing) return status(404, "GroupChat not found")
 
       const groupChat = await db.groupChat.update({
         where: { id: existing.id },
         data: body,
         include: { user: true },
-      });
+      })
 
-      return serializeGroupChat(groupChat);
+      return serializeGroupChat(groupChat)
     },
     {
       params: z.object({
@@ -110,11 +110,11 @@ export const app = new Elysia()
     async ({ params, status }) => {
       const groupChat = await db.groupChat.findUnique({
         where: { id: params.id },
-      });
-      if (!groupChat) return status(404, "GroupChat not found");
+      })
+      if (!groupChat) return status(404, "GroupChat not found")
 
-      await db.groupChat.delete({ where: { id: groupChat.id } });
-      return "GroupChat deleted";
+      await db.groupChat.delete({ where: { id: groupChat.id } })
+      return "GroupChat deleted"
     },
     {
       params: z.object({
@@ -127,15 +127,15 @@ export const app = new Elysia()
     async ({ params, status }) => {
       const groupChat = await db.groupChat.findUnique({
         where: { tgId: params.id },
-      });
-      if (!groupChat) return status(404, "GroupChat not found");
+      })
+      if (!groupChat) return status(404, "GroupChat not found")
 
-      await db.groupChat.delete({ where: { id: groupChat.id } });
-      return "GroupChat deleted";
+      await db.groupChat.delete({ where: { id: groupChat.id } })
+      return "GroupChat deleted"
     },
     {
       params: z.object({
         id: z.coerce.bigint(),
       }),
     },
-  );
+  )

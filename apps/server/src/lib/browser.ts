@@ -1,29 +1,29 @@
-import { env } from "@/env";
-import log from "@/logger";
-import type { Browser } from "puppeteer";
-import Puppeteer from "puppeteer";
+import { env } from "@/server/env"
+import log from "@/server/logger"
+import type { Browser } from "puppeteer"
+import Puppeteer from "puppeteer"
 
-export let browser: Browser | null = null;
-export let browserPromise: Promise<Browser> | null = null;
+export let browser: Browser | null = null
+export let browserPromise: Promise<Browser> | null = null
 
 export function resetBrowserState() {
-  browser = null;
-  browserPromise = null;
+  browser = null
+  browserPromise = null
 }
 
 export function shouldRetryBrowserOperation(error: unknown) {
-  const message = String(error);
+  const message = String(error)
   return (
     message.includes("Target closed") ||
     message.includes("Session closed") ||
     message.includes("Protocol error") ||
     message.includes("Connection closed")
-  );
+  )
 }
 
 export async function getBrowser() {
   if (browser?.connected) {
-    return browser;
+    return browser
   }
 
   browserPromise ??= Puppeteer.launch({
@@ -40,15 +40,15 @@ export async function getBrowser() {
     protocolTimeout: 30_000,
   })
     .then((instance) => {
-      browser = instance;
-      instance.on("disconnected", resetBrowserState);
-      return instance;
+      browser = instance
+      instance.on("disconnected", resetBrowserState)
+      return instance
     })
     .catch((error) => {
-      resetBrowserState();
-      log.error(`Puppeteer launch failed: ${String(error)}`, { user: "sys" });
-      throw error;
-    });
+      resetBrowserState()
+      log.error(`Puppeteer launch failed: ${String(error)}`, { user: "sys" })
+      throw error
+    })
 
-  return browserPromise;
+  return browserPromise
 }

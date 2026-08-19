@@ -1,29 +1,48 @@
-import { SelectTrigger, SelectValue } from "@radix-ui/react-select";
-import { EyeIcon, EyeOffIcon, GlobeIcon } from "lucide-react";
-import { toast } from "sonner";
-import { getLessonDate, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { useState } from "react";
+import { SelectTrigger, SelectValue } from "@radix-ui/react-select"
+import { EyeIcon, EyeOffIcon, GlobeIcon } from "lucide-react"
+import { toast } from "sonner"
+import { getLessonDate, getWeekFromDate } from "@ssau-schedule/shared/date"
+import { useState } from "react"
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap"
-import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
-import type { LessonType } from "@ssau-schedule/shared/themes/types";
-import { lessonStyles } from "@/components/ScheduleViewer";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { Toggle } from "@/components/ui/toggle";
-import { Calendar } from "@/components/ui/calendar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { applyCustomization } from '@/lib/utils';
-import useEditorState from "@/hooks/useEditorState";
+import { stylemap } from "./ScheduleViewer"
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable"
+import type { CustomizationData, LessonDateTime } from "@/client/lib/types"
+import type { LessonType } from "@ssau-schedule/shared/themes/types"
+import { Input } from "@/client/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+} from "@/client/components/ui/select"
+import { Toggle } from "@/client/components/ui/toggle"
+import { Calendar } from "@/client/components/ui/calendar"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/client/components/ui/collapsible"
+import { applyCustomization } from "@/client/lib/utils"
+import useEditorState from "@/client/hooks/useEditorState"
 
-function EditableLesson({ base, time, customizationData, setData }: { base: Omit<ScheduleLessonType, "alts"> | null, time: LessonDateTime, customizationData: Partial<CustomizationData>, setData: (data: Partial<CustomizationData>) => void }) {
-  const defaultBase: Omit<ScheduleLessonType, "alts"> = {
+function EditableLesson({
+  base,
+  time,
+  customizationData,
+  setData,
+}: {
+  base: Omit<TimetableLesson, "alts"> | null
+  time: LessonDateTime
+  customizationData: Partial<CustomizationData>
+  setData: (data: Partial<CustomizationData>) => void
+}) {
+  const defaultBase: Omit<TimetableLesson, "alts"> = {
     id: -1,
     infoId: -1,
     discipline: "",
     type: "Unknown",
     teacher: {
       name: "",
-      id: null
+      id: null,
     },
     beginTime: new Date(0),
     endTime: new Date(0),
@@ -36,10 +55,12 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
     isIet: false,
     isOnline: false,
     subgroup: null,
+    groups: [],
+    flows: [],
   }
   const lesson = applyCustomization(base || defaultBase, customizationData)
 
-  let customized: "added" | "removed" | "modified" | null = null;
+  let customized: "added" | "removed" | "modified" | null = null
   if (lesson.customized) {
     if (lesson.original?.id) {
       if (lesson.customized.hidden) {
@@ -55,90 +76,161 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
   function customizationIndicator(type: typeof customized) {
     if (!type) return <>ERR</>
     switch (type) {
-      case "added": return <span>+</span>
-      case "removed": return <span>-</span>
-      case "modified": return <span>*</span>
+      case "added":
+        return <span>+</span>
+      case "removed":
+        return <span>-</span>
+      case "modified":
+        return <span>*</span>
     }
   }
 
-  function updateField<T extends keyof CustomizationData>(field: T, value: CustomizationData[T]) {
+  function updateField<T extends keyof CustomizationData>(
+    field: T,
+    value: CustomizationData[T],
+  ) {
     setData({
       ...customizationData,
-      [field]: value
-    });
+      [field]: value,
+    })
   }
 
-  const s = lessonStyles[lesson.type as LessonType] ?? lessonStyles.Unknown;
+  const s = stylemap.lessonTypes[lesson.type as LessonType]
   return (
-    <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50" : "")}>
+    <div
+      key={lesson.id}
+      className={
+        "flex-1 " +
+        s.cardStyle +
+        (customized === "removed" ? " grayscale-50" : "")
+      }
+    >
       <div className={"rounded-xl p-1 " + s.barStyle}></div>
       <div className="flex flex-col gap-2 px-1 text-left">
         <div className="flex flex-row gap-2">
-          <Input className={"border-2 border-foreground/20 p-1  flex-1 md:text-lg " + s.nameStyle}
-            placeholder={"Название пары"} value={lesson.discipline} onChange={e =>
-              updateField("discipline", e.currentTarget.value)
-            } />
+          <Input
+            className={
+              "border-2 border-foreground/20 p-1  flex-1 md:text-lg " +
+              s.nameStyle
+            }
+            placeholder={"Название пары"}
+            value={lesson.discipline}
+            onChange={(e) => updateField("discipline", e.currentTarget.value)}
+          />
           {customized && customizationIndicator(customized)}
         </div>
         <hr className="my-1 border-white" />
-        <Input className={"border-2 border-foreground/20 p-1  flex-1 md:text-base  " + s.teacherStyle}
-          placeholder={"Преподаватель"} value={lesson.teacher.name} onChange={_ =>
+        <Input
+          className={
+            "border-2 border-foreground/20 p-1  flex-1 md:text-base  " +
+            s.teacherStyle
+          }
+          placeholder={"Преподаватель"}
+          value={lesson.teacher.name}
+          onChange={(_) =>
             toast.warning("Редактирование преподавателей пока не доступно")
-          } onClick={() => toast.warning("Редактирование преподавателей пока не доступно", { duration: 1000 })} readOnly />
+          }
+          onClick={() =>
+            toast.warning("Редактирование преподавателей пока не доступно", {
+              duration: 1000,
+            })
+          }
+          readOnly
+        />
         <div className="flex w-full flex-row items-center gap-2">
-          <div className={"flex-1 grow flex flex-row items-center justify-between gap-2 max-w-50 " + s.placeStyle}>
-            {
-              lesson.isOnline ? (
-                <div className="flex-1 rounded-lg border-2 border-foreground/20 p-1 text-center text-base">Online</div>
-              ) : <>
-                <Input className="flex-2 border-2 border-foreground/20 p-1 md:text-base"
-                  value={lesson.building ?? ""} placeholder="Корпус" onChange={e =>
-                    updateField("building", e.currentTarget.value || null)
-                  } />
-                -
-                <Input className="flex-3 border-2 border-foreground/20 p-1 md:text-base"
-                  value={lesson.room ?? ""} placeholder="Аудитория" onChange={e =>
-                    updateField("room", e.currentTarget.value || null)
-                  } />
-              </>
+          <div
+            className={
+              "flex-1 grow flex flex-row items-center justify-between gap-2 max-w-50 " +
+              s.placeStyle
             }
+          >
+            {lesson.isOnline ? (
+              <div className="flex-1 rounded-lg border-2 border-foreground/20 p-1 text-center text-base">
+                Online
+              </div>
+            ) : (
+              <>
+                <Input
+                  className="flex-2 border-2 border-foreground/20 p-1 md:text-base"
+                  value={lesson.building ?? ""}
+                  placeholder="Корпус"
+                  onChange={(e) =>
+                    updateField("building", e.currentTarget.value || null)
+                  }
+                />
+                -
+                <Input
+                  className="flex-3 border-2 border-foreground/20 p-1 md:text-base"
+                  value={lesson.room ?? ""}
+                  placeholder="Аудитория"
+                  onChange={(e) =>
+                    updateField("room", e.currentTarget.value || null)
+                  }
+                />
+              </>
+            )}
           </div>
-          <Toggle pressed={lesson.isOnline} className="border-2" onPressedChange={value => updateField("isOnline", value)}>
+          <Toggle
+            pressed={lesson.isOnline}
+            className="border-2"
+            onPressedChange={(value) => updateField("isOnline", value)}
+          >
             <GlobeIcon />
           </Toggle>
-          <Select value={String(lesson.subgroup)} onValueChange={value => updateField("subgroup", value === "null" ? null : parseInt(value))}>
+          <Select
+            value={String(lesson.subgroup)}
+            onValueChange={(value) =>
+              updateField("subgroup", value === "null" ? null : parseInt(value))
+            }
+          >
             <SelectTrigger className="flex-1 rounded-lg border-2 border-foreground/20 p-1">
               <a>Подгруппа: </a>
               <SelectValue placeholder="?" />
             </SelectTrigger>
             <SelectContent>
               {/* TODO: Allow overriding subroup to be both */}
-              {!(base?.subgroup) &&
-                <SelectItem value="null">Обе</SelectItem>
-              }
+              {!base?.subgroup && <SelectItem value="null">Обе</SelectItem>}
               <SelectItem value="1">1</SelectItem>
               <SelectItem value="2">2</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <Input className="flex-1 border-2 border-foreground/20 p-1 md:text-base"
-          placeholder="Ссылка" value={lesson.conferenceUrl ?? ""} onChange={e =>
+        <Input
+          className="flex-1 border-2 border-foreground/20 p-1 md:text-base"
+          placeholder="Ссылка"
+          value={lesson.conferenceUrl ?? ""}
+          onChange={(e) =>
             updateField("conferenceUrl", e.currentTarget.value || null)
-          } />
+          }
+        />
         <div className="flex flex-row gap-2">
-          <Select value={lesson.type} onValueChange={value => updateField("type", value)}>
+          <Select
+            value={lesson.type}
+            onValueChange={(value) => updateField("type", value)}
+          >
             <SelectTrigger className="flex-1 rounded-lg border-2 border-foreground/20 p-1">
               <SelectValue placeholder="?" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(lessonStyles).map(([type, data]) =>
-                <SelectItem key={type} value={type}>{data.name}</SelectItem>)}
+              {Object.entries(stylemap.lessonTypes).map(([type, data]) => (
+                <SelectItem key={type} value={type}>
+                  {data.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Toggle className="border-2" pressed={lesson.isIet} onPressedChange={value => updateField("isIet", value)}>
+          <Toggle
+            className="border-2"
+            pressed={lesson.isIet}
+            onPressedChange={(value) => updateField("isIet", value)}
+          >
             <a>ИОТ</a>
           </Toggle>
-          <Toggle className="border-2" pressed={!!lesson.customized?.hidden} onPressedChange={value => updateField("hideLesson", value)}>
+          <Toggle
+            className="border-2"
+            pressed={!!lesson.customized?.hidden}
+            onPressedChange={(value) => updateField("hideLesson", value)}
+          >
             {lesson.customized?.hidden ? <EyeOffIcon /> : <EyeIcon />}
           </Toggle>
         </div>
@@ -147,52 +239,88 @@ function EditableLesson({ base, time, customizationData, setData }: { base: Omit
   )
 }
 
-export default function ScheduleLessonEditor({ lesson = null, time }: { lesson?: Omit<ScheduleLessonType, "alts"> | null, time: LessonDateTime }) {
+export default function ScheduleLessonEditor({
+  lesson = null,
+  time,
+}: {
+  lesson?: Omit<TimetableLesson, "alts"> | null
+  time: LessonDateTime
+}) {
   // TODO: Move to EditorState
-  const { customizationData, setCustomizationData } = useEditorState();
+  const { customizationData, setCustomizationData } = useEditorState()
   const [isDateSelectorOpen, setDateSelectorOpen] = useState(false)
 
-  function updateField<T extends keyof CustomizationData>(field: T, value: CustomizationData[T]) {
+  function updateField<T extends keyof CustomizationData>(
+    field: T,
+    value: CustomizationData[T],
+  ) {
     setCustomizationData({
       ...customizationData,
-      [field]: value
-    });
+      [field]: value,
+    })
   }
 
   function onCalendarSelect(date: Date) {
     if (date.getDay() === 0) {
       toast.warning("Пар в воскресенье не бывает.")
-      return;
+      return
     }
     customizationData.weekday = date.getDay()
     updateField("weekNumber", getWeekFromDate(date))
-
   }
 
-  const lessonDate = getLessonDate(customizationData.weekNumber || time.weekNumber, customizationData.weekday || time.weekday)
+  const lessonDate = getLessonDate(
+    customizationData.weekNumber || time.weekNumber,
+    customizationData.weekday || time.weekday,
+  )
 
-  const minDate = getLessonDate(1, 1);
+  const minDate = getLessonDate(1, 1)
   const maxDate = getLessonDate(52, 6)
 
   return (
     <div className="flex flex-col items-stretch gap-2">
-      <EditableLesson base={lesson} time={time} customizationData={customizationData} setData={setCustomizationData} />
+      <EditableLesson
+        base={lesson}
+        time={time}
+        customizationData={customizationData}
+        setData={setCustomizationData}
+      />
       <div>
-        <Collapsible className="flex flex-col items-stretch justify-stretch rounded-lg border-2 p-1" open={isDateSelectorOpen}>
+        <Collapsible
+          className="flex flex-col items-stretch justify-stretch rounded-lg border-2 p-1"
+          open={isDateSelectorOpen}
+        >
           <CollapsibleTrigger className="flex flex-col" asChild>
-            <Toggle className="flex-1 p-1 hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent" pressed={isDateSelectorOpen} onPressedChange={setDateSelectorOpen}>
+            <Toggle
+              className="flex-1 p-1 hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent"
+              pressed={isDateSelectorOpen}
+              onPressedChange={setDateSelectorOpen}
+            >
               Выбор даты / времени
             </Toggle>
           </CollapsibleTrigger>
           <CollapsibleContent className="flex flex-row items-stretch justify-evenly gap-1 sm:gap-2">
             <div className="flex flex-col items-center gap-1 py-2">
               {TimeSlotMap.slice(1).map((timeslot, index) => {
-                const isCurrentTimeslot = (customizationData.dayTimeSlot || time.dayTimeSlot) === index + 1
-                return <Toggle className="p-1 sm:px-2" key={timeslot.name} pressed={isCurrentTimeslot} onPressedChange={() => updateField("dayTimeSlot", index + 1)}>{timeslot.name}</Toggle>
+                const isCurrentTimeslot =
+                  (customizationData.dayTimeSlot || time.dayTimeSlot) ===
+                  index + 1
+                return (
+                  <Toggle
+                    className="p-1 sm:px-2"
+                    key={timeslot.name}
+                    pressed={isCurrentTimeslot}
+                    onPressedChange={() =>
+                      updateField("dayTimeSlot", index + 1)
+                    }
+                  >
+                    {timeslot.name}
+                  </Toggle>
+                )
               })}
-
             </div>
-            <Calendar className="p-1 py-3 sm:p-3"
+            <Calendar
+              className="p-1 py-3 sm:p-3"
               mode="single"
               startMonth={minDate}
               endMonth={maxDate}
@@ -201,12 +329,17 @@ export default function ScheduleLessonEditor({ lesson = null, time }: { lesson?:
               showOutsideDays={false}
               fixedWeeks={true}
               selected={lessonDate}
-              onSelect={date => date ? onCalendarSelect(date) : null} />
+              onSelect={(date) => (date ? onCalendarSelect(date) : null)}
+            />
           </CollapsibleContent>
         </Collapsible>
       </div>
-      <Input className="border-2 border-foreground/20 p-1 md:text-base"
-        value={customizationData.comment ?? ""} onChange={e => updateField("comment", e.currentTarget.value)} placeholder="Комментарий к изменению" />
+      <Input
+        className="border-2 border-foreground/20 p-1 md:text-base"
+        value={customizationData.comment ?? ""}
+        onChange={(e) => updateField("comment", e.currentTarget.value)}
+        placeholder="Комментарий к изменению"
+      />
       {/*
       <div className="rounded-lg border-2 border-dashed p-1 text-sm">
         <p>CD: {JSON.stringify(customizationData, undefined, 2)}</p>

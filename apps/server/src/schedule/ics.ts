@@ -1,16 +1,16 @@
-import * as ics from "ics";
-import { db } from "@/db";
-import log from "@/logger";
+import * as ics from "ics"
+import { db } from "@/server/db"
+import log from "@/server/logger"
 import {
   convertLessonToTimetableLesson,
   LessonTypeIcon,
   LessonTypeName,
-} from "@ssau-schedule/shared/misc";
-import { LessonType } from "@/generated/prisma/client";
-import { applyCustomization } from "./customLesson";
-import { getUserPreferences } from "@ssau-schedule/shared/utils";
+} from "@ssau-schedule/shared/misc"
+import { LessonType } from "@/server/generated/prisma/client"
+import { applyCustomization } from "./customLesson"
+import { getUserPreferences } from "@ssau-schedule/shared/utils"
 
-const ICS_CACHE_TTL_MS = 3600_000;
+const ICS_CACHE_TTL_MS = 3600_000
 
 export async function generateUserIcs(
   userId: number,
@@ -18,14 +18,14 @@ export async function generateUserIcs(
 ) {
   const user = await db.user.findUnique({
     where: { id: userId },
-  });
+  })
   if (!user) {
-    log.error("Attempted to generate ics for no user", { user: userId });
-    return null;
+    log.error("Attempted to generate ics for no user", { user: userId })
+    return null
   }
-  log.debug("Generating new ics", { user: user.id });
-  const preferences = getUserPreferences(user);
-  const now = new Date();
+  log.debug("Generating new ics", { user: user.id })
+  const preferences = getUserPreferences(user)
+  const now = new Date()
   const normalLessons = user.groupId
     ? await db.lesson.findMany({
         where: {
@@ -35,7 +35,7 @@ export async function generateUserIcs(
         },
         include: { groups: true, teacher: true },
       })
-    : [];
+    : []
   const ietLessons = preferences.showIet
     ? await db.lesson.findMany({
         where: {
@@ -45,11 +45,11 @@ export async function generateUserIcs(
         },
         include: { flows: true, teacher: true },
       })
-    : [];
+    : []
 
   // Fetch custom lessons for this user
-  const allLessonIds = [...normalLessons, ...ietLessons].map((l) => l.id);
-  const trustedLessonCustomizers = preferences.trustedLessonCustomizers ?? [];
+  const allLessonIds = [...normalLessons, ...ietLessons].map((l) => l.id)
+  const trustedLessonCustomizers = preferences.trustedLessonCustomizers ?? []
 
   const customLessons = await db.customLesson.findMany({
     where: {
@@ -87,39 +87,39 @@ export async function generateUserIcs(
       isEnabled: true,
     },
     include: { groups: true, teacher: true, flows: true, user: true },
-  });
+  })
 
   // Build a map of lessonId -> customization for quick lookup
   const customizationMap = new Map(
     customLessons
       .filter((cl) => cl.lessonId !== null)
       .map((cl) => [cl.lessonId!, cl]),
-  );
+  )
 
-  const events: ics.EventAttributes[] = [];
+  const events: ics.EventAttributes[] = []
 
   // Process regular lessons with customizations applied
   for (const dblesson of [...normalLessons, ...ietLessons]) {
-    const lesson = convertLessonToTimetableLesson(dblesson);
+    const lesson = convertLessonToTimetableLesson(dblesson)
     if (user.subgroup && lesson.subgroup && user.subgroup !== lesson.subgroup)
-      continue;
+      continue
     if (!preferences.showMilitary && lesson.type === LessonType.Military)
-      continue;
+      continue
 
     // Check if there's a customization for this lesson
-    const customLesson = customizationMap.get(lesson.id);
+    const customLesson = customizationMap.get(lesson.id)
 
     // Skip if customization hides this lesson
-    if (customLesson?.hideLesson) continue;
+    if (customLesson?.hideLesson) continue
 
     // Apply customizations to lesson properties
-    if (customLesson) applyCustomization(lesson, customLesson);
+    if (customLesson) applyCustomization(lesson, customLesson)
 
-    let teacherName = "Преподаватель не указан";
+    let teacherName = "Преподаватель не указан"
     if (customLesson?.teacher) {
-      teacherName = customLesson.teacher.name;
+      teacherName = customLesson.teacher.name
     } else if (lesson.teacher) {
-      teacherName = lesson.teacher.name;
+      teacherName = lesson.teacher.name
     }
 
     const event: ics.EventAttributes = {
@@ -144,8 +144,8 @@ export async function generateUserIcs(
         ? `custom-${customLesson.id}@ssau-schedule-bot`
         : `lesson-${lesson.id}@ssau-schedule-bot`,
       categories: [LessonTypeName[lesson.type]],
-    };
-    events.push(event);
+    }
+    events.push(event)
   }
 
   // Add standalone custom lessons (not tied to existing lessons)
@@ -158,20 +158,20 @@ export async function generateUserIcs(
       customLesson.subgroup &&
       user.subgroup !== customLesson.subgroup
     )
-      continue;
+      continue
 
     // Skip if marked as hidden (though this shouldn't happen for standalone lessons)
-    if (customLesson.hideLesson) continue;
+    if (customLesson.hideLesson) continue
 
-    const type = customLesson.type ?? LessonType.Unknown;
-    const discipline = customLesson.discipline ?? "Неизвестный предмет";
-    const isOnline = customLesson.isOnline ?? false;
-    const isIet = customLesson.isIet ?? false;
-    const building = customLesson.building ?? "?";
-    const room = customLesson.room ?? "???";
+    const type = customLesson.type ?? LessonType.Unknown
+    const discipline = customLesson.discipline ?? "Неизвестный предмет"
+    const isOnline = customLesson.isOnline ?? false
+    const isIet = customLesson.isIet ?? false
+    const building = customLesson.building ?? "?"
+    const room = customLesson.room ?? "???"
     const teacherName = customLesson.teacher
       ? customLesson.teacher.name
-      : "Преподаватель не указан";
+      : "Преподаватель не указан"
 
     const event: ics.EventAttributes = {
       title:
@@ -198,25 +198,25 @@ export async function generateUserIcs(
       endInputType: "utc",
       uid: `custom-${customLesson.id}@ssau-schedule-bot`,
       categories: [LessonTypeName[type]],
-    };
-    events.push(event);
+    }
+    events.push(event)
   }
 
   const { error, value: rawcal } = ics.createEvents(events, {
     calName: "Расписание",
     productId: "github.com/arairon/ssau-schedule",
-  });
+  })
 
   if (error || !rawcal) {
     log.error(`Error generating ics ${JSON.stringify(error)}`, {
       user: user.id,
-    });
-    return null;
+    })
+    return null
   }
 
   const existingCal = await db.userIcs.findUnique({
     where: { id: user.id },
-  });
+  })
 
   const cal = rawcal.replace(
     "X-WR-CALNAME",
@@ -225,7 +225,7 @@ X-WR-TIMEZONE:Europe/Samara
 COMMENT:Расписание для ${user.fullname}
 COMMENT:UUID: ${existingCal?.uuid ?? "[ временно недоступно ]"}
 X-WR-CALNAME`,
-  ); // A hack to include timezone, since ics lib doesn't support it
+  ) // A hack to include timezone, since ics lib doesn't support it
 
   const dbCal = await db.userIcs.upsert({
     where: { id: user.id },
@@ -235,38 +235,38 @@ X-WR-CALNAME`,
       data: cal,
       validUntil: new Date(Date.now() + ICS_CACHE_TTL_MS),
     },
-  });
+  })
 
-  await db.user.update({ where: { id: user.id }, data: { lastActive: now } });
+  await db.user.update({ where: { id: user.id }, data: { lastActive: now } })
 
-  return dbCal;
+  return dbCal
 }
 
 export async function getUserIcsByUserId(userId: number) {
-  const now = new Date();
+  const now = new Date()
   const existingCal = await db.userIcs.findUnique({
     where: { id: userId },
-  });
+  })
   if (existingCal && existingCal.validUntil > now) {
-    log.debug("Using cached ics", { user: userId });
-    return existingCal;
+    log.debug("Using cached ics", { user: userId })
+    return existingCal
   }
-  return generateUserIcs(userId);
+  return generateUserIcs(userId)
 }
 
 export async function getUserIcsByUUID(uuid: string) {
-  const now = new Date();
+  const now = new Date()
   const cal = await db.userIcs.findUnique({
     where: { uuid },
     include: { user: true },
-  });
+  })
   if (!cal) {
-    log.warn(`Requested invalid ics: ${uuid}`, { user: "?" });
-    return null;
+    log.warn(`Requested invalid ics: ${uuid}`, { user: "?" })
+    return null
   }
   if (cal.validUntil > now) {
-    log.debug("Using cached ics", { user: cal.user.id });
-    return cal;
+    log.debug("Using cached ics", { user: cal.user.id })
+    return cal
   }
-  return generateUserIcs(cal.user.id);
+  return generateUserIcs(cal.user.id)
 }

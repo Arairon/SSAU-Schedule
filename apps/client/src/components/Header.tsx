@@ -1,16 +1,13 @@
-import { Link } from '@tanstack/react-router'
-import useAuth from '@/hooks/useAuth'
-
+import { Link } from "@tanstack/react-router"
+import { Loader2Icon } from "lucide-react"
+import useAuth from "@/client/hooks/useAuth"
 
 export default function Header() {
-  // const [isOpen, setIsOpen] = useState(false)
-  const isTg = !!(window as any).Telegram?.WebApp
-  useAuth({ tg: isTg, token: window.localStorage.getItem("auth-token") || "", cookie: true })
-  // const { user } = useAuthState()
+  const { isLoading } = useAuth()
 
   return (
     <>
-      <header className="flex flex-row items-center justify-center bg-slate-900 p-2 text-white shadow-lg sm:justify-start sm:p-4">
+      <header className="flex flex-row gap-2 items-center justify-center bg-slate-900 p-2 text-white shadow-lg sm:justify-start sm:p-4">
         {/*
         <button
           onClick={() => setIsOpen(true)}
@@ -21,7 +18,7 @@ export default function Header() {
         </button>
         */}
         <h1 className="flex items-center gap-2 text-3xl font-semibold text-[#36f3ff] sm:ml-4 sm:text-4xl">
-          <Link to="/schedule" className='flex items-center gap-2'>
+          <Link to="/schedule" className="flex items-center gap-2">
             <img
               src="/ssau-sched-textless.png"
               alt="SSAU-Schedule Logo"
@@ -30,7 +27,9 @@ export default function Header() {
             <span>Schedule</span>
           </Link>
         </h1>
-
+        {isLoading && (
+          <Loader2Icon className="ml-2 h-6 w-6 animate-spin text-gray-700" />
+        )}
       </header>
 
       {/**

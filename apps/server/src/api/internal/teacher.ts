@@ -1,17 +1,24 @@
-import { db } from "@/db";
-import type { WeekImage } from "@/generated/prisma/client";
-import { streamWithUpdates } from "@/lib/apiUpdateStream";
-import { stringBool } from "@/lib/misc";
-import { generateTimetableImageHtml } from "@/schedule/image";
-import { schedule } from "@/schedule/requests";
-import { getWeekFromDate } from "@ssau-schedule/shared/date";
-import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
+import { db } from "@/server/db"
+import type { WeekImage } from "@/server/generated/prisma/client"
+import { streamWithUpdates } from "@/server/lib/apiUpdateStream"
+import { stringBool } from "@/server/lib/misc"
+import {
+  generateTimetableImage,
+  generateTimetableImageHtml,
+} from "@/server/schedule/image"
+import { schedule } from "@/server/schedule/requests"
+import {
+  convertRaspScheduleToDrawable,
+  getTeacherWeekFromSsauRasp,
+} from "@/server/ssau/rasp"
+import { getWeekFromDate } from "@ssau-schedule/shared/date"
+import type { RequestStateUpdate } from "@ssau-schedule/shared/misc"
 import type {
   TeacherTimetable,
   TimetableDiff,
-} from "@ssau-schedule/shared/timetable";
-import Elysia from "elysia";
-import z from "zod";
+} from "@ssau-schedule/shared/timetable"
+import Elysia from "elysia"
+import z from "zod"
 
 // const stringBool = z
 //   .string()
@@ -33,7 +40,7 @@ const scheduleRequestQuerySchema = z.object({
   // ignoreIet: stringBool,
   // ignoreSubgroup: stringBool,
   // forceUpdate: stringBool,
-});
+})
 
 type teacherScheduleImageRequestUpdateCallback = (
   update: RequestStateUpdate<
@@ -43,21 +50,21 @@ type teacherScheduleImageRequestUpdateCallback = (
     | "generatingImage"
     | "error"
   >,
-) => void;
+) => void
 
 type ImageGenerator = AsyncGenerator<
   | Parameters<teacherScheduleImageRequestUpdateCallback>[0]
   | {
-      timetable: TeacherTimetable & { diff?: TimetableDiff };
+      timetable: TeacherTimetable & { diff?: TimetableDiff }
       image: {
-        id: number;
-        tgId: string | null;
-        data: string;
-        timetableHash: string;
-        stylemap: string;
-      };
+        id: number
+        tgId: string | null
+        data: string
+        timetableHash: string
+        stylemap: string
+      }
     }
->;
+>
 
 export const app = new Elysia()
   .get(
@@ -65,18 +72,18 @@ export const app = new Elysia()
     async ({ query, status }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      const week = query.week ?? getWeekFromDate(new Date());
+      const week = query.week ?? getWeekFromDate(new Date())
       const timetable = await schedule.getTeacherTimetable(
         user,
         week,
         query.teacherId,
-      );
+      )
 
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      return timetable as TeacherTimetable;
+      return timetable as TeacherTimetable
     },
     {
       query: scheduleRequestQuerySchema,
@@ -87,15 +94,15 @@ export const app = new Elysia()
     async ({ query, status }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      const week = query.week ?? getWeekFromDate(new Date());
+      const week = query.week ?? getWeekFromDate(new Date())
       const { timetable, image } = await schedule.getTeacherTimetableWithImage(
         user,
         week,
         query.teacherId,
-      );
+      )
 
       return {
         timetable,
@@ -103,9 +110,9 @@ export const app = new Elysia()
           data: image.data.toString("base64"),
         }),
       } as {
-        timetable: TeacherTimetable;
-        image: WeekImage;
-      };
+        timetable: TeacherTimetable
+        image: WeekImage
+      }
     },
     {
       query: scheduleRequestQuerySchema,
@@ -116,23 +123,23 @@ export const app = new Elysia()
     async ({ query, status, set }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      const week = query.week ?? getWeekFromDate(new Date());
+      const week = query.week ?? getWeekFromDate(new Date())
       const timetable = await schedule.getTeacherTimetable(
         user,
         week,
         query.teacherId,
-      );
+      )
       const html = await generateTimetableImageHtml(timetable, {
         stylemap: query.stylemap,
         showTeacher: query.showTeacher,
         showGrouplist: query.showGrouplist,
-      });
+      })
 
-      set.headers["content-type"] = "text/html";
-      return html;
+      set.headers["content-type"] = "text/html"
+      return html
     },
     {
       query: scheduleRequestQuerySchema.extend({
@@ -147,18 +154,18 @@ export const app = new Elysia()
     async ({ query, status, set }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      const week = query.week ?? getWeekFromDate(new Date());
+      const week = query.week ?? getWeekFromDate(new Date())
       const { image } = await schedule.getTeacherTimetableWithImage(
         user,
         week,
         query.teacherId,
-      );
+      )
 
-      set.headers["content-type"] = "image/png";
-      return image.data;
+      set.headers["content-type"] = "image/png"
+      return image.data
     },
     {
       query: scheduleRequestQuerySchema,
@@ -169,24 +176,24 @@ export const app = new Elysia()
     async function* ({ query, status, set }) {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
+      })
 
-      if (!user) return status(404, "User not found");
+      if (!user) return status(404, "User not found")
 
-      set.headers["content-type"] = "text/event-stream";
+      set.headers["content-type"] = "text/event-stream"
 
       yield* streamWithUpdates<
         Parameters<teacherScheduleImageRequestUpdateCallback>[0],
         Awaited<ReturnType<typeof schedule.getTeacherTimetableWithImage>>,
         {
-          timetable: TeacherTimetable & { diff?: TimetableDiff };
+          timetable: TeacherTimetable & { diff?: TimetableDiff }
           image: {
-            id: number;
-            tgId: string | null;
-            data: string;
-            timetableHash: string;
-            stylemap: string;
-          };
+            id: number
+            tgId: string | null
+            data: string
+            timetableHash: string
+            stylemap: string
+          }
         }
       >(
         (onUpdate) =>
@@ -205,11 +212,136 @@ export const app = new Elysia()
             data: result.image.data.toString("base64"),
           }),
         }),
-      ) as ImageGenerator;
+      ) as ImageGenerator
     },
     {
       query: scheduleRequestQuerySchema.extend({
         stylemap: z.string().optional(),
       }),
     },
-  );
+  )
+  // ssau.ru/rasp endpoints
+  .get(
+    "/rasp_schedule/json",
+    async ({ query, status }) => {
+      const week = query.week ?? getWeekFromDate(new Date())
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      })
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP")
+      }
+
+      return raspSchedule.value
+    },
+    {
+      query: scheduleRequestQuerySchema,
+    },
+  )
+  .get(
+    "/rasp_schedule/image",
+    async ({ query, status }) => {
+      const week = query.week ?? getWeekFromDate(new Date())
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      })
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP")
+      }
+
+      const drawableTimetable = convertRaspScheduleToDrawable(
+        raspSchedule.value,
+      )
+      const image = await generateTimetableImage(drawableTimetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      })
+
+      return {
+        timetable: drawableTimetable,
+        image: image.toBase64(),
+      }
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(false),
+        showGrouplist: stringBool.default(true),
+      }),
+    },
+  )
+  .get(
+    "/rasp_schedule/image/png",
+    async ({ query, status, set }) => {
+      const week = query.week ?? getWeekFromDate(new Date())
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      })
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP")
+      }
+
+      const drawableTimetable = convertRaspScheduleToDrawable(
+        raspSchedule.value,
+      )
+      const image = await generateTimetableImage(drawableTimetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      })
+
+      set.headers["content-type"] = "image/png"
+      return image
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(false),
+        showGrouplist: stringBool.default(true),
+      }),
+    },
+  )
+  .get(
+    "/rasp_schedule/image/html",
+    async ({ query, status, set }) => {
+      const week = query.week ?? getWeekFromDate(new Date())
+
+      const raspSchedule = await getTeacherWeekFromSsauRasp({
+        staffId: query.teacherId,
+        selectedWeek: week,
+      })
+
+      if (raspSchedule.isErr()) {
+        return status(500, "Failed to fetch schedule from SSAU RASP")
+      }
+
+      const drawableTimetable = convertRaspScheduleToDrawable(
+        raspSchedule.value,
+      )
+      const html = await generateTimetableImageHtml(drawableTimetable, {
+        stylemap: query.stylemap,
+        showTeacher: query.showTeacher,
+        showGrouplist: query.showGrouplist,
+      })
+
+      set.headers["content-type"] = "text/html"
+      return html
+    },
+    {
+      query: scheduleRequestQuerySchema.extend({
+        stylemap: z.string().optional(),
+        showTeacher: stringBool.default(false),
+        showGrouplist: stringBool.default(true),
+      }),
+    },
+  )

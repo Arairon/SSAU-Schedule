@@ -1,14 +1,3 @@
-import {
-  ScheduleDaySchema,
-  ScheduleLessonSchema,
-  ScheduleSchema,
-} from '@ssau-schedule/contracts/v0/schedule'
-import type {
-  ScheduleDayType,
-  ScheduleLessonType,
-  ScheduleType,
-} from '@ssau-schedule/contracts/v0/schedule'
-
 export type LessonDateTime = {
   weekNumber: number
   dayTimeSlot: number
@@ -16,9 +5,6 @@ export type LessonDateTime = {
   // timeSlotStart?: number;
   // timeSlotEnd?: number;
 }
-
-export { ScheduleSchema, ScheduleLessonSchema, ScheduleDaySchema }
-export type { ScheduleType, ScheduleDayType, ScheduleLessonType }
 
 export type CustomizationData = {
   id: number

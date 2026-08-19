@@ -1,51 +1,51 @@
-import type { User, WeekImage } from "@/generated/prisma/client";
-import { getWeek } from "@/lib/week";
-import log from "@/logger";
-import { updateWeekForUser } from "@/ssau/lessons";
-import { lk } from "@/ssau/lk";
-import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { formatBigInt } from "@ssau-schedule/shared/utils";
+import type { User, WeekImage } from "@/server/generated/prisma/client"
+import { getWeek } from "@/server/lib/week"
+import log from "@/server/logger"
+import { updateWeekForUser } from "@/server/ssau/lessons"
+import { lk } from "@/server/ssau/lk"
+import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date"
+import { formatBigInt } from "@ssau-schedule/shared/utils"
 import {
   generateTeacherTimetable,
   generateTimetable,
   getTimetableHash,
   getTimetablesDiff,
-} from "./timetable";
-import { getUserPreferences } from "@ssau-schedule/shared/utils";
-import { db } from "@/db";
+} from "./timetable"
+import { getUserPreferences } from "@ssau-schedule/shared/utils"
+import { db } from "@/server/db"
 import type {
   TeacherTimetable,
   Timetable,
   TimetableDiff,
-} from "@ssau-schedule/shared/timetable";
-import { generateTimetableImage } from "./image";
-import { getTeacherWeekFromSsauRasp } from "@/ssau/rasp";
-import type { RequestStateUpdate } from "@ssau-schedule/shared/misc";
-import { ensureGroupExists } from "@/lib/misc";
+} from "@ssau-schedule/shared/timetable"
+import { generateTimetableImage } from "./image"
+import { getTeacherWeekFromSsauRasp } from "@/server/ssau/rasp"
+import type { RequestStateUpdate } from "@ssau-schedule/shared/misc"
+import { ensureGroupExists } from "@/server/lib/misc"
 
 type TimetableWeekLike = {
-  timetable: Timetable | null;
-  cachedUntil: Date;
-};
+  timetable: Timetable | null
+  cachedUntil: Date
+}
 
 type UpdatableWeekLike = {
-  updatedAt: Date;
-};
+  updatedAt: Date
+}
 
 function hydrateTimetableDates(timetable: Timetable): Timetable {
   timetable.days.forEach((day) => {
-    day.beginTime = new Date(day.beginTime);
-    day.endTime = new Date(day.endTime);
+    day.beginTime = new Date(day.beginTime)
+    day.endTime = new Date(day.endTime)
     day.lessons.forEach((lesson) => {
-      lesson.beginTime = new Date(lesson.beginTime);
-      lesson.endTime = new Date(lesson.endTime);
+      lesson.beginTime = new Date(lesson.beginTime)
+      lesson.endTime = new Date(lesson.endTime)
       lesson.alts.forEach((alt) => {
-        alt.beginTime = new Date(alt.beginTime);
-        alt.endTime = new Date(alt.endTime);
-      });
-    });
-  });
-  return timetable;
+        alt.beginTime = new Date(alt.beginTime)
+        alt.endTime = new Date(alt.endTime)
+      })
+    })
+  })
+  return timetable
 }
 
 function extractCachedTimetable(
@@ -53,22 +53,22 @@ function extractCachedTimetable(
   userId: number,
   opts?: { loggingTag?: string },
 ): Timetable | null {
-  const now = new Date();
-  if (!week.timetable) return null;
+  const now = new Date()
+  if (!week.timetable) return null
 
   if (week.cachedUntil > now) {
     log.debug("Timetable good enough. Returning cached", {
       user: userId,
       tag: opts?.loggingTag,
-    });
-    return hydrateTimetableDates(week.timetable);
+    })
+    return hydrateTimetableDates(week.timetable)
   }
 
   log.debug("Cached timetable expired.", {
     user: userId,
     tag: opts?.loggingTag,
-  });
-  return null;
+  })
+  return null
 }
 
 async function updateWeekIfNeeded(
@@ -78,9 +78,9 @@ async function updateWeekIfNeeded(
   year: number,
   groupId: number,
   opts: {
-    ignoreUpdate?: boolean;
-    forceUpdate?: boolean;
-    loggingTag?: string;
+    ignoreUpdate?: boolean
+    forceUpdate?: boolean
+    loggingTag?: string
   },
   updateState: (update: RequestStateUpdate<"updatingWeek" | "error">) => void,
 ) {
@@ -91,37 +91,37 @@ async function updateWeekIfNeeded(
         user: user.id,
         tag: opts.loggingTag,
       },
-    );
-    return;
+    )
+    return
   }
 
   if (opts.forceUpdate) {
     log.debug("Requested forceUpdate. Updating week", {
       user: user.id,
       tag: opts.loggingTag,
-    });
+    })
     updateState({
       state: "updatingWeek",
       message: "Updating week from SSAU",
-    });
+    })
     try {
       await updateWeekForUser(user, weekNumber, {
         year,
         groupId,
         loggingTag: opts.loggingTag,
-      });
+      })
     } catch {
       log.warn(`Failed to update week during forceUpdate.`, {
         user: user.id,
         tag: opts.loggingTag,
-      });
+      })
       updateState({
         state: "error",
         message:
           "Не удалось обновить расписание. Используется устаревшее расписание из базы данных.",
-      });
+      })
     }
-    return;
+    return
   }
 
   if (Date.now() - week.updatedAt.getTime() > 86400_000) {
@@ -129,66 +129,66 @@ async function updateWeekIfNeeded(
     log.debug("Week updatedAt too old. Updating week", {
       user: user.id,
       tag: opts.loggingTag,
-    });
+    })
     updateState({
       state: "updatingWeek",
       message: "Updating week from SSAU",
-    });
+    })
     try {
       await updateWeekForUser(user, weekNumber, {
         year,
         groupId,
         loggingTag: opts.loggingTag,
-      });
+      })
     } catch {
       log.warn(`Failed to update week.`, {
         user: user.id,
         tag: opts.loggingTag,
-      });
+      })
       updateState({
         state: "error",
         message:
           "Не удалось обновить расписание. Используется устаревшее расписание из базы данных.",
-      });
+      })
     }
-    return;
+    return
   }
 
   log.debug("Week updatedAt looks good. Not updating from ssau", {
     user: user.id,
     tag: opts.loggingTag,
-  });
+  })
 }
 
 export async function getTimetable(
   user: User,
   weekN: number,
   opts?: {
-    groupId?: number; // User requests a group's schedule instead of personal.
-    year?: number;
-    ignoreCached?: boolean; // Ignore cached timetable even if it's still valid.
-    ignoreUpdate?: boolean; // Don't update week from SSAU even if it's old.
-    forceUpdate?: boolean; // Force update week from SSAU.
-    dontCache?: boolean; // Don't cache generated timetable to DB
-    ignoreIet?: boolean;
-    ignoreSubgroup?: boolean;
-    loggingTag?: string; // An optional tag to add to all logs for this request.
+    groupId?: number // User requests a group's schedule instead of personal.
+    year?: number
+    ignoreCached?: boolean // Ignore cached timetable even if it's still valid.
+    ignoreUpdate?: boolean // Don't update week from SSAU even if it's old.
+    forceUpdate?: boolean // Force update week from SSAU.
+    dontCache?: boolean // Don't cache generated timetable to DB
+    ignoreIet?: boolean
+    ignoreSubgroup?: boolean
+    loggingTag?: string // An optional tag to add to all logs for this request.
     onUpdate?: (
       update: RequestStateUpdate<
         "updatingWeek" | "generatingTimetable" | "error"
       >,
-    ) => void;
+    ) => void
   },
 ): Promise<Timetable & { diff?: TimetableDiff }> {
-  const now = new Date();
-  const weekNumber = weekN || getWeekFromDate(now);
-  const year = (opts?.year ?? 0) || getCurrentYearId();
-  const groupId = opts?.groupId ?? user.groupId;
+  const now = new Date()
+  const weekNumber = weekN || getWeekFromDate(now)
+  const year = (opts?.year ?? 0) || getCurrentYearId()
+  const groupId = opts?.groupId ?? user.groupId
 
   if (!groupId) {
-    log.error(`Groupless user @getWeekTimetable`, { user: user.id });
-    void lk.updateUserInfo(user);
-    throw new Error(`Groupless user @getWeekTimetable`);
+    log.error(`Groupless user @getWeekTimetable`, { user: user.id })
+    void lk.updateUserInfo(user)
+    throw new Error(`Groupless user @getWeekTimetable`)
   }
 
   function updateState(
@@ -196,23 +196,23 @@ export async function getTimetable(
       "updatingWeek" | "generatingTimetable" | "error"
     >,
   ) {
-    if (opts?.onUpdate) opts.onUpdate(update);
+    if (opts?.onUpdate) opts.onUpdate(update)
   }
 
   const week = await getWeek(user, weekN, {
     year,
     groupId,
     nonPersonal: !!opts?.groupId,
-  });
+  })
 
   // TODO: Review which opts cannot be cached (or cache them separately) instead of ignoring cache entirely.
 
   if (!opts?.ignoreCached) {
     const cachedTimetable = extractCachedTimetable(week, user.id, {
       loggingTag: opts?.loggingTag,
-    });
+    })
     if (cachedTimetable) {
-      return cachedTimetable;
+      return cachedTimetable
     }
   }
 
@@ -224,19 +224,19 @@ export async function getTimetable(
     groupId,
     opts ?? {},
     updateState,
-  );
+  )
 
   updateState({
     state: "generatingTimetable",
     message: "Generating timetable",
-  });
+  })
 
   const timetable = await generateTimetable(user, week.number, {
     groupId: opts?.groupId,
     year: opts?.year,
     ignoreIet: opts?.ignoreIet,
     ignoreSubgroup: opts?.ignoreSubgroup,
-  });
+  })
 
   return {
     ...timetable,
@@ -244,49 +244,49 @@ export async function getTimetable(
       week.timetable && week.timetableHash !== timetable.hash
         ? (getTimetablesDiff(week.timetable, timetable) ?? undefined)
         : undefined,
-  };
+  }
 }
 
 async function getTimetableWithImage(
   user: User,
   weekN: number,
   opts?: {
-    groupId?: number;
-    year?: number;
-    stylemap?: string;
-    ignoreCached?: boolean; // Ignore cached timetable even if it's still valid.
-    ignoreUpdate?: boolean; // Don't update week from SSAU even if it's old.
-    forceUpdate?: boolean; // Force update week from SSAU.
-    dontCache?: boolean; // Don't cache generated timetable to DB
-    ignoreIet?: boolean;
-    ignoreSubgroup?: boolean;
-    loggingTag?: string; // An optional tag to add to all logs for this request.
+    groupId?: number
+    year?: number
+    stylemap?: string
+    ignoreCached?: boolean // Ignore cached timetable even if it's still valid.
+    ignoreUpdate?: boolean // Don't update week from SSAU even if it's old.
+    forceUpdate?: boolean // Force update week from SSAU.
+    dontCache?: boolean // Don't cache generated timetable to DB
+    ignoreIet?: boolean
+    ignoreSubgroup?: boolean
+    loggingTag?: string // An optional tag to add to all logs for this request.
     onUpdate?: (
       update: RequestStateUpdate<
         "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
       >,
-    ) => void;
+    ) => void
   },
 ): Promise<{
-  timetable: Timetable & { diff?: TimetableDiff };
-  image: Omit<WeekImage, "data"> & { data: Buffer };
+  timetable: Timetable & { diff?: TimetableDiff }
+  image: Omit<WeekImage, "data"> & { data: Buffer }
 }> {
-  const year = (opts?.year ?? 0) || getCurrentYearId();
-  const groupId = opts?.groupId ?? user.groupId;
-  const preferences = getUserPreferences(user);
-  const stylemap = opts?.stylemap ?? preferences.theme ?? "default";
+  const year = (opts?.year ?? 0) || getCurrentYearId()
+  const groupId = opts?.groupId ?? user.groupId
+  const preferences = getUserPreferences(user)
+  const stylemap = opts?.stylemap ?? preferences.theme ?? "default"
   if (opts?.forceUpdate) {
-    opts.ignoreCached = true;
-    opts.ignoreUpdate = false;
+    opts.ignoreCached = true
+    opts.ignoreUpdate = false
   }
 
   if (!groupId) {
     log.error(`Groupless user @getWeekTimetable`, {
       user: user.id,
       tag: opts?.loggingTag,
-    });
-    void lk.updateUserInfo(user);
-    throw new Error(`Groupless user @getWeekTimetable`);
+    })
+    void lk.updateUserInfo(user)
+    throw new Error(`Groupless user @getWeekTimetable`)
   }
 
   function updateState(
@@ -294,26 +294,26 @@ async function getTimetableWithImage(
       "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
     >,
   ) {
-    if (opts?.onUpdate) opts.onUpdate(update);
+    if (opts?.onUpdate) opts.onUpdate(update)
   }
 
   const week = await getWeek(user, weekN, {
     year,
     groupId,
     nonPersonal: !!opts?.groupId,
-  });
+  })
 
   log.info(
     `Requested Image ${stylemap}/${week.groupId}/${week.year}/${week.number}`,
     { user: user.id, tag: opts?.loggingTag },
-  );
+  )
 
   const timetable = await getTimetable(user, week.number, {
     ...opts,
     onUpdate: updateState,
-  });
+  })
 
-  const timetableHash = getTimetableHash(timetable);
+  const timetableHash = getTimetableHash(timetable)
 
   if (!opts?.ignoreCached && timetableHash) {
     const existingImage = await db.weekImage.findUnique({
@@ -323,18 +323,18 @@ async function getTimetableWithImage(
           timetableHash,
         },
       },
-    });
+    })
     if (existingImage) {
       log.debug(`Found a valid image with same timetable hash. Returning`, {
         user: user.id,
         tag: opts?.loggingTag,
-      });
+      })
       await db.weekImage.update({
         where: { id: existingImage.id },
         data: {
           validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
         },
-      });
+      })
       return {
         timetable: {
           ...timetable,
@@ -346,24 +346,24 @@ async function getTimetableWithImage(
         image: Object.assign(existingImage, {
           data: Buffer.from(existingImage.data, "base64"),
         }),
-      };
+      }
     } else {
       log.debug(
         `Could not find a valid image with same hash. Generating new. (hash:${timetableHash})`,
         { user: user.id, tag: opts?.loggingTag },
-      );
+      )
     }
   }
 
   updateState({
     state: "generatingImage",
     message: "Generating timetable image",
-  });
+  })
   const image = await generateTimetableImage(timetable, {
     stylemap,
     showTeacher: true,
     showGrouplist: false,
-  });
+  })
 
   const createdImage = await db.weekImage.upsert({
     where: {
@@ -382,7 +382,7 @@ async function getTimetableWithImage(
       data: image.toString("base64"),
       validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
     },
-  });
+  })
 
   return {
     timetable: {
@@ -393,7 +393,7 @@ async function getTimetableWithImage(
           : undefined,
     },
     image: Object.assign(createdImage, { data: image }),
-  };
+  }
 }
 
 async function pregenerateImagesForUser(
@@ -402,12 +402,12 @@ async function pregenerateImagesForUser(
   count?: number,
   opts?: { groupId?: number; year?: number; loggingTag?: string },
 ) {
-  const startTime = process.hrtime.bigint();
-  const requestedCount = count ?? 1;
-  const direction = requestedCount < 0 ? -1 : 1;
-  const totalToGenerate = Math.abs(requestedCount);
-  const startingWeek = Math.max(1, week);
-  let generatedCount = 0;
+  const startTime = process.hrtime.bigint()
+  const requestedCount = count ?? 1
+  const direction = requestedCount < 0 ? -1 : 1
+  const totalToGenerate = Math.abs(requestedCount)
+  const startingWeek = Math.max(1, week)
+  let generatedCount = 0
 
   log.info(
     `Pregenerating #${startingWeek}: ${requestedCount} images for user.`,
@@ -415,27 +415,27 @@ async function pregenerateImagesForUser(
       user: user.id,
       tag: opts?.loggingTag,
     },
-  );
+  )
   for (let i = 0; i < totalToGenerate; i++) {
-    const weekNumber = startingWeek + i * direction;
-    if (weekNumber < 1) break;
+    const weekNumber = startingWeek + i * direction
+    if (weekNumber < 1) break
 
     const week = await getWeek(user, weekNumber, {
       groupId: opts?.groupId,
       year: opts?.year,
-    });
+    })
     await getTimetableWithImage(
       user,
       week.number,
       Object.assign({}, opts, { ignoreUpdates: true }),
-    );
-    generatedCount += 1;
+    )
+    generatedCount += 1
   }
-  const endTime = process.hrtime.bigint();
+  const endTime = process.hrtime.bigint()
   log.info(
     `Pregenerated #${startingWeek}: ${generatedCount}/${totalToGenerate} images for user. Took: ${formatBigInt(endTime - startTime)}ns`,
     { user: user.id, tag: opts?.loggingTag },
-  );
+  )
 }
 
 async function getTeacherTimetable(
@@ -443,66 +443,65 @@ async function getTeacherTimetable(
   weekN: number,
   teacherId: number,
   opts?: {
-    ignoreCached?: boolean; // Ignore cached timetable even if it's still valid.
-    ignoreUpdate?: boolean; // Don't update week from SSAU even if it's old.
-    forceUpdate?: boolean; // Force update week from SSAU.
-    dontCache?: boolean; // Don't cache generated timetable to DB
-    loggingTag?: string; // An optional tag to add to all logs for this request.
+    ignoreCached?: boolean // Ignore cached timetable even if it's still valid.
+    ignoreUpdate?: boolean // Don't update week from SSAU even if it's old.
+    forceUpdate?: boolean // Force update week from SSAU.
+    dontCache?: boolean // Don't cache generated timetable to DB
+    loggingTag?: string // An optional tag to add to all logs for this request.
     onUpdate?: (
       update: RequestStateUpdate<
         "updatingTeacher" | "updatingWeek" | "generatingTimetable" | "error"
       >,
-    ) => void;
+    ) => void
   },
 ): Promise<TeacherTimetable> {
-  const now = new Date();
-  const year = getCurrentYearId();
-  const weekNumber = weekN || getWeekFromDate(now);
+  const now = new Date()
+  const year = getCurrentYearId()
+  const weekNumber = weekN || getWeekFromDate(now)
 
   function updateState(
     update: RequestStateUpdate<
       "updatingTeacher" | "updatingWeek" | "generatingTimetable" | "error"
     >,
   ) {
-    if (opts?.onUpdate) opts.onUpdate(update);
+    if (opts?.onUpdate) opts.onUpdate(update)
   }
 
   updateState({
     state: "updatingTeacher",
     message: "Обновляем расписание преподавателя с ssau.ru/rasp",
-  });
+  })
 
   const raspSchedule = await getTeacherWeekFromSsauRasp({
     selectedWeek: weekNumber,
     staffId: teacherId,
-  });
+  })
 
   if (raspSchedule.isErr()) {
     log.error(`Failed to fetch teacher schedule from ssau.ru/rasp`, {
       user: user.id,
       tag: opts?.loggingTag,
       object: raspSchedule.error,
-    });
+    })
     updateState({
       state: "error",
-      message:
-        "Не удалось получить расписание преподавателя. Попробуйте позже или обратитесь в поддержку.",
-    });
+      message: "Не удалось получить расписание преподавателя.", // Текущее расписание взято из базы данных и может быть неактуальным. Попробуйте повторить запрос позже.
+    })
     throw new Error(
       `Failed to fetch teacher schedule from ssau.ru/rasp: ${raspSchedule.error.message}`,
-    );
+    )
   }
 
-  const groups: Record<number, string> = {};
+  const groups: Record<number, string> = {}
   for (const day of raspSchedule.value.days) {
-    for (const lesson of day) {
+    for (const lesson of day.lessons) {
       for (const group of lesson.groups) {
-        groups[group.id] = group.name;
+        groups[group.id] = group.name
       }
     }
   }
 
-  const groupCount = Object.keys(groups).length;
+  const groupCount = Object.keys(groups).length
 
   log.debug(
     `Updating weeks for ${groupCount} groups from a ssau.ru/rasp timetable`,
@@ -511,18 +510,18 @@ async function getTeacherTimetable(
       tag: opts?.loggingTag,
       object: { groups },
     },
-  );
+  )
 
   // let updatedGroupCount = 0;
   for (const [id, name] of Object.entries(groups)) {
     // updatedGroupCount++;
-    const group = { id: parseInt(id), name };
-    await ensureGroupExists(group);
+    const group = { id: parseInt(id), name }
+    await ensureGroupExists(group)
     const week = await getWeek(user, weekN, {
       year,
       groupId: group.id,
       nonPersonal: true,
-    });
+    })
     await updateWeekIfNeeded(
       user,
       week,
@@ -538,10 +537,10 @@ async function getTeacherTimetable(
           //   message: `Обновляем расписание по группам ${updatedGroupCount}/${groupCount}`,
           // });
         } else {
-          updateState(upd);
+          updateState(upd)
         }
       },
-    );
+    )
   }
 
   const timetable = await generateTeacherTimetable(
@@ -552,9 +551,9 @@ async function getTeacherTimetable(
       year,
       loggingTag: opts?.loggingTag,
     },
-  );
+  )
 
-  return timetable;
+  return timetable
 }
 
 async function getTeacherTimetableWithImage(
@@ -562,13 +561,13 @@ async function getTeacherTimetableWithImage(
   weekN: number,
   teacherId: number,
   opts?: {
-    year?: number;
-    stylemap?: string;
-    ignoreCached?: boolean; // Ignore cached timetable even if it's still valid.
-    ignoreUpdate?: boolean; // Don't update week from SSAU even if it's old.
-    forceUpdate?: boolean; // Force update week from SSAU.
-    dontCache?: boolean; // Don't cache generated timetable to DB
-    loggingTag?: string; // An optional tag to add to all logs for this request.
+    year?: number
+    stylemap?: string
+    ignoreCached?: boolean // Ignore cached timetable even if it's still valid.
+    ignoreUpdate?: boolean // Don't update week from SSAU even if it's old.
+    forceUpdate?: boolean // Force update week from SSAU.
+    dontCache?: boolean // Don't cache generated timetable to DB
+    loggingTag?: string // An optional tag to add to all logs for this request.
     onUpdate?: (
       update: RequestStateUpdate<
         | "updatingTeacher"
@@ -577,22 +576,20 @@ async function getTeacherTimetableWithImage(
         | "generatingImage"
         | "error"
       >,
-    ) => void;
+    ) => void
   },
 ): Promise<{
-  timetable: TeacherTimetable & { diff?: TimetableDiff };
-  image: Omit<WeekImage, "data"> & { data: Buffer };
+  timetable: TeacherTimetable & { diff?: TimetableDiff }
+  image: Omit<WeekImage, "data"> & { data: Buffer }
 }> {
-  function updateState(
-    update: RequestStateUpdate<
-      | "updatingTeacher"
-      | "updatingWeek"
-      | "generatingTimetable"
-      | "generatingImage"
-      | "error"
-    >,
-  ) {
-    if (opts?.onUpdate) opts.onUpdate(update);
+  type supportedStates =
+    | "updatingTeacher"
+    | "updatingWeek"
+    | "generatingTimetable"
+    | "generatingImage"
+    | "error"
+  function updateState(update: RequestStateUpdate<supportedStates>) {
+    if (opts?.onUpdate) opts.onUpdate(update)
   }
 
   const timetable = await getTeacherTimetable(
@@ -600,17 +597,17 @@ async function getTeacherTimetableWithImage(
     weekN,
     teacherId,
     opts ?? undefined,
-  );
+  )
 
   updateState({
     state: "generatingImage",
     message: "Generating timetable image",
-  });
+  })
 
-  const preferences = getUserPreferences(user);
-  const stylemap = opts?.stylemap ?? preferences.theme ?? "default";
+  const preferences = getUserPreferences(user)
+  const stylemap = opts?.stylemap ?? preferences.theme ?? "default"
 
-  const timetableHash = getTimetableHash(timetable);
+  const timetableHash = getTimetableHash(timetable)
 
   if (!opts?.ignoreCached && timetableHash) {
     const existingImage = await db.weekImage.findUnique({
@@ -620,41 +617,41 @@ async function getTeacherTimetableWithImage(
           timetableHash,
         },
       },
-    });
+    })
     if (existingImage) {
       log.debug(`Found a valid image with same timetable hash. Returning`, {
         user: user.id,
         tag: opts?.loggingTag,
-      });
+      })
       await db.weekImage.update({
         where: { id: existingImage.id },
         data: {
           validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
         },
-      });
+      })
       return {
         timetable,
         image: Object.assign(existingImage, {
           data: Buffer.from(existingImage.data, "base64"),
         }),
-      };
+      }
     } else {
       log.debug(
         `Could not find a valid image with same hash. Generating new. (hash:${timetableHash})`,
         { user: user.id, tag: opts?.loggingTag },
-      );
+      )
     }
   }
 
   updateState({
     state: "generatingImage",
     message: "Generating timetable image",
-  });
+  })
   const image = await generateTimetableImage(timetable, {
     stylemap,
     showTeacher: false,
     showGrouplist: true,
-  });
+  })
 
   const createdImage = await db.weekImage.upsert({
     where: {
@@ -673,12 +670,12 @@ async function getTeacherTimetableWithImage(
       data: image.toString("base64"),
       validUntil: new Date(Date.now() + 4 * 604800_000), // 4 weeks
     },
-  });
+  })
 
   return {
     timetable,
     image: Object.assign(createdImage, { data: image }),
-  };
+  }
 }
 
 export const schedule = {
@@ -690,4 +687,4 @@ export const schedule = {
   generateTimetable,
   generateTimetableImage,
   generateTeacherTimetable,
-};
+}

@@ -1,20 +1,20 @@
-import { bot } from "@/bot";
-import { uploadScheduleImage } from "@/bot/imageUploading";
-import log from "@/logger";
-import Elysia from "elysia";
-import type { GrammyError } from "grammy";
-import type { MessageEntity } from "grammy/types";
-import z from "zod";
+import { bot } from "@/bot/bot"
+import { uploadScheduleImage } from "@/bot/bot/imageUploading"
+import log from "@/bot/logger"
+import Elysia from "elysia"
+import type { GrammyError } from "grammy"
+import type { MessageEntity } from "grammy/types"
+import z from "zod"
 
 export type DbScheduledMessage = {
-  id: number;
-  chatId: string;
-  text: string;
-  entities?: object[];
-  sendAt: Date;
-  source?: string;
-  image?: string; // base64
-};
+  id: number
+  chatId: string
+  text: string
+  entities?: object[]
+  sendAt: Date
+  source?: string
+  image?: string // base64
+}
 
 export const app = new Elysia()
   .post(
@@ -24,11 +24,11 @@ export const app = new Elysia()
         sentIds: [] as number[],
         failedIds: [] as number[],
         rejectedIds: [] as number[],
-      };
+      }
       log.debug(`Received request to send ${body.length} scheduled messages`, {
         user: "msgs",
         tag: "Ely",
-      });
+      })
       for (const msg of body as DbScheduledMessage[]) {
         try {
           if (msg.text.length > 4096) {
@@ -38,8 +38,8 @@ export const app = new Elysia()
                 user: "msgs",
                 tag: "Ely",
               },
-            );
-            msg.text = msg.text.slice(0, 4090) + "...";
+            )
+            msg.text = msg.text.slice(0, 4090) + "..."
           }
           if (msg.image) {
             await bot.api
@@ -56,10 +56,10 @@ export const app = new Elysia()
                       user: "msgs",
                       tag: "Ely",
                     },
-                  );
-                  stats.rejectedIds.push(msg.id);
+                  )
+                  stats.rejectedIds.push(msg.id)
                 }
-              });
+              })
           } else {
             await bot.api
               .sendMessage(msg.chatId, msg.text, {
@@ -75,8 +75,8 @@ export const app = new Elysia()
                       user: "msgs",
                       tag: "Ely",
                     },
-                  );
-                  stats.rejectedIds.push(msg.id);
+                  )
+                  stats.rejectedIds.push(msg.id)
                 } else {
                   if (e.error_code) {
                     log.warn(
@@ -85,26 +85,26 @@ export const app = new Elysia()
                         user: "msgs",
                         tag: "Ely",
                       },
-                    );
-                    stats.rejectedIds.push(msg.id);
+                    )
+                    stats.rejectedIds.push(msg.id)
                   } else {
-                    stats.failedIds.push(msg.id);
+                    stats.failedIds.push(msg.id)
                   }
                 }
-              });
+              })
           }
         } catch (e) {
-          stats.failedIds.push(msg.id);
+          stats.failedIds.push(msg.id)
           log.error(
             `Failed to send message #${msg.id} to ${msg.chatId}. Err: ${e as Error}`,
             {
               user: "msgs",
               tag: "Ely",
             },
-          );
+          )
         }
       }
-      return stats;
+      return stats
     },
     {
       body: z.array(
@@ -163,7 +163,7 @@ export const app = new Elysia()
       const stats = [] as (
         | { id: number; success: true; tgId: string }
         | { id: number; success: false; error: string }
-      )[];
+      )[]
       for (const image of body) {
         await uploadScheduleImage({
           image: { ...image, data: Buffer.from(image.data, "base64") },
@@ -179,11 +179,11 @@ export const app = new Elysia()
                 user: "images",
                 tag: "Ely",
               },
-            );
-            stats.push({ id: image.id, success: false, error: String(e) });
-          });
+            )
+            stats.push({ id: image.id, success: false, error: String(e) })
+          })
       }
-      return stats;
+      return stats
     },
     {
       body: z.array(
@@ -198,4 +198,4 @@ export const app = new Elysia()
         }),
       ),
     },
-  );
+  )

@@ -1,41 +1,45 @@
-import { db } from "@/db";
-import { LessonType, type User, type Week } from "@/generated/prisma/client";
-import log from "@/logger";
-import type { Timetable } from "@ssau-schedule/shared/timetable";
-import { lk } from "@/ssau/lk";
-import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date";
-import { getUserPreferences } from "@ssau-schedule/shared/utils";
+import { db } from "@/server/db"
+import {
+  LessonType,
+  type User,
+  type Week,
+} from "@/server/generated/prisma/client"
+import log from "@/server/logger"
+import type { Timetable } from "@ssau-schedule/shared/timetable"
+import { lk } from "@/server/ssau/lk"
+import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date"
+import { getUserPreferences } from "@ssau-schedule/shared/utils"
 
 export async function getWeek(
   user: User,
   weekN: number,
   opts?: {
-    groupId?: number;
-    year?: number;
-    nonPersonal?: boolean;
-    update?: boolean;
+    groupId?: number
+    year?: number
+    nonPersonal?: boolean
+    update?: boolean
   },
 ): Promise<
   Omit<Week, "timetable"> & {
-    timetable: Timetable | null;
+    timetable: Timetable | null
   }
 > {
-  const now = new Date();
+  const now = new Date()
   const owner =
     opts?.nonPersonal || (opts?.groupId && opts.groupId !== user.groupId)
       ? 0
-      : user.id;
-  const groupId = opts?.groupId ?? user.groupId;
-  const year = (opts?.year ?? 0) || getCurrentYearId();
-  const weekNumber = weekN || getWeekFromDate(now);
+      : user.id
+  const groupId = opts?.groupId ?? user.groupId
+  const year = (opts?.year ?? 0) || getCurrentYearId()
+  const weekNumber = weekN || getWeekFromDate(now)
 
   if (!groupId) {
-    log.error(`Groupless user getDbWeek`, { user: user.id });
-    void lk.updateUserInfo(user);
-    throw new Error(`Groupless user getDbWeek`);
+    log.error(`Groupless user getDbWeek`, { user: user.id })
+    void lk.updateUserInfo(user)
+    throw new Error(`Groupless user getDbWeek`)
   }
 
-  const upd = opts?.update ? now : undefined;
+  const upd = opts?.update ? now : undefined
 
   const week = await db.week.upsert({
     where: {
@@ -48,17 +52,17 @@ export async function getWeek(
     },
     create: { owner, groupId, year, number: weekNumber, updatedAt: upd },
     update: upd ? { updatedAt: upd } : {},
-  });
+  })
 
   if (week.timetable) {
-    const { timetable, ...data } = week;
+    const { timetable, ...data } = week
     const o = Object.assign(data, {
       timetable: timetable as object as Timetable,
-    });
-    return o;
+    })
+    return o
   }
 
-  return Object.assign(week, { timetable: null });
+  return Object.assign(week, { timetable: null })
 }
 
 export async function getWeekLessons(
@@ -66,29 +70,29 @@ export async function getWeekLessons(
   week: number,
   groupId?: number,
   opts?: {
-    ignoreIet?: boolean;
-    ignorePreferences?: boolean;
-    ignoreCustomizations?: boolean;
+    ignoreIet?: boolean
+    ignorePreferences?: boolean
+    ignoreCustomizations?: boolean
   },
 ) {
-  const preferences = getUserPreferences(user);
+  const preferences = getUserPreferences(user)
   if (!(groupId || user.groupId)) {
-    log.error(`Groupless user requested an update`, { user: user.id });
-    void lk.updateUserInfo(user);
-    throw new Error(`Groupless user requested an update`);
+    log.error(`Groupless user requested an update`, { user: user.id })
+    void lk.updateUserInfo(user)
+    throw new Error(`Groupless user requested an update`)
   }
 
   const ignoreIet =
     (opts?.ignoreIet ?? false) ||
     (!opts?.ignorePreferences && !preferences.showIet) ||
-    (groupId && groupId !== user.groupId);
+    (groupId && groupId !== user.groupId)
 
   const militaryFilter =
     !opts?.ignorePreferences && !preferences.showMilitary
       ? { not: LessonType.Military }
-      : undefined;
+      : undefined
 
-  const now = new Date();
+  const now = new Date()
   const lessons = await db.lesson.findMany({
     where: {
       weekNumber: week,
@@ -98,11 +102,11 @@ export async function getWeekLessons(
       type: militaryFilter,
     },
     include: { groups: true, teacher: true },
-  });
+  })
 
-  const lessonIds = lessons.map((i) => i.id);
+  const lessonIds = lessons.map((i) => i.id)
 
-  const trustedLessonCustomizers = preferences.trustedLessonCustomizers ?? [];
+  const trustedLessonCustomizers = preferences.trustedLessonCustomizers ?? []
 
   const customLessons = opts?.ignoreCustomizations
     ? []
@@ -147,21 +151,20 @@ export async function getWeekLessons(
           isEnabled: true, // TODO: Allow viewing disabled customizations or figure out a better way
         },
         include: { groups: true, teacher: true, user: true, flows: true },
-      });
+      })
 
   const customLessonTargetIds = customLessons
     .map((i) => i.lessonId)
-    .filter((i) => i !== null);
+    .filter((i) => i !== null)
   const replacedLessons = await db.lesson.findMany({
     where: {
       id: { in: customLessonTargetIds },
     },
     include: { groups: true, teacher: true },
-  });
-  lessons.push(...replacedLessons.filter((i) => !lessonIds.includes(i.id)));
+  })
+  lessons.push(...replacedLessons.filter((i) => !lessonIds.includes(i.id)))
 
-  if (ignoreIet)
-    return { lessons, ietLessons: [], customLessons, all: lessons };
+  if (ignoreIet) return { lessons, ietLessons: [], customLessons, all: lessons }
 
   // TODO: Add customLesson support to iets
 
@@ -174,11 +177,11 @@ export async function getWeekLessons(
       type: militaryFilter,
     },
     include: { flows: true, teacher: true },
-  });
+  })
   return {
     customLessons,
     all: [...lessons, ...ietLessons],
-  };
+  }
 }
 
 export async function getWeekTeacherLessons(teacherId: number, week: number) {
@@ -189,6 +192,6 @@ export async function getWeekTeacherLessons(teacherId: number, week: number) {
       teacherId: teacherId,
     },
     include: { groups: true, teacher: true },
-  });
-  return lessons;
+  })
+  return lessons
 }

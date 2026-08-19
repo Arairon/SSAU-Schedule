@@ -1,65 +1,68 @@
-import { LessonType, type Lesson, type User } from "@/generated/prisma/client";
-import { lk } from "./lk";
+import {
+  LessonType,
+  type Lesson,
+  type User,
+} from "@/server/generated/prisma/client"
+import { lk } from "./lk"
 import {
   getCurrentYearId,
   getLessonDate,
   getWeekFromDate,
-} from "@ssau-schedule/shared/date";
-import { getWeek, getWeekLessons } from "@/lib/week";
-import log from "@/logger";
-import axios from "axios";
-import { WeekResponseSchema } from "./schemas/schedule";
-import { formatSentence } from "@ssau-schedule/shared/utils";
-import { getLessonTypeEnum } from "./types";
+} from "@ssau-schedule/shared/date"
+import { getWeek, getWeekLessons } from "@/server/lib/week"
+import log from "@/server/logger"
+import axios from "axios"
+import { WeekResponseSchema } from "./schemas/schedule"
+import { formatSentence } from "@ssau-schedule/shared/utils"
+import { getLessonTypeEnum } from "./types"
 import {
   ensureFlowExists,
   ensureGroupExists,
   ensureTeacherExists,
-} from "@/lib/misc";
-import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap";
-import { db } from "@/db";
+} from "@/server/lib/misc"
+import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap"
+import { db } from "@/server/db"
 
 Object.assign(axios.defaults.headers, {
   "Cache-Control": "no-cache",
   Pragma: "no-cache",
   Expires: "0",
-});
+})
 
 export async function updateWeekForUser(
   user: User,
   weekN: number,
   opts?: { groupId?: number; year?: number; loggingTag?: string },
 ) {
-  const now = new Date();
-  const weekNumber = weekN || getWeekFromDate(now);
-  const year = (opts?.year ?? 0) || getCurrentYearId();
-  const someoneElsesGroup = opts?.groupId && opts.groupId !== user.groupId;
-  const groupId =
-    (someoneElsesGroup ? opts.groupId : user.groupId) ?? undefined;
+  const now = new Date()
+  const weekNumber = weekN || getWeekFromDate(now)
+  const year = (opts?.year ?? 0) || getCurrentYearId()
+  const someoneElsesGroup = opts?.groupId && opts.groupId !== user.groupId
+  const groupId = (someoneElsesGroup ? opts.groupId : user.groupId) ?? undefined
 
-  const week = await getWeek(user, weekNumber, { groupId, year });
-  const weekIsCommon = week.owner === 0;
+  const week = await getWeek(user, weekNumber, { groupId, year })
+  const weekIsCommon = week.owner === 0
 
   log.info(
     `[SSAU] Updating week #${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
     { user: user.id, tag: opts?.loggingTag },
-  );
+  )
 
-  let lkUser = null as User | null;
+  let lkUser = null as User | null
   if (user.authCookie) {
-    lkUser = user;
+    lkUser = user
   } else {
-    lkUser = await lk.getProxyUser();
+    lkUser = await lk.getProxyUser()
   }
 
-  if (!lkUser || !(await lk.ensureAuth(lkUser))) throw new Error("Auth error");
+  if (!lkUser || !(await lk.ensureAuth(lkUser))) throw new Error("Auth error")
 
-  const isUsingProxyUser = lkUser.id !== user.id;
+  const isUsingProxyUser = lkUser.id !== user.id
   if (isUsingProxyUser) {
     log.debug(`Using proxy user ${lkUser.id} for ${user.id}`, {
       user: user.id,
       tag: opts?.loggingTag,
-    });
+    })
   }
 
   const res = await axios.get(
@@ -75,27 +78,27 @@ export async function updateWeekForUser(
         userType: "student",
       },
     },
-  );
+  )
   const {
     //success,
     error,
     data: weekSched,
-  } = WeekResponseSchema.safeParse(res.data);
+  } = WeekResponseSchema.safeParse(res.data)
   if (error) {
     log.error(
       `Error receiving schedule. ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
       { user: user.id, tag: opts?.loggingTag },
-    );
-    log.error(JSON.stringify(error));
-    return;
+    )
+    log.error(JSON.stringify(error))
+    return
   }
 
   if (!weekSched) {
     log.error(
       `No schedule, despite no errors in parsing ${week.id} (${week.owner}/${week.groupId}/${week.year}/${week.number})`,
       { user: user.id, tag: opts?.loggingTag },
-    );
-    return;
+    )
+    return
   }
 
   // Process week
@@ -107,17 +110,17 @@ export async function updateWeekForUser(
     : await getWeekLessons(user, weekNumber, undefined, {
         ignoreIet: false, // Get known lessons regardless of iet. They will be filtered out later
         ignorePreferences: true,
-      });
-  const updatedTeachers: number[] = [];
-  const updatedGroups: number[] = [];
-  const updatedFlows: number[] = [];
-  const updatedLessons: Lesson[] = [];
-  const lessonsInThisWeek: number[] = [];
+      })
+  const updatedTeachers: number[] = []
+  const updatedGroups: number[] = []
+  const updatedFlows: number[] = []
+  const updatedLessons: Lesson[] = []
+  const lessonsInThisWeek: number[] = []
 
-  log.debug("Updating lessons", { user: user.id, tag: opts?.loggingTag });
+  log.debug("Updating lessons", { user: user.id, tag: opts?.loggingTag })
   //console.log("KNOWN", knownLessons);
 
-  const lessonValidUntilDate = new Date(Date.now() + 2592000_000); // 30 days from now
+  const lessonValidUntilDate = new Date(Date.now() + 2592000_000) // 30 days from now
   //#region Update normal lessons
   for (const lessonList of weekSched.lessons) {
     // Create shared info for all lessons in list
@@ -132,18 +135,18 @@ export async function updateWeekForUser(
       dayTimeSlot: lessonList.time.id,
       subgroup: lessonList.groups[0].subgroup,
       groups: lessonList.groups.map((group) => {
-        return { id: group.id };
+        return { id: group.id }
       }),
-    };
+    }
     // lessonList.discipline.name.trim().toLowerCase() === "военная кафедра" // || "военная подготовка"
     if ([13173, 12845].includes(lessonList.discipline.id)) {
-      info.type = LessonType.Military;
+      info.type = LessonType.Military
     }
     // Ensure all groups exist in db. Also check for ssau fuckery
     for (const group of lessonList.groups) {
       if (!updatedGroups.includes(group.id)) {
-        await ensureGroupExists(group);
-        updatedGroups.push(group.id);
+        await ensureGroupExists(group)
+        updatedGroups.push(group.id)
       }
 
       // Debug-ish
@@ -151,8 +154,8 @@ export async function updateWeekForUser(
         log.error(
           `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
           { user: user.id, tag: opts?.loggingTag },
-        );
-        info.subgroup = null;
+        )
+        info.subgroup = null
       }
     }
 
@@ -161,7 +164,7 @@ export async function updateWeekForUser(
       log.error(
         `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
         { user: user.id, tag: opts?.loggingTag },
-      );
+      )
     }
 
     // I've never seen multiple teachers in one lesson, so idk.
@@ -169,17 +172,17 @@ export async function updateWeekForUser(
       log.error(
         `SSAU Strikes again! Apparently there can be multiple teachers on a lesson: ${JSON.stringify(lessonList)}`,
         { user: user.id, tag: opts?.loggingTag },
-      );
+      )
     }
 
     if (!updatedTeachers.includes(info.teacherId)) {
-      await ensureTeacherExists(lessonList.teachers[0]);
-      updatedTeachers.push(info.teacherId);
+      await ensureTeacherExists(lessonList.teachers[0])
+      updatedTeachers.push(info.teacherId)
     }
 
     for (const lessonInfo of lessonList.weeks) {
-      const date = getLessonDate(lessonInfo.week, info.weekday);
-      const timeslot = TimeSlotMap[info.dayTimeSlot];
+      const date = getLessonDate(lessonInfo.week, info.weekday)
+      const timeslot = TimeSlotMap[info.dayTimeSlot]
       const weekInfo = {
         id: lessonInfo.id,
         isOnline: !!lessonInfo.isOnline,
@@ -211,25 +214,25 @@ export async function updateWeekForUser(
                 },
               }
             : undefined, // Current week is handled separately with lessonsInThisWeek
-      };
-      const lesson = Object.assign({}, weekInfo, info);
+      }
+      const lesson = Object.assign({}, weekInfo, info)
 
-      const { groups, ...obj } = lesson;
+      const { groups, ...obj } = lesson
       const updatedLesson = await db.lesson.upsert({
         where: { id: lesson.id },
         create: Object.assign({}, obj, { groups: { connect: groups } }),
         update: Object.assign({}, obj, { groups: { set: groups } }),
-      });
+      })
 
-      updatedLessons.push(updatedLesson);
-      if (lesson.weekNumber === week.number) lessonsInThisWeek.push(lesson.id);
+      updatedLessons.push(updatedLesson)
+      if (lesson.weekNumber === week.number) lessonsInThisWeek.push(lesson.id)
     }
   }
   //#endregion
 
   //#region Update IET lessons
   if (week.owner !== 0 && !isUsingProxyUser && !someoneElsesGroup) {
-    log.debug("Updating iet lessons", { user: user.id });
+    log.debug("Updating iet lessons", { user: user.id })
     //const flowsToJoin: number[] = [];
     for (const lessonList of weekSched.ietLessons) {
       // Create shared info for all lessons in list
@@ -244,14 +247,14 @@ export async function updateWeekForUser(
         dayTimeSlot: lessonList.time.id,
         subgroup: lessonList.flows[0].subgroup,
         flows: lessonList.flows.map((flow) => {
-          return { id: flow.id };
+          return { id: flow.id }
         }),
-      };
+      }
       // Ensure all flows exist in db. Also check for ssau fuckery
       for (const flow of lessonList.flows) {
         if (!updatedFlows.includes(flow.id)) {
-          await ensureFlowExists(flow);
-          updatedFlows.push(flow.id);
+          await ensureFlowExists(flow)
+          updatedFlows.push(flow.id)
         }
 
         // Debug-ish
@@ -259,8 +262,8 @@ export async function updateWeekForUser(
           log.error(
             `SSAU Strikes again! Apparently there can be different subgroups on a lesson: ${JSON.stringify(lessonList)}`,
             { user: user.id, tag: opts?.loggingTag },
-          );
-          info.subgroup = null;
+          )
+          info.subgroup = null
         }
       }
 
@@ -268,7 +271,7 @@ export async function updateWeekForUser(
         log.debug(
           `Lesson uses multiple flows: ${lessonList.flows.map((f) => f.id).join(", ")}. Connecting all to user`,
           { user: user.id, tag: opts?.loggingTag },
-        );
+        )
       }
 
       // Identify more lesson types, since i have no idea which id some types have
@@ -276,7 +279,7 @@ export async function updateWeekForUser(
         log.error(
           `Unknown type: "${lessonList.type.id}: ${lessonList.type.name}"`,
           { user: user.id, tag: opts?.loggingTag },
-        );
+        )
       }
 
       // I've never seen multiple teachers in one lesson, so idk.
@@ -284,17 +287,17 @@ export async function updateWeekForUser(
         log.error(
           `SSAU Strikes again! Apparently there can be multiple teachers on a lesson: ${JSON.stringify(lessonList)}`,
           { user: user.id },
-        );
+        )
       }
 
       if (!updatedTeachers.includes(info.teacherId)) {
-        await ensureTeacherExists(lessonList.teachers[0]);
-        updatedTeachers.push(info.teacherId);
+        await ensureTeacherExists(lessonList.teachers[0])
+        updatedTeachers.push(info.teacherId)
       }
 
       for (const lessonInfo of lessonList.weeks) {
-        const date = getLessonDate(lessonInfo.week, info.weekday);
-        const timeslot = TimeSlotMap[info.dayTimeSlot];
+        const date = getLessonDate(lessonInfo.week, info.weekday)
+        const timeslot = TimeSlotMap[info.dayTimeSlot]
         const individualInfo = {
           id: lessonInfo.id,
           isOnline: !!lessonInfo.isOnline,
@@ -326,26 +329,25 @@ export async function updateWeekForUser(
                   },
                 }
               : undefined, // Current week is handled separately with lessonsInThisWeek
-        };
-        const lesson = Object.assign({}, individualInfo, info);
+        }
+        const lesson = Object.assign({}, individualInfo, info)
 
-        const { flows, ...obj } = lesson;
+        const { flows, ...obj } = lesson
         const updatedLesson = await db.lesson.upsert({
           where: { id: lesson.id },
           create: Object.assign({}, obj, { flows: { connect: flows } }),
           update: Object.assign({}, obj, { flows: { set: flows } }),
-        });
+        })
 
-        updatedLessons.push(updatedLesson);
-        if (lesson.weekNumber === week.number)
-          lessonsInThisWeek.push(lesson.id);
+        updatedLessons.push(updatedLesson)
+        if (lesson.weekNumber === week.number) lessonsInThisWeek.push(lesson.id)
       }
     }
   } else {
     log.debug(`Skipping iet lessons for 'common' owned week or a proxy user`, {
       user: user.id,
       tag: opts?.loggingTag,
-    });
+    })
   }
   //#endregion
 
@@ -354,19 +356,19 @@ export async function updateWeekForUser(
     data: {
       lessons: {
         set: lessonsInThisWeek.map((id) => {
-          return { id };
+          return { id }
         }),
       },
       updatedAt: now,
       cachedUntil: now,
     },
-  });
+  })
 
   if (!weekIsCommon) {
     log.debug(
       `Also updating common week for ${week.groupId}/${week.year}/${week.number}`,
       { user: user.id, tag: opts?.loggingTag },
-    );
+    )
     await db.week.upsert({
       where: {
         owner_groupId_year_number: {
@@ -383,7 +385,7 @@ export async function updateWeekForUser(
         number: week.number,
         lessons: {
           connect: lessonsInThisWeek.map((id) => {
-            return { id };
+            return { id }
           }),
         },
         updatedAt: now,
@@ -391,12 +393,12 @@ export async function updateWeekForUser(
       update: {
         lessons: {
           set: lessonsInThisWeek.map((id) => {
-            return { id };
+            return { id }
           }),
         },
         updatedAt: now,
       },
-    });
+    })
   }
 
   if (updatedFlows.length > 0) {
@@ -405,28 +407,28 @@ export async function updateWeekForUser(
       data: {
         flows: {
           connect: updatedFlows.map((id) => {
-            return { id };
+            return { id }
           }),
         },
       },
-    });
+    })
   }
 
-  const newLessons: Lesson[] = [];
-  const knownLessonsIds = knownLessons.all.map((i) => i.id);
+  const newLessons: Lesson[] = []
+  const knownLessonsIds = knownLessons.all.map((i) => i.id)
   for (const updatedLesson of updatedLessons) {
     if (!knownLessonsIds.includes(updatedLesson.id)) {
       // TODO: should also check if updated is iet...
       if (someoneElsesGroup) {
         //ignore
       } else {
-        newLessons.push(updatedLesson);
+        newLessons.push(updatedLesson)
       }
     }
   }
-  const missingLessonsInfoId: number[] = [];
+  const missingLessonsInfoId: number[] = []
   //const movedInfoIds: number[] = [];
-  const updatedLessonIds = updatedLessons.map((i) => i.id);
+  const updatedLessonIds = updatedLessons.map((i) => i.id)
   for (const knownLesson of knownLessons.all) {
     if (!updatedLessonIds.includes(knownLesson.id)) {
       if (someoneElsesGroup && knownLesson.isIet) {
@@ -435,7 +437,7 @@ export async function updateWeekForUser(
         //if (newLessons.map((i) => i.infoId).includes(knownLesson.infoId)) {
         //  movedInfoIds.push(knownLesson.infoId);
         //} else {
-        missingLessonsInfoId.push(knownLesson.infoId);
+        missingLessonsInfoId.push(knownLesson.infoId)
         //}
       }
     }
@@ -447,8 +449,8 @@ export async function updateWeekForUser(
       validUntil: { gt: now },
     },
     data: { validUntil: now },
-  });
-  missingLessonsInfoId.push(...orphanedLessons.map((i) => i.infoId));
+  })
+  missingLessonsInfoId.push(...orphanedLessons.map((i) => i.infoId))
   // missingLessonsInfoId.push(
   //  ...orphanedLessons
   //    .map((i) => i.infoId)
@@ -463,19 +465,19 @@ export async function updateWeekForUser(
       //updatedAt: { lt: now },
     },
     data: { validUntil: now },
-  });
+  })
 
   if (missingLessonsInfoId.length) {
     log.debug(`Invalidating infoIds: [${missingLessonsInfoId.join()}]`, {
       user: user.id,
       tag: opts?.loggingTag,
-    });
+    })
   }
   if (removedLessons.length) {
     log.debug(
       `Invalidated missing lessons: ${removedLessons.map((i) => i.id).join()} and orphaned: ${orphanedLessons.map((i) => i.id).join()}`,
       { user: user.id, tag: opts?.loggingTag },
-    );
+    )
   }
 
   // Invalidate cache for weeks that have had their lessons changed
@@ -492,17 +494,17 @@ export async function updateWeekForUser(
   //const invalidatedWeekIds = invalidatedWeeks.map((i) => i.id);
 
   // TODO Might need to add change detection to individual lessons later
-  removedLessons.push(...orphanedLessons);
+  removedLessons.push(...orphanedLessons)
   const filteredNewLessons = newLessons.filter(
     (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
-  );
+  )
   const filteredRemovedLessons = removedLessons.filter(
     (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
-  );
+  )
   log.debug(
     `Updated week. Added: [${filteredNewLessons.map((i) => i.id).join()}] (${newLessons.length}) Removed: [${filteredRemovedLessons.map((i) => i.id).join()}] (${removedLessons.length})`,
     { user: user.id, tag: opts?.loggingTag },
-  );
+  )
 
   // I wonder if these are needed, since weeks cache now lives only 1h
   // if (
@@ -517,27 +519,27 @@ export async function updateWeekForUser(
     week,
     new: newLessons.filter((i) => i.weekNumber === week.number),
     removed: removedLessons.filter((i) => i.weekNumber === week.number),
-  };
+  }
 }
 
 export async function updateWeekRangeForUser(
   opts: {
-    weeks: number[];
-    user?: User;
-    userId?: number;
-    groupId?: number;
+    weeks: number[]
+    user?: User
+    userId?: number
+    groupId?: number
   } & ({ user: User } | { userId: number }),
 ) {
   const user =
-    opts.user ?? (await db.user.findUnique({ where: { id: opts.userId } }));
-  if (!user) throw new Error("User not found");
+    opts.user ?? (await db.user.findUnique({ where: { id: opts.userId } }))
+  if (!user) throw new Error("User not found")
   if (!user.groupId) {
-    if (user.authCookie) await lk.updateUserInfo(user);
-    else throw new Error("User has no groupId and is not authed");
+    if (user.authCookie) await lk.updateUserInfo(user)
+    else throw new Error("User has no groupId and is not authed")
   }
 
-  const overrideGroup = opts.groupId; // undefined is fine
+  const overrideGroup = opts.groupId // undefined is fine
   for (const week of opts.weeks) {
-    await updateWeekForUser(user, week, { groupId: overrideGroup });
+    await updateWeekForUser(user, week, { groupId: overrideGroup })
   }
 }

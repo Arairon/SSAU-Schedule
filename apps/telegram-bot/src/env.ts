@@ -1,8 +1,8 @@
-import { createEnv } from "@t3-oss/env-core";
-import { configDotenv } from "dotenv";
-import { z } from "zod";
+import { createEnv } from "@t3-oss/env-core"
+import { configDotenv } from "dotenv"
+import { z } from "zod"
 
-configDotenv({ quiet: true });
+configDotenv({ quiet: true })
 
 export const env = createEnv({
   server: {
@@ -81,36 +81,36 @@ export const env = createEnv({
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
-});
+})
 
 if (env.SCHED_BOT_IMAGE_UPLOAD_MODE === "relay") {
   if (!env.SCHED_BOT_IMAGE_DUMP_CHATID) {
     throw new Error(
       "SCHED_BOT_IMAGE_DUMP_CHATID is required when SCHED_BOT_IMAGE_UPLOAD_MODE=relay",
-    );
+    )
   }
 
   if (!env.SCHED_BOT_IMAGE_RELAY_URL) {
     throw new Error(
       "SCHED_BOT_IMAGE_RELAY_URL is required when SCHED_BOT_IMAGE_UPLOAD_MODE=relay",
-    );
+    )
   }
 
   if (!env.SCHED_BOT_IMAGE_RELAY_KEY) {
     throw new Error(
       "SCHED_BOT_IMAGE_RELAY_KEY is required when SCHED_BOT_IMAGE_UPLOAD_MODE=relay",
-    );
+    )
   }
 }
 
 if (env.SCHED_BOT_PROXY_TYPE && !env.SCHED_BOT_PROXY_URL) {
   throw new Error(
     "SCHED_BOT_PROXY_URL is required when SCHED_BOT_PROXY_TYPE is set",
-  );
+  )
 }
 
 if (env.SCHED_BOT_USE_WEBHOOK && !env.SCHED_BOT_WEBHOOK_PATH.startsWith("/")) {
-  throw new Error("SCHED_BOT_WEBHOOK_PATH must start with '/'");
+  throw new Error("SCHED_BOT_WEBHOOK_PATH must start with '/'")
 }
 
 if (
@@ -119,5 +119,5 @@ if (
 ) {
   throw new Error(
     "SCHED_BOT_TLS_CERT and SCHED_BOT_TLS_KEY must be provided together",
-  );
+  )
 }

@@ -1,93 +1,111 @@
-import { useRawInitData } from '@tma.js/sdk-react'
-import { useQuery } from '@tanstack/react-query'
+import z from "zod"
+import { useQuery } from "@tanstack/react-query"
 
-import { create } from 'zustand'
-import type { UserInfo } from '@/api/auth'
-import { loginUsingCookie, loginUsingTg, loginUsingToken } from '@/api/auth'
+import { create } from "zustand"
+import { getCurrentUser } from "@/client/api/api"
+
+export const UserSchema = z.object({
+  id: z.number(),
+  tgId: z.coerce.bigint(),
+  staffId: z.number().nullable(),
+  // username: z.string().nullable(),
+  // password: z.string().nullable(),
+  fullname: z.string().nullable(),
+  groupId: z.number().nullable(),
+  authCookie: z.boolean(), // Redacted
+  authCookieExpiresAt: z.coerce.date(),
+  sessionExpiresAt: z.coerce.date(),
+  preferences: z.unknown().nullable().default({}),
+  subgroup: z.number().nullable(),
+  lastActive: z.coerce.date(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+})
+export type UserInfo = z.infer<typeof UserSchema>
 
 interface AuthData {
-  isAuthorized: boolean
   isLoading: boolean
   user: UserInfo | null
-  token: string
   error: string
 
   setUserInfo: (userInfo: UserInfo | null) => void
-  setToken: (token: string) => void
-  setIsAuthorized: (value: boolean) => void
   setIsLoading: (value: boolean) => void
   setError: (error: string) => void
   reset: () => void
 }
 
 export const useAuthState = create<AuthData>((set) => ({
-  isAuthorized: false,
   isLoading: true,
   user: null,
-  token: '',
-  error: '',
+  error: "",
 
   setUserInfo: (userInfo) => set({ user: userInfo }),
-  setToken: (token) => set({ token }),
-  setIsAuthorized: (value) => set({ isAuthorized: value, isLoading: false }),
   setIsLoading: (value) => set({ isLoading: value }),
   setError: (error) => set({ error }),
-  reset: () =>
-    set({ user: null, token: '', isAuthorized: false, isLoading: true }),
+  reset: () => set({ user: null, isLoading: true }),
 }))
 
-function useAuth({
-  tg = false,
-  token = undefined,
-  creds = undefined,
-  cookie = false,
-}: {
-  tg?: boolean
-  token?: string
-  creds?: { login: string; password: string }
-  cookie?: boolean
-}) {
-  let tgInitData = ''
+function cacheUser(user: UserInfo) {
+  localStorage.setItem(
+    "user-cache",
+    JSON.stringify({
+      user: { ...user, tgId: user.tgId.toString() },
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // Cache for 5 minutes
+    }),
+  )
+}
+
+function getCachedUser(): UserInfo | null {
+  const cached = localStorage.getItem("user-cache")
+  if (!cached) return null
+
   try {
-    tgInitData = useRawInitData() || ''
-  } catch {}
-
-  const tgAuth = useQuery({
-    queryKey: ['auth', 'tg', tgInitData],
-    queryFn: () => loginUsingTg(tgInitData),
-    enabled: tg && !!tgInitData,
-    staleTime: 3600_000,
-    retry: false,
-  })
-
-  const tokenAuth = useQuery({
-    queryKey: ['auth', 'token', token],
-    queryFn: () => loginUsingToken(token!),
-    enabled: !!token,
-    staleTime: 3600_000,
-    retry: false,
-  })
-
-  const cookieAuth = useQuery({
-    queryKey: ['auth', 'cookie'],
-    queryFn: () => loginUsingCookie(),
-    enabled: cookie,
-    staleTime: 3600_000,
-    retry: false,
-  })
-
-  console.log(creds)
-
-  setTimeout(() => useAuthState.getState().setIsLoading(false), 30_000)
-
-  if (tgAuth.isEnabled) return tgAuth
-  if (tokenAuth.isEnabled) return tokenAuth
-  // creds Auth
-  if (cookieAuth.isEnabled) return cookieAuth
-
-  useAuthState.getState().setIsLoading(false)
+    const { user, expiresAt } = JSON.parse(cached)
+    if (new Date(expiresAt) > new Date()) {
+      return user
+    }
+  } catch (e) {
+    console.error("Failed to parse cached user:", e)
+  }
 
   return null
 }
 
-export default useAuth
+export default function useAuth() {
+  const { isLoading, user, error, setUserInfo, setIsLoading, setError } =
+    useAuthState()
+
+  const { refetch } = useQuery({
+    queryKey: ["auth", "currentUser"],
+    queryFn: async () => {
+      setIsLoading(true)
+      try {
+        const cachedUser = getCachedUser()
+        if (cachedUser) {
+          setUserInfo(cachedUser)
+          setError("")
+          return cachedUser
+        }
+        const res = await getCurrentUser()
+        if (!res) {
+          setUserInfo(null)
+          setError("Failed to fetch user info")
+          return null
+        }
+        const fetchedUser = UserSchema.parse(res)
+        cacheUser(fetchedUser)
+        setUserInfo(fetchedUser)
+        setError("")
+        return res
+      } catch (err) {
+        setUserInfo(null)
+        setError("Failed to fetch user info")
+        return null
+      } finally {
+        setIsLoading(false)
+      }
+    },
+  })
+
+  return { isLoading, user, error, refetch }
+}

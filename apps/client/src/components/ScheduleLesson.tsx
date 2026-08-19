@@ -1,25 +1,38 @@
-import { BellIcon, BellOffIcon, PenIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { getWeekFromDate } from "@ssau-schedule/shared/date";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import type { LessonType } from "@ssau-schedule/shared/themes/types";
-import type { CustomizationData, LessonDateTime, ScheduleLessonType } from "@/lib/types";
-import { lessonStyles } from "@/components/ScheduleViewer";
-import { Button } from "@/components/ui/button";
+import {
+  BellIcon,
+  BellOffIcon,
+  PenIcon,
+  PlusIcon,
+  TrashIcon,
+} from "lucide-react"
+import { getWeekFromDate } from "@ssau-schedule/shared/date"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable"
+import type { LessonType } from "@ssau-schedule/shared/themes/types"
+import type { CustomizationData, LessonDateTime } from "@/client/lib/types"
+import { stylemap } from "@/client/components/ScheduleViewer"
+import { Button } from "@/client/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useIsMobile } from "@/hooks/useIsMobile";
-import useEditorState from "@/hooks/useEditorState";
-import { addCustomLesson, editCustomLesson } from "@/api/api";
-import { getLessonCustomization } from "@/lib/utils";
+} from "@/client/components/ui/dropdown-menu"
+import { useIsMobile } from "@/client/hooks/useIsMobile"
+import useEditorState from "@/client/hooks/useEditorState"
+import { addCustomLesson, editCustomLesson } from "@/client/api/api"
+import { getLessonCustomization } from "@/client/lib/utils"
 
-export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?: boolean, time?: LessonDateTime | null }) {
-  const { openEditDialog } = useEditorState();
-  const s = lessonStyles.Window;
+export function ScheduleLessonWindow({
+  hasMenu = true,
+  time = null,
+}: {
+  hasMenu?: boolean
+  time?: LessonDateTime | null
+}) {
+  const { openEditDialog } = useEditorState()
+  const s = stylemap.lessonTypes.Window
 
   const isMobile = useIsMobile()
 
@@ -33,35 +46,61 @@ export function ScheduleLessonWindow({ hasMenu = true, time = null }: { hasMenu?
           </div>
         </div>
       </div>
-    );
+    )
 
   return (
     <div className="flex flex-col gap-1">
-      <div className={"flex flex-col items-center justify-center flex-1 group p-2 " + s.cardStyle}>
-        <Button variant={"ghost"} className={"border-dashed transition-opacity  " + (isMobile ? "opacity-20" : "opacity-0 group-hover:opacity-20")}
-          onClick={() => { openEditDialog({ lesson: null, time }) }}><PlusIcon /> Добавить пару</Button>
+      <div
+        className={
+          "flex flex-col items-center justify-center flex-1 group p-2 " +
+          s.cardStyle
+        }
+      >
+        <Button
+          variant={"ghost"}
+          className={
+            "border-dashed transition-opacity  " +
+            (isMobile ? "opacity-20" : "opacity-0 group-hover:opacity-20")
+          }
+          onClick={() => {
+            openEditDialog({ lesson: null, time })
+          }}
+        >
+          <PlusIcon /> Добавить пару
+        </Button>
       </div>
     </div>
   )
 }
 
-export function ScheduleLesson({ lesson, hasMenu = true }: { lesson: ScheduleLessonType | null; hasMenu?: boolean }) {
+export function ScheduleLesson({
+  lesson,
+  hasMenu = true,
+}: {
+  lesson: TimetableLesson | null
+  hasMenu?: boolean
+}) {
   if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
   return (
     <div className="flex flex-col gap-1">
       {[lesson, ...lesson.alts].map((l) =>
-        hasMenu ?
+        hasMenu ? (
           <ScheduleSingleLessonInteractive key={l.id} lesson={l} />
-          :
+        ) : (
           <ScheduleSingleLesson lesson={l} />
+        ),
       )}
-    </div>)
-
+    </div>
+  )
 }
 
-export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonType, "alts"> | null }) {
+export function ScheduleSingleLesson({
+  lesson,
+}: {
+  lesson: TimetableLesson | null
+}) {
   if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
-  let customized: "added" | "removed" | "modified" | null = null;
+  let customized: "added" | "removed" | "modified" | null = null
   if (lesson.customized) {
     if (lesson.original?.id) {
       if (lesson.customized.hidden) {
@@ -77,15 +116,25 @@ export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonTy
   function customizationIndicator(type: typeof customized) {
     if (!type) return <>ERR</>
     switch (type) {
-      case "added": return <span>+</span>
-      case "removed": return <span>-</span>
-      case "modified": return <span>*</span>
+      case "added":
+        return <span>+</span>
+      case "removed":
+        return <span>-</span>
+      case "modified":
+        return <span>*</span>
     }
   }
-  const style = lessonStyles;
-  const s = style[lesson.type as LessonType] ?? style.Unknown;
+  const style = stylemap.lessonTypes
+  const s = style[lesson.type]
   return (
-    <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50 opacity-50" : "")}>
+    <div
+      key={lesson.id}
+      className={
+        "flex-1 " +
+        s.cardStyle +
+        (customized === "removed" ? " grayscale-50 opacity-50" : "")
+      }
+    >
       <div className={"rounded-xl p-1 " + s.barStyle}></div>
       <div className="px-1 text-left">
         <p className="flex flex-row">
@@ -95,59 +144,90 @@ export function ScheduleSingleLesson({ lesson }: { lesson: Omit<ScheduleLessonTy
         <hr className="my-1 border-white" />
         <p className={"text-sm " + s.teacherStyle}>{lesson.teacher.name}</p>
         <p className="flex w-full flex-row items-center">
-          <a className={"flex-1 grow " + s.placeStyle}>{lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}</a>
-          {lesson.subgroup &&
-            <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>}
-          {lesson.isIet &&
-            <a className={s.ietStyle}>ИОТ</a>}
+          <a className={"flex-1 grow " + s.placeStyle}>
+            {lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}
+          </a>
+          {lesson.subgroup && (
+            <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>
+          )}
+          {lesson.isIet && <a className={s.ietStyle}>ИОТ</a>}
         </p>
       </div>
     </div>
   )
 }
 
-type CustomizationDataPayload = Partial<CustomizationData> & {weekNumber:number, weekday: number, dayTimeSlot: number}
+type CustomizationDataPayload = Partial<CustomizationData> & {
+  weekNumber: number
+  weekday: number
+  dayTimeSlot: number
+}
 
-export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { lesson: Omit<ScheduleLessonType, "alts"> | null; hasMenu?: boolean }) {
+export function ScheduleSingleLessonInteractive({
+  lesson,
+  hasMenu = true,
+}: {
+  lesson: TimetableLesson | null
+  hasMenu?: boolean
+}) {
   const { openEditDialog, openDeleteDialog } = useEditorState()
   const queryClient = useQueryClient()
   const toggleHidden = useMutation({
-    mutationKey: ["customLesson", "ignore", lesson?.id, lesson?.customized?.hidden],
+    mutationKey: [
+      "customLesson",
+      "ignore",
+      lesson?.id,
+      lesson?.customized?.hidden,
+    ],
     mutationFn: () => {
       if (!lesson) throw new Error("Attempt to modify a null lesson")
 
       const customizationData = getLessonCustomization(lesson)
-      customizationData.hideLesson = !customizationData.hideLesson;
-      if (lesson.original || !lesson.customized) customizationData.lessonId = lesson.original?.id || lesson.id
+      customizationData.hideLesson = !customizationData.hideLesson
+      if (lesson.original || !lesson.customized)
+        customizationData.lessonId = lesson.original?.id || lesson.id
 
-      let promise: Promise<any>;
+      let promise: Promise<any>
       if (lesson.customized) {
-        promise = editCustomLesson({ customizationData: customizationData as CustomizationDataPayload & {id:number} })
+        promise = editCustomLesson({
+          customizationData: customizationData as CustomizationDataPayload & {
+            id: number
+          },
+        })
       } else {
-        promise = addCustomLesson({ customizationData: customizationData as CustomizationDataPayload })
+        promise = addCustomLesson({
+          customizationData: customizationData as CustomizationDataPayload,
+        })
       }
-      toast.promise(promise, { loading: "Обновляем...", error: "Произошла ошибка", success: "Пара обновлена" })
+      toast.promise(promise, {
+        loading: "Обновляем...",
+        error: "Произошла ошибка",
+        success: "Пара обновлена",
+      })
       return promise
     },
     onSuccess: (data: unknown) => {
       if (Array.isArray(data)) {
-        const numbers = data.map(i => i?.weekNumber || 0)
-        return queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "schedule" && numbers.includes(q.queryKey[1]) })
+        const numbers = data.map((i) => i?.weekNumber || 0)
+        return queryClient.invalidateQueries({
+          predicate: (q) =>
+            q.queryKey[0] === "schedule" && numbers.includes(q.queryKey[1]),
+        })
       }
       const week = (data as any)?.weekNumber || 0
       if (week) {
         queryClient.invalidateQueries({ queryKey: ["schedule", week] })
         if (lesson)
-          queryClient.invalidateQueries({ queryKey: ["schedule", getWeekFromDate(lesson.beginTime)] })
-      }
-      else
-        queryClient.invalidateQueries({ queryKey: ["schedule"] })
-    }
+          queryClient.invalidateQueries({
+            queryKey: ["schedule", getWeekFromDate(lesson.beginTime)],
+          })
+      } else queryClient.invalidateQueries({ queryKey: ["schedule"] })
+    },
   })
 
   if (!lesson) return <ScheduleLessonWindow hasMenu={false} />
 
-  let customized: "added" | "removed" | "modified" | null = null;
+  let customized: "added" | "removed" | "modified" | null = null
   if (lesson.customized) {
     if (lesson.original?.id) {
       if (lesson.customized.hidden) {
@@ -163,17 +243,27 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
   function customizationIndicator(type: typeof customized) {
     if (!type) return <>ERR</>
     switch (type) {
-      case "added": return <span>+</span>
-      case "removed": return <span>-</span>
-      case "modified": return <span>*</span>
+      case "added":
+        return <span>+</span>
+      case "removed":
+        return <span>-</span>
+      case "modified":
+        return <span>*</span>
     }
   }
 
-  const style = lessonStyles;
-  const s = style[lesson.type as LessonType] ?? style.Unknown;
+  const style = stylemap.lessonTypes
+  const s = style[lesson.type as LessonType]
   if (!hasMenu)
     return (
-      <div key={lesson.id} className={"flex-1 " + s.cardStyle + (customized === "removed" ? " grayscale-50 opacity-50" : "")}>
+      <div
+        key={lesson.id}
+        className={
+          "flex-1 " +
+          s.cardStyle +
+          (customized === "removed" ? " grayscale-50 opacity-50" : "")
+        }
+      >
         <div className={"rounded-xl p-1 " + s.barStyle}></div>
         <div className="px-1 text-left">
           <p className="flex flex-row">
@@ -183,11 +273,15 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
           <hr className="my-1 border-white" />
           <p className={"text-sm " + s.teacherStyle}>{lesson.teacher.name}</p>
           <p className="flex w-full flex-row items-center">
-            <a className={"flex-1 grow " + s.placeStyle}>{lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}</a>
-            {lesson.subgroup &&
-              <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>}
-            {lesson.isIet &&
-              <a className={s.ietStyle}>ИОТ</a>}
+            <a className={"flex-1 grow " + s.placeStyle}>
+              {lesson.isOnline
+                ? "Online"
+                : `${lesson.building} - ${lesson.room}`}
+            </a>
+            {lesson.subgroup && (
+              <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>
+            )}
+            {lesson.isIet && <a className={s.ietStyle}>ИОТ</a>}
           </p>
         </div>
       </div>
@@ -200,7 +294,14 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div key={lesson.id} className={"flex-1 cursor-pointer " + s.cardStyle + (lesson.customized?.hidden ? " grayscale-50 opacity-50" : "")}>
+        <div
+          key={lesson.id}
+          className={
+            "flex-1 cursor-pointer " +
+            s.cardStyle +
+            (lesson.customized?.hidden ? " grayscale-50 opacity-50" : "")
+          }
+        >
           <div className={"rounded-xl p-1 " + s.barStyle}></div>
           <div className="px-1 text-left">
             <p className="flex flex-row">
@@ -210,11 +311,15 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
             <hr className="my-1 border-white" />
             <p className={"text-sm " + s.teacherStyle}>{lesson.teacher.name}</p>
             <p className="flex w-full flex-row items-center">
-              <a className={"flex-1 grow " + s.placeStyle}>{lesson.isOnline ? "Online" : `${lesson.building} - ${lesson.room}`}</a>
-              {lesson.subgroup &&
-                <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>}
-              {lesson.isIet &&
-                <a className={s.ietStyle}>ИОТ</a>}
+              <a className={"flex-1 grow " + s.placeStyle}>
+                {lesson.isOnline
+                  ? "Online"
+                  : `${lesson.building} - ${lesson.room}`}
+              </a>
+              {lesson.subgroup && (
+                <a className={s.subgroupStyle}>Подгруппа: {lesson.subgroup}</a>
+              )}
+              {lesson.isIet && <a className={s.ietStyle}>ИОТ</a>}
             </p>
           </div>
         </div>
@@ -222,19 +327,41 @@ export function ScheduleSingleLessonInteractive({ lesson, hasMenu = true }: { le
 
       <DropdownMenuContent>
         <DropdownMenuItem onClick={toggleLessonHidden}>
-          {lesson.customized?.hidden ? <><BellOffIcon /> Восстановить</> : <><BellIcon /> Игнорировать</>}
+          {lesson.customized?.hidden ? (
+            <>
+              <BellOffIcon /> Восстановить
+            </>
+          ) : (
+            <>
+              <BellIcon /> Игнорировать
+            </>
+          )}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => openEditDialog({ lesson, time: { weekNumber: getWeekFromDate(lesson.beginTime), weekday: lesson.beginTime.getDay(), dayTimeSlot: lesson.dayTimeSlot } })}>
+        <DropdownMenuItem
+          onClick={() =>
+            openEditDialog({
+              lesson,
+              time: {
+                weekNumber: getWeekFromDate(lesson.beginTime),
+                weekday: lesson.beginTime.getDay(),
+                dayTimeSlot: lesson.dayTimeSlot,
+              },
+            })
+          }
+        >
           <PenIcon /> Редактировать
         </DropdownMenuItem>
-        {customized &&
-          <DropdownMenuItem className="focus:bg-destructive/50 focus:text-destructive-foreground" onClick={() => openDeleteDialog({ lesson })}>
-            <div className="flex flex-row items-center gap-2"><TrashIcon /> {lesson.original?.id ? "Сбросить" : "Удалить"}</div>
+        {customized && (
+          <DropdownMenuItem
+            className="focus:bg-destructive/50 focus:text-destructive-foreground"
+            onClick={() => openDeleteDialog({ lesson })}
+          >
+            <div className="flex flex-row items-center gap-2">
+              <TrashIcon /> {lesson.original?.id ? "Сбросить" : "Удалить"}
+            </div>
           </DropdownMenuItem>
-        }
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
-
-
   )
 }

@@ -8,7 +8,7 @@
     "compile": "bun build src/index.ts --target bun --compile --outfile dist/index",
     "prod": "bun dist/index.js",
     "lint": "bunx --bun eslint .",
-    "format": "bunx --bun prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache"
+    "format": "bunx --bun prettier -w . --cache"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.1",

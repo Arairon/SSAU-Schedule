@@ -6,6 +6,7 @@
     "prettier.config.js",
     "vite.config.js"
   ],
+  "exclude": ["../server", "**/server/**/*"],
 
   "compilerOptions": {
     "target": "ES2022",
@@ -29,7 +30,9 @@
     "noUncheckedSideEffectImports": true,
     "rootDir": "./",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/client/*": ["./src/*"],
+      "@/server/*": ["../server/src/*"],
+      "@/bot/*": ["../telegram-bot/src/*"]
     }
   }
 }

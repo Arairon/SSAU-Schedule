@@ -1,46 +1,46 @@
-import { db } from "@/db";
+import { db } from "@/server/db"
 import {
   addCustomLesson,
   CustomizationDataSchemaPartial,
   deleteCustomLesson,
   editCustomLesson,
-} from "@/schedule/customLesson";
-import type { WithAuth } from "./auth";
-import Elysia from "elysia";
-import z from "zod";
+} from "@/server/schedule/customLesson"
+import type { WithAuth } from "./auth"
+import Elysia from "elysia"
+import z from "zod"
 
 export const app = new Elysia<"/customLesson", WithAuth>({
   prefix: "/customLesson",
 })
   .post("/", async ({ body, auth, status }) => {
     if (!auth) {
-      return status(403, "Unauthorized");
+      return status(403, "Unauthorized")
     }
 
-    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
     const { data, error } = CustomizationDataSchemaPartial.omit("id")
       .strict()
-      .safeParse(body);
+      .safeParse(body)
 
     if (error || !data) {
       return status(
         400,
         `${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`,
-      );
+      )
     }
 
     // TODO: Fail on already existing lessonInfoId/lessonId
-    return await addCustomLesson(user, data);
+    return await addCustomLesson(user, data)
   })
   .delete(
     "/:lessonId",
     async ({ params, auth, status }) => {
       if (!auth) {
-        return status(403, "Unauthorized");
+        return status(403, "Unauthorized")
       }
 
-      const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
-      const id = params.lessonId;
+      const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
+      const id = params.lessonId
 
       if (
         !(await db.customLesson.findUnique({ where: { id, userId: user.id } }))
@@ -48,28 +48,28 @@ export const app = new Elysia<"/customLesson", WithAuth>({
         return status(
           404,
           "CustomLesson with such id belonging to you not found",
-        );
+        )
       }
 
-      return await deleteCustomLesson(user, id);
+      return await deleteCustomLesson(user, id)
     },
     { params: z.object({ lessonId: z.coerce.number() }) },
   )
   .put("/", async ({ body, auth, status }) => {
     if (!auth) {
-      return status(403, "Unauthorized");
+      return status(403, "Unauthorized")
     }
 
-    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!;
+    const user = (await db.user.findUnique({ where: { id: auth.userId } }))!
     const { data, error } = CustomizationDataSchemaPartial.requiredFor("id")
       .strict()
-      .safeParse(body);
+      .safeParse(body)
 
     if (error || !data) {
       return status(
         400,
         `${error?.name}: ${error?.message} (${JSON.stringify(error?.cause)})`,
-      );
+      )
     }
 
     if (
@@ -77,11 +77,8 @@ export const app = new Elysia<"/customLesson", WithAuth>({
         where: { id: data.id, userId: user.id },
       }))
     ) {
-      return status(
-        404,
-        "CustomLesson with such id belonging to you not found",
-      );
+      return status(404, "CustomLesson with such id belonging to you not found")
     }
 
-    return await editCustomLesson(user, data);
-  });
+    return await editCustomLesson(user, data)
+  })

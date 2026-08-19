@@ -1,7 +1,7 @@
 import { SCHEDULE_STYLEMAP_LIGHT } from "./light";
 import { SCHEDULE_STYLEMAP_DARK } from "./dark";
 import { SCHEDULE_STYLEMAP_NEON } from "./neon";
-import { LessonStyleMap, StyleMap, StyleMapConfig, lessonTypes } from "./types";
+import { lessonTypes, type LessonStyleMap, type StyleMap, type StyleMapConfig } from "./types";
 
 function parseConfig(config: StyleMapConfig): StyleMap {
   const types: Record<string, LessonStyleMap> = {};

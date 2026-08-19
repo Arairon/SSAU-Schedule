@@ -1,12 +1,12 @@
-import { env } from "@/env";
-import log from "@/logger";
-import { CommandGroup } from "@grammyjs/commands";
-import { getStylemap, stylemaps } from "@ssau-schedule/shared/themes/index";
-import { getUserPreferences } from "@ssau-schedule/shared/utils";
-import { InlineKeyboard, type Bot } from "grammy";
-import { type Context } from "./types";
-import { api } from "@/serverClient";
-import { getUser } from "./misc";
+import { env } from "@/bot/env"
+import log from "@/bot/logger"
+import { CommandGroup } from "@grammyjs/commands"
+import { getStylemap, stylemaps } from "@ssau-schedule/shared/themes/index"
+import { getUserPreferences } from "@ssau-schedule/shared/utils"
+import { InlineKeyboard, type Bot } from "grammy"
+import { type Context } from "./types"
+import { api } from "@/bot/serverClient"
+import { getUser } from "./misc"
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -32,31 +32,31 @@ const menuText: Record<string, string> = {
   groupchat: "Настройки группового чата (Только для администраторов)",
   groupchat_deregister: "Вы уверены что хотите отключить чат от бота?",
   groupchat_changeowner: "Вы уверены что хотите перенять админство расписания?",
-};
+}
 
 async function updateOptionsMsg(ctx: Context) {
-  const user = await getUser(ctx, { required: true });
-  if (!user) return; // getUser уже отправил сообщение об ошибке
+  const user = await getUser(ctx, { required: true })
+  if (!user) return // getUser уже отправил сообщение об ошибке
   if (ctx.session.options.message === 0) {
-    ctx.session.options.message = (await ctx.reply("Настройки")).message_id;
+    ctx.session.options.message = (await ctx.reply("Настройки")).message_id
   }
-  const menu = ctx.session.options.menu;
-  const chat = ctx.chat?.id;
+  const menu = ctx.session.options.menu
+  const chat = ctx.chat?.id
   if (!chat) {
     return ctx.reply(
       "Произошла ошибка. Вы находитесь в несуществующем чате.\n(Я понятия не имею как это возможно)",
-    );
+    )
   }
-  const msgId = ctx.session.options.message;
-  const preferences = getUserPreferences(user);
+  const msgId = ctx.session.options.message
+  const preferences = getUserPreferences(user)
   const newText = `\
 Настройки
 ==============================
-${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
-  ctx.session.options.updText = null;
+${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`
+  ctx.session.options.updText = null
   switch (menu) {
     case "": {
-      const theme = getStylemap(preferences.theme ?? "default");
+      const theme = getStylemap(preferences.theme ?? "default")
       const keyboard = new InlineKeyboard()
         .text(`Тема: ${theme.description}`, "options_themes")
         .row()
@@ -77,7 +77,7 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
         )
         .row()
         .text(`Уведомления`, "options_notifications")
-        .row();
+        .row()
 
       if (user.authCookie) {
         keyboard
@@ -85,27 +85,27 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
             `Анонимный доступ ${user.allowsAccountProxyUse ? "✅" : "❌"}`,
             "options_proxyaccess",
           )
-          .row();
+          .row()
       }
 
-      keyboard.text(`Закрыть`, "options_close").row();
+      keyboard.text(`Закрыть`, "options_close").row()
       return ctx.api
         .editMessageText(chat, msgId, newText, {
           reply_markup: keyboard,
         })
-        .catch();
+        .catch()
     }
     case "themes": {
-      const keyboard = new InlineKeyboard();
+      const keyboard = new InlineKeyboard()
       Object.values(stylemaps).map((theme) =>
         keyboard
           .text(`${theme.description}`, `options_theme_set_${theme.name}`)
           .row(),
-      );
-      keyboard.text("Назад", "options_menu").row();
+      )
+      keyboard.text("Назад", "options_menu").row()
       return ctx.api.editMessageText(chat, msgId, newText, {
         reply_markup: keyboard,
-      });
+      })
     }
     case "group": {
       if (user.group) {
@@ -122,7 +122,7 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
             .row()
             .text("Назад", "options_menu")
             .row(),
-        });
+        })
       } else {
         return ctx.api.editMessageText(chat, msgId, newText, {
           reply_markup: new InlineKeyboard()
@@ -130,13 +130,13 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
             .row()
             .text("Назад", "options_menu")
             .row(),
-        });
+        })
       }
     }
     case "notifications": {
       const notifyBeforeLessonsMinutes = Math.round(
         preferences.notifyBeforeLessons / 60,
-      );
+      )
       return ctx.api.editMessageText(chat, msgId, newText, {
         reply_markup: new InlineKeyboard()
           .text(
@@ -161,7 +161,7 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
           .row()
           .text("Назад", "options_menu")
           .row(),
-      });
+      })
     }
     case "notifications_daystart": {
       return ctx.api.editMessageText(chat, msgId, newText, {
@@ -182,7 +182,7 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
           .row()
           .text("Назад", "options_notifications")
           .row(),
-      });
+      })
     }
     // TODO: Reimplement group chats
     // case "groupchat": {
@@ -243,26 +243,26 @@ ${(ctx.session.options.updText ?? "") || menuText[menu] || ""}`;
           )
           .row()
           .text("Назад", "options_menu"),
-      });
+      })
     }
     default: {
       return ctx.answerCallbackQuery(
         "Прозошла ошибка: Переход в несуществующее меню",
-      );
+      )
     }
   }
 }
 
 export async function openSettings(ctx: Context, menu?: string) {
   if (ctx.session.options.message)
-    void ctx.api.deleteMessage(ctx.chat!.id, ctx.session.options.message);
+    void ctx.api.deleteMessage(ctx.chat!.id, ctx.session.options.message)
   ctx.session.options = {
     message: 0,
     menu: menu ?? "",
     updText: null,
     notificationsRescheduleTimeout: null,
-  };
-  return updateOptionsMsg(ctx);
+  }
+  return updateOptionsMsg(ctx)
 }
 
 function scheduleUserNotificationsUpdate(
@@ -270,17 +270,17 @@ function scheduleUserNotificationsUpdate(
   user: { groupId: number; id: number },
 ) {
   if (ctx.session.options.notificationsRescheduleTimeout) {
-    clearTimeout(ctx.session.options.notificationsRescheduleTimeout);
+    clearTimeout(ctx.session.options.notificationsRescheduleTimeout)
   }
-  const chat = ctx.chat;
-  const from = ctx.from;
-  if (!chat || !from || !user.groupId) return;
+  const chat = ctx.chat
+  const from = ctx.from
+  if (!chat || !from || !user.groupId) return
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   ctx.session.options.notificationsRescheduleTimeout = setTimeout(async () => {
     // const now = new Date();
     // const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0);
-    await api.user.id({ id: user.id }).notifications.reschedule.post();
-  }, 30_000);
+    await api.user.id({ id: user.id }).notifications.reschedule.post()
+  }, 30_000)
 }
 
 // async function initGroupchatOptions(bot: Bot<Context>) {
@@ -451,366 +451,364 @@ function scheduleUserNotificationsUpdate(
 //   });
 // }
 
-export const optionsCommands = new CommandGroup<Context>();
+export const optionsCommands = new CommandGroup<Context>()
 
 async function closeOptions(ctx: Context) {
   const target =
-    ctx.session.options.message || ctx.callbackQuery?.message?.message_id;
+    ctx.session.options.message || ctx.callbackQuery?.message?.message_id
   try {
-    if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target);
+    if (target && ctx.chat) await ctx.api.deleteMessage(ctx.chat.id, target)
   } catch {
     await ctx.reply(
       `Произошла ошибка при попытке удалить сообщение. Сообщения отправленные ранее чем 48 часов назад не могут быть удалены ботом.`,
-    );
+    )
   }
-  ctx.session.options.message = 0;
+  ctx.session.options.message = 0
 }
 
 // Init options features
 export async function initOptions(bot: Bot<Context>) {
-  const commands = optionsCommands;
+  const commands = optionsCommands
 
   commands
     .command("options", "Настройки")
     .addToScope({ type: "all_private_chats" }, async (ctx) => {
-      if (!ctx.from || !ctx.message) return;
-      await ctx.deleteMessage();
-      return openSettings(ctx);
+      if (!ctx.from || !ctx.message) return
+      await ctx.deleteMessage()
+      return openSettings(ctx)
     })
     .addToScope({ type: "all_chat_administrators" }, async (ctx) => {
-      if (!ctx.from || !ctx.message) return;
-      return openSettings(ctx, "groupchat");
+      if (!ctx.from || !ctx.message) return
+      return openSettings(ctx, "groupchat")
     })
     .addToScope({ type: "all_group_chats" }, async (ctx) => {
-      if (!ctx.from || !ctx.message) return;
-      if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return;
-      return openSettings(ctx, "groupchat");
-    });
+      if (!ctx.from || !ctx.message) return
+      if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return
+      return openSettings(ctx, "groupchat")
+    })
 
   // await initGroupchatOptions(bot);
 
   bot.callbackQuery("options_themes", async (ctx) => {
-    ctx.session.options.menu = "themes";
+    ctx.session.options.menu = "themes"
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    return updateOptionsMsg(ctx);
-  });
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery(/options_theme_set_(\w+)/, async (ctx) => {
-    const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
+    const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null
     if (!action) {
       log.error(
         `Action not found error. Action: ${JSON.stringify(ctx.callbackQuery)}`,
         { user: ctx.callbackQuery.from.id },
-      );
+      )
       return ctx.reply(
         `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
-      );
+      )
     }
-    const theme = ctx.match[1];
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    const preferences = getUserPreferences(user);
+    const theme = ctx.match[1]
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const preferences = getUserPreferences(user)
     if (preferences.theme === theme) {
-      ctx.session.options.updText = `Оставляем тему: "${stylemaps[theme].description}"`;
-      ctx.session.options.menu = "";
-      return updateOptionsMsg(ctx);
+      ctx.session.options.updText = `Оставляем тему: "${stylemaps[theme].description}"`
+      ctx.session.options.menu = ""
+      return updateOptionsMsg(ctx)
     }
-    preferences.theme = theme;
-    await api.user.id({ id: user.id }).patch({ preferences });
-    ctx.session.options.updText = `Тема успешно изменена на "${stylemaps[theme].description}"`;
-    ctx.session.options.menu = "";
+    preferences.theme = theme
+    await api.user.id({ id: user.id }).patch({ preferences })
+    ctx.session.options.updText = `Тема успешно изменена на "${stylemaps[theme].description}"`
+    ctx.session.options.menu = ""
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
-    return updateOptionsMsg(ctx);
-  });
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_group", async (ctx) => {
-    ctx.session.options.menu = "group";
+    ctx.session.options.menu = "group"
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    return updateOptionsMsg(ctx);
-  });
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_group_change", async (ctx) => {
     await ctx.answerCallbackQuery().catch(() => {
       /* ignore */
-    });
-    await closeOptions(ctx);
-    return ctx.conversation.enter("GROUP_CHANGE");
-  });
+    })
+    await closeOptions(ctx)
+    return ctx.conversation.enter("GROUP_CHANGE")
+  })
 
   bot.callbackQuery(/options_subgroup_\d/, async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null
     if (!action) {
       log.error(
         `Action not found error. Action: ${JSON.stringify(ctx.callbackQuery)}`,
         { user: ctx.callbackQuery.from.id },
-      );
+      )
       return ctx.reply(
         `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
-      );
+      )
     }
-    const rawtarget = action.charAt(action.length - 1);
+    const rawtarget = action.charAt(action.length - 1)
     if (Number.isNaN(Number(rawtarget))) {
       return ctx.reply(
         `Произошла ошибка. Подгруппа не является числом... Как так то...`,
-      );
+      )
     }
-    const target = Number(rawtarget);
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
+    const target = Number(rawtarget)
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
     if (target === user.subgroup || (!target && !user.subgroup)) {
-      ctx.session.options.updText = `Оставляем подгруппу: "${(user.subgroup ?? 0) || "Обе"}"`;
-      ctx.session.options.menu = "";
-      return updateOptionsMsg(ctx);
+      ctx.session.options.updText = `Оставляем подгруппу: "${(user.subgroup ?? 0) || "Обе"}"`
+      ctx.session.options.menu = ""
+      return updateOptionsMsg(ctx)
     }
     await api.user.id({ id: user.id }).patch({
       subgroup: target,
-    });
-    await api.cache["user-ics"].invalidate.patch({ userId: user.id });
+    })
+    await api.cache["user-ics"].invalidate.patch({ userId: user.id })
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
-    ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`;
-    ctx.session.options.menu = "";
-    return updateOptionsMsg(ctx);
-  });
+    ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`
+    ctx.session.options.menu = ""
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_toggle_iet", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    const preferences = getUserPreferences(user);
-    preferences.showIet = !preferences.showIet;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const preferences = getUserPreferences(user)
+    preferences.showIet = !preferences.showIet
     await api.user.id({ id: user.id }).patch({
       preferences,
-    });
-    await api.cache["user-ics"].invalidate.patch({ userId: user.id });
-    await api.cache.week.invalidate.patch({ owner: user.id });
+    })
+    await api.cache["user-ics"].invalidate.patch({ userId: user.id })
+    await api.cache.week.invalidate.patch({ owner: user.id })
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
-    ctx.session.options.updText = `Отображение ИОТов ${preferences.showIet ? "включено" : "отключено"}`;
-    ctx.session.options.menu = "";
-    return updateOptionsMsg(ctx);
-  });
+    ctx.session.options.updText = `Отображение ИОТов ${preferences.showIet ? "включено" : "отключено"}`
+    ctx.session.options.menu = ""
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_toggle_military", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    const preferences = getUserPreferences(user);
-    preferences.showMilitary = !preferences.showMilitary;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const preferences = getUserPreferences(user)
+    preferences.showMilitary = !preferences.showMilitary
 
     await api.user.id({ id: user.id }).patch({
       preferences,
-    });
-    await api.cache["user-ics"].invalidate.patch({ userId: user.id });
-    await api.cache.week.invalidate.patch({ owner: user.id });
+    })
+    await api.cache["user-ics"].invalidate.patch({ userId: user.id })
+    await api.cache.week.invalidate.patch({ owner: user.id })
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
-    ctx.session.options.updText = `Отображение военки ${preferences.showMilitary ? "включено" : "отключено"}`;
-    ctx.session.options.menu = "";
-    return updateOptionsMsg(ctx);
-  });
+    ctx.session.options.updText = `Отображение военки ${preferences.showMilitary ? "включено" : "отключено"}`
+    ctx.session.options.menu = ""
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_menu", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    ctx.session.options.menu = "";
-    return updateOptionsMsg(ctx);
-  });
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    ctx.session.options.menu = ""
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_close", async (ctx) => {
-    return closeOptions(ctx);
-  });
+    return closeOptions(ctx)
+  })
 
   bot.callbackQuery("options_notifications", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    ctx.session.options.menu = "notifications";
-    return updateOptionsMsg(ctx);
-  });
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    ctx.session.options.menu = "notifications"
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_notifications_daystart_edit", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    ctx.session.options.menu = "notifications_daystart";
-    return updateOptionsMsg(ctx);
-  });
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    ctx.session.options.menu = "notifications_daystart"
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery(
     /^options_notifications_daystart_set_(\d+)$/,
     async (ctx) => {
       if (!ctx.session.options.message)
-        ctx.session.options.message =
-          ctx.callbackQuery.message?.message_id ?? 0;
-      const action =
-        "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null;
+        ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+      const action = "data" in ctx.callbackQuery ? ctx.callbackQuery.data : null
       if (!action) {
         log.error(
           `Action not found error. Action: ${JSON.stringify(ctx.callbackQuery)}`,
           { user: ctx.callbackQuery.from.id },
-        );
+        )
         return ctx.reply(
           `Произошла ошибка, пожалуйста попробуйте переоткрыть меню настроек`,
-        );
+        )
       }
-      const rawtarget = ctx.match[1];
+      const rawtarget = ctx.match[1]
       if (Number.isNaN(Number(rawtarget))) {
         return ctx.reply(
           `Произошла ошибка. Время не является числом... Как так то...`,
-        );
+        )
       }
-      const time = Number(rawtarget) * 60;
-      const user = await getUser(ctx, { required: true });
-      if (!user) return;
-      const preferences = getUserPreferences(user);
+      const time = Number(rawtarget) * 60
+      const user = await getUser(ctx, { required: true })
+      if (!user) return
+      const preferences = getUserPreferences(user)
       if (time === preferences.notifyBeforeLessons) {
-        ctx.session.options.updText = `Оставляем время: "${time / 60} мин"`;
-        ctx.session.options.menu = "notifications";
-        return updateOptionsMsg(ctx);
+        ctx.session.options.updText = `Оставляем время: "${time / 60} мин"`
+        ctx.session.options.menu = "notifications"
+        return updateOptionsMsg(ctx)
       }
-      preferences.notifyBeforeLessons = time;
+      preferences.notifyBeforeLessons = time
       await api.user.id({ id: user.id }).patch({
         preferences,
-      });
+      })
       if (time)
-        ctx.session.options.updText = `Установлено время: "${time / 60} мин"`;
+        ctx.session.options.updText = `Установлено время: "${time / 60} мин"`
       else
-        ctx.session.options.updText = `Уведомления перед началом занятий отключены`;
-      ctx.session.options.menu = "notifications";
+        ctx.session.options.updText = `Уведомления перед началом занятий отключены`
+      ctx.session.options.menu = "notifications"
       if (user.groupId)
         scheduleUserNotificationsUpdate(
           ctx,
           user as { groupId: number; id: number },
-        );
-      return updateOptionsMsg(ctx);
+        )
+      return updateOptionsMsg(ctx)
     },
-  );
+  )
 
   bot.callbackQuery("options_notifications_nextlesson_toggle", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    const preferences = getUserPreferences(user);
-    preferences.notifyAboutNextLesson = !preferences.notifyAboutNextLesson;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const preferences = getUserPreferences(user)
+    preferences.notifyAboutNextLesson = !preferences.notifyAboutNextLesson
     await api.user.id({ id: user.id }).patch({
       preferences,
-    });
-    ctx.session.options.updText = `Уведомления о следующей паре ${preferences.notifyAboutNextLesson ? "включены" : "отключены"}`;
-    ctx.session.options.menu = "notifications";
+    })
+    ctx.session.options.updText = `Уведомления о следующей паре ${preferences.notifyAboutNextLesson ? "включены" : "отключены"}`
+    ctx.session.options.menu = "notifications"
     if (user.groupId)
       scheduleUserNotificationsUpdate(
         ctx,
         user as { groupId: number; id: number },
-      );
-    return updateOptionsMsg(ctx);
-  });
+      )
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_notifications_nextday_toggle", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    const preferences = getUserPreferences(user);
-    preferences.notifyAboutNextDay = !preferences.notifyAboutNextDay;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const preferences = getUserPreferences(user)
+    preferences.notifyAboutNextDay = !preferences.notifyAboutNextDay
     await api.user.id({ id: user.id }).patch({
       preferences,
-    });
-    ctx.session.options.updText = `Уведомления о следующем дне ${preferences.notifyAboutNextDay ? "включены" : "отключены"}`;
-    ctx.session.options.menu = "notifications";
+    })
+    ctx.session.options.updText = `Уведомления о следующем дне ${preferences.notifyAboutNextDay ? "включены" : "отключены"}`
+    ctx.session.options.menu = "notifications"
     if (user.groupId)
       scheduleUserNotificationsUpdate(
         ctx,
         user as { groupId: number; id: number },
-      );
-    return updateOptionsMsg(ctx);
-  });
+      )
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_notifications_nextweek_toggle", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    const preferences = getUserPreferences(user);
-    preferences.notifyAboutNextWeek = !preferences.notifyAboutNextWeek;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const preferences = getUserPreferences(user)
+    preferences.notifyAboutNextWeek = !preferences.notifyAboutNextWeek
     await api.user.id({ id: user.id }).patch({
       preferences,
-    });
-    ctx.session.options.updText = `Уведомления о следующей неделе ${preferences.notifyAboutNextWeek ? "включены" : "отключены"}`;
-    ctx.session.options.menu = "notifications";
+    })
+    ctx.session.options.updText = `Уведомления о следующей неделе ${preferences.notifyAboutNextWeek ? "включены" : "отключены"}`
+    ctx.session.options.menu = "notifications"
     if (user.groupId)
       scheduleUserNotificationsUpdate(
         ctx,
         user as { groupId: number; id: number },
-      );
-    return updateOptionsMsg(ctx);
-  });
+      )
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_proxyaccess", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
-    ctx.session.options.menu = "proxyaccess";
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    ctx.session.options.menu = "proxyaccess"
     if (!user.allowsAccountProxyUse) {
       ctx.session.options.updText = `\
 Разрешить использовать ваш аккаунт для анонимных запросов?
 
 Это позволит другим пользователям, которые не вошли в ЛК, получать расписание из API личного кабинета через ваш аккаунт.
-Ваши данные не будут видны други пользователям, а на вашем аккаунте не будет выполняться никаких действий, кроме получения расписания.`;
+Ваши данные не будут видны други пользователям, а на вашем аккаунте не будет выполняться никаких действий, кроме получения расписания.`
     } else {
       ctx.session.options.updText = `\
 Вы уверены что хотите запретить использовать ваш аккаунт для анонимных запросов?
 
 Если в боте не останется пользователей, разрешивших использовать свои аккаунты для анонимных запросов,
 анонимный доступ перестанет быть доступным для всех.
-`;
+`
     }
-    return updateOptionsMsg(ctx);
-  });
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_proxyaccess_enable", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
     if (user.allowsAccountProxyUse) {
-      ctx.session.options.updText = `Ваш аккаунт уже разрешён для анонимных запросов`;
-      ctx.session.options.menu = "";
-      return updateOptionsMsg(ctx);
+      ctx.session.options.updText = `Ваш аккаунт уже разрешён для анонимных запросов`
+      ctx.session.options.menu = ""
+      return updateOptionsMsg(ctx)
     }
     await api.user.id({ id: user.id }).patch({
       allowsAccountProxyUse: true,
-    });
-    ctx.session.options.updText = `Ваш аккаунт теперь разрешён для анонимных запросов`;
-    ctx.session.options.menu = "";
-    return updateOptionsMsg(ctx);
-  });
+    })
+    ctx.session.options.updText = `Ваш аккаунт теперь разрешён для анонимных запросов`
+    ctx.session.options.menu = ""
+    return updateOptionsMsg(ctx)
+  })
 
   bot.callbackQuery("options_proxyaccess_disable", async (ctx) => {
     if (!ctx.session.options.message)
-      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0;
-    const user = await getUser(ctx, { required: true });
-    if (!user) return;
+      ctx.session.options.message = ctx.callbackQuery.message?.message_id ?? 0
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
     if (!user.allowsAccountProxyUse) {
-      ctx.session.options.updText = `Ваш аккаунт уже недоступен для анонимных запросов`;
-      ctx.session.options.menu = "";
-      return updateOptionsMsg(ctx);
+      ctx.session.options.updText = `Ваш аккаунт уже недоступен для анонимных запросов`
+      ctx.session.options.menu = ""
+      return updateOptionsMsg(ctx)
     }
     await api.user.id({ id: user.id }).patch({
       allowsAccountProxyUse: false,
-    });
-    ctx.session.options.updText = `Ваш аккаунт теперь недоступен для анонимных запросов`;
-    ctx.session.options.menu = "";
-    return updateOptionsMsg(ctx);
-  });
+    })
+    ctx.session.options.updText = `Ваш аккаунт теперь недоступен для анонимных запросов`
+    ctx.session.options.menu = ""
+    return updateOptionsMsg(ctx)
+  })
 
-  bot.use(commands);
-  return commands;
+  bot.use(commands)
+  return commands
 }

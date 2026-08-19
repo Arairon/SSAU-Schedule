@@ -1,15 +1,16 @@
-import { clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-import { getWeekFromDate } from '@ssau-schedule/shared/date'
-import type { ClassValue } from 'clsx'
-import type { CustomizationData, ScheduleLessonType } from '@/lib/types'
+import { clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+import { getWeekFromDate } from "@ssau-schedule/shared/date"
+import type { ClassValue } from "clsx"
+import type { CustomizationData } from "@/client/lib/types"
+import type { TimetableLesson } from "@ssau-schedule/shared/timetable"
 
 export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs))
 }
 
 export function getLessonCustomization(
-  lesson: Omit<ScheduleLessonType, 'alts'>,
+  lesson: Omit<TimetableLesson, "alts">,
 ): Partial<CustomizationData> {
   const original = lesson.original ?? ({} as any)
 
@@ -30,14 +31,14 @@ export function getLessonCustomization(
   data.id = lesson.id
 
   const basicProps = [
-    'type',
-    'discipline',
-    'building',
-    'room',
-    'conferenceUrl',
-    'subgroup',
-    'isIet',
-    'isOnline',
+    "type",
+    "discipline",
+    "building",
+    "room",
+    "conferenceUrl",
+    "subgroup",
+    "isIet",
+    "isOnline",
   ] as const
 
   for (const prop of basicProps) {
@@ -54,29 +55,29 @@ export function getLessonCustomization(
 }
 
 export function applyCustomization(
-  originalLesson: Omit<ScheduleLessonType, 'alts'>,
+  originalLesson: Omit<TimetableLesson, "alts">,
   custom: Partial<CustomizationData>,
 ) {
   const lesson = Object.assign({}, originalLesson)
 
-  lesson.original = Object.assign({}, lesson)
+  lesson.original = Object.assign({}, lesson, { alts: [] })
   lesson.customized = {
     hidden: custom.hideLesson ?? lesson.customized?.hidden ?? false,
     disabled: !(custom.isEnabled ?? !lesson.customized?.disabled),
     customizedBy: custom.userId ?? lesson.customized?.customizedBy ?? -1,
-    comment: custom.comment ?? lesson.customized?.comment ?? '',
+    comment: custom.comment ?? lesson.customized?.comment ?? "",
   }
 
   const propsToCopy: Array<keyof typeof lesson & keyof CustomizationData> = [
-    'discipline',
-    'type',
-    'isOnline',
-    'isIet',
-    'building',
-    'room',
-    'conferenceUrl',
-    'subgroup',
-    'dayTimeSlot',
+    "discipline",
+    "type",
+    "isOnline",
+    "isIet",
+    "building",
+    "room",
+    "conferenceUrl",
+    "subgroup",
+    "dayTimeSlot",
   ]
   const changes: Partial<CustomizationData> = Object.fromEntries(
     Object.entries(custom).filter(
@@ -84,9 +85,9 @@ export function applyCustomization(
     ),
   )
   Object.assign(lesson, changes)
-  if ('teacherId' in custom)
+  if ("teacherId" in custom)
     lesson.teacher = {
-      name: '???',
+      name: "???",
       id: custom.teacherId ?? null,
     }
   lesson.id = custom.id!

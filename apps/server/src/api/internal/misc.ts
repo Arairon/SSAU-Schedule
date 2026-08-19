@@ -1,7 +1,7 @@
-import { db } from "@/db";
-import Elysia from "elysia";
-import z from "zod";
-import { RedactedUserSchema, redactUser } from "./user";
+import { db } from "@/server/db"
+import Elysia from "elysia"
+import z from "zod"
+import { RedactedUserSchema, redactUser } from "./user"
 
 export const app = new Elysia()
   .get(
@@ -9,9 +9,9 @@ export const app = new Elysia()
     async ({ status }) => {
       const res = await db.user.findFirst({
         where: { authCookie: { not: null }, allowsAccountProxyUse: true },
-      });
-      if (!res) return status(404, "No proxiable user found");
-      return redactUser(res);
+      })
+      if (!res) return status(404, "No proxiable user found")
+      return redactUser(res)
     },
     {
       response: {
@@ -26,8 +26,8 @@ export const app = new Elysia()
       await db.weekImage.update({
         where: { id: params.id },
         data: { tgId: body },
-      });
-      return "ok";
+      })
+      return "ok"
     },
     {
       body: z.string().describe("tgId of the uploaded image"),
@@ -35,4 +35,4 @@ export const app = new Elysia()
         id: z.coerce.number().int(),
       }),
     },
-  );
+  )

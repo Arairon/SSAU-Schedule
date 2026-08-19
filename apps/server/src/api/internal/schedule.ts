@@ -1,22 +1,22 @@
-import Elysia from "elysia";
-import z from "zod";
+import Elysia from "elysia"
+import z from "zod"
 
-import { db } from "@/db";
-import { schedule } from "@/schedule/requests";
+import { db } from "@/server/db"
+import { schedule } from "@/server/schedule/requests"
 import type {
   Timetable,
   TimetableDiff,
   TimetableLesson,
-} from "@ssau-schedule/shared/timetable";
+} from "@ssau-schedule/shared/timetable"
 import {
   convertLessonToTimetableLesson,
   groupContinousLessons,
   type RequestStateUpdate,
-} from "@ssau-schedule/shared/misc";
-import { getWeekFromDate } from "@ssau-schedule/shared/date";
-import { streamWithUpdates } from "@/lib/apiUpdateStream";
-import { generateTimetableImageHtml } from "@/schedule/image";
-import { stringBool } from "@/lib/misc";
+} from "@ssau-schedule/shared/misc"
+import { getWeekFromDate } from "@ssau-schedule/shared/date"
+import { streamWithUpdates } from "@/server/lib/apiUpdateStream"
+import { generateTimetableImageHtml } from "@/server/schedule/image"
+import { stringBool } from "@/server/lib/misc"
 
 const scheduleRequestQuerySchema = z.object({
   userId: z.coerce.number().int(),
@@ -31,42 +31,42 @@ const scheduleRequestQuerySchema = z.object({
   ignoreIet: stringBool,
   ignoreSubgroup: stringBool,
   forceUpdate: stringBool,
-});
+})
 
 type scheduleRequestUpdateCallback = (
   update: RequestStateUpdate<"updatingWeek" | "generatingTimetable" | "error">,
-) => void;
+) => void
 
 type scheduleImageRequestUpdateCallback = (
   update: RequestStateUpdate<
     "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
   >,
-) => void;
+) => void
 
 type ImageGenerator = AsyncGenerator<
   | Parameters<scheduleImageRequestUpdateCallback>[0]
   | {
-      timetable: Timetable & { diff?: TimetableDiff };
+      timetable: Timetable & { diff?: TimetableDiff }
       image: {
-        id: number;
-        tgId: string | null;
-        data: string;
-        timetableHash: string;
-        stylemap: string;
-      };
+        id: number
+        tgId: string | null
+        data: string
+        timetableHash: string
+        stylemap: string
+      }
     }
->;
+>
 
 async function* streamedScheduleResponse(ctx: {
-  query: z.infer<typeof scheduleRequestQuerySchema>;
-  status: (code: number, message: string) => { code: number; response: string };
+  query: z.infer<typeof scheduleRequestQuerySchema>
+  status: (code: number, message: string) => { code: number; response: string }
 }) {
-  const { query, status } = ctx;
+  const { query, status } = ctx
   const user = await db.user.findUnique({
     where: { id: query.userId },
-  });
+  })
 
-  if (!user) return status(404, "User not found");
+  if (!user) return status(404, "User not found")
 
   yield* streamWithUpdates<
     Parameters<scheduleRequestUpdateCallback>[0],
@@ -78,7 +78,7 @@ async function* streamedScheduleResponse(ctx: {
         onUpdate,
       }),
     (result) => result,
-  );
+  )
 }
 
 export const app = new Elysia()
@@ -87,11 +87,11 @@ export const app = new Elysia()
     async ({ query, status }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      const timetable = await schedule.getTimetable(user, query.week, query);
-      return timetable as Timetable & { diff: TimetableDiff | null };
+      const timetable = await schedule.getTimetable(user, query.week, query)
+      return timetable as Timetable & { diff: TimetableDiff | null }
     },
     {
       query: scheduleRequestQuerySchema,
@@ -105,27 +105,27 @@ export const app = new Elysia()
     async ({ query, status }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
       const { timetable, image } = await schedule.getTimetableWithImage(
         user,
         query.week,
         query,
-      );
+      )
       return {
         timetable,
         image: Object.assign(image, { data: image.data.toString("base64") }),
       } as {
-        timetable: Timetable & { diff: TimetableDiff | null };
+        timetable: Timetable & { diff: TimetableDiff | null }
         image: {
-          id: number;
-          tgId: string | null;
-          data: string; // base64
-          timetableHash: string;
-          stylemap: string;
-        };
-      };
+          id: number
+          tgId: string | null
+          data: string // base64
+          timetableHash: string
+          stylemap: string
+        }
+      }
     },
     {
       query: scheduleRequestQuerySchema.extend({
@@ -138,24 +138,24 @@ export const app = new Elysia()
     async function* ({ query, status, set }) {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
+      })
 
-      if (!user) return status(404, "User not found");
+      if (!user) return status(404, "User not found")
 
-      set.headers["content-type"] = "text/event-stream";
+      set.headers["content-type"] = "text/event-stream"
 
       yield* streamWithUpdates<
         Parameters<scheduleImageRequestUpdateCallback>[0],
         Awaited<ReturnType<typeof schedule.getTimetableWithImage>>,
         {
-          timetable: Timetable & { diff?: TimetableDiff };
+          timetable: Timetable & { diff?: TimetableDiff }
           image: {
-            id: number;
-            tgId: string | null;
-            data: string;
-            timetableHash: string;
-            stylemap: string;
-          };
+            id: number
+            tgId: string | null
+            data: string
+            timetableHash: string
+            stylemap: string
+          }
         }
       >(
         (onUpdate) =>
@@ -169,7 +169,7 @@ export const app = new Elysia()
             data: result.image.data.toString("base64"),
           }),
         }),
-      ) as ImageGenerator;
+      ) as ImageGenerator
     },
     {
       query: scheduleRequestQuerySchema.extend({
@@ -182,18 +182,18 @@ export const app = new Elysia()
     async ({ query, status, set }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
-      const timetable = await schedule.getTimetable(user, query.week, query);
+      const timetable = await schedule.getTimetable(user, query.week, query)
       const html = await generateTimetableImageHtml(timetable, {
         stylemap: query.stylemap,
         showTeacher: query.showTeacher,
         showGrouplist: query.showGrouplist,
-      });
+      })
 
-      set.headers["content-type"] = "text/html";
-      return html;
+      set.headers["content-type"] = "text/html"
+      return html
     },
     {
       query: scheduleRequestQuerySchema.extend({
@@ -208,17 +208,17 @@ export const app = new Elysia()
     async ({ query, status, set }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
-      if (!user) return status(404, "User not found");
+      })
+      if (!user) return status(404, "User not found")
 
       const { image } = await schedule.getTimetableWithImage(
         user,
         query.week,
         query,
-      );
+      )
 
-      set.headers["content-type"] = "image/png";
-      return image.data;
+      set.headers["content-type"] = "image/png"
+      return image.data
     },
     {
       query: scheduleRequestQuerySchema.extend({
@@ -231,14 +231,14 @@ export const app = new Elysia()
     async ({ query, status }) => {
       const user = await db.user.findUnique({
         where: { id: query.userId },
-      });
+      })
 
-      if (!user) return status(404, "User not found");
-      if (!user.groupId) return status(400, "User has no groupId");
+      if (!user) return status(404, "User not found")
+      if (!user.groupId) return status(400, "User has no groupId")
 
-      const now = new Date();
-      const currentWeek = getWeekFromDate(now);
-      const firstSemester = currentWeek < 23;
+      const now = new Date()
+      const currentWeek = getWeekFromDate(now)
+      const firstSemester = currentWeek < 23
 
       const exams: TimetableLesson[] = (
         await db.lesson.findMany({
@@ -269,11 +269,11 @@ export const app = new Elysia()
             l.subgroup === null ||
             l.subgroup === user.subgroup,
         )
-        .map(convertLessonToTimetableLesson);
+        .map(convertLessonToTimetableLesson)
 
-      const grouped = groupContinousLessons(exams); // Since many exams span multiple lessons
+      const grouped = groupContinousLessons(exams) // Since many exams span multiple lessons
 
-      return grouped;
+      return grouped
     },
     {
       query: z.object({
@@ -282,4 +282,4 @@ export const app = new Elysia()
         ignoreSubgroup: z.coerce.boolean().default(false).optional(),
       }),
     },
-  );
+  )
