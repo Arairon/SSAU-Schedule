@@ -255,7 +255,7 @@ export const app = new Elysia()
   .post(
     "/id/:id/lk/updateInfo",
     async ({ params, status, query }) => {
-      const user = (await db.user.findUnique({ where: { id: params.id } }))!
+      const user = (await db.user.findUnique({ where: { id: params.id }, include: { group: true } }))!
 
       const res = await lk.updateUserInfo(user, {
         overrideGroup: query.overrideGroup,

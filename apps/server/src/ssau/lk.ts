@@ -77,6 +77,7 @@ async function login(
       error: "no creds",
       message: "Either username or password is missing",
     }
+  log.debug(`Logging in user with username ${username}`, { user: user.id })
   const loginRes = await lk.getTokenUsingCredentials(username, password)
   if (!loginRes.ok) {
     if (loginRes.error && loginRes.error === "refused") {
@@ -299,7 +300,7 @@ async function getTokenUsingCredentials(
 */
 
 async function relog(user: User) {
-  log.debug("Relogging...", { user: user.id })
+  log.debug("Relogging user", { user: user.id })
   if (!user.username || !user.password)
     return {
       ok: false,
@@ -307,8 +308,8 @@ async function relog(user: User) {
       message: "User does not have credentials saved",
     }
   const loginRes = await login(user)
-  log.debug(`Relogged user`, { user: user.id })
   if (!loginRes.ok) log.warn("Failed to relog user", { user: user.id })
+  else log.debug(`Relogged user`, { user: user.id })
   return loginRes
 }
 
@@ -335,7 +336,7 @@ async function updateCookie(user: User) {
   } catch (e) {
     log.warn(
       "Failed to update cookie: failed to get cookie.\n" +
-        (e ? JSON.stringify(e) : ""),
+      (e ? JSON.stringify(e) : ""),
       {
         user: user.id,
       },
@@ -457,7 +458,18 @@ async function updateUserInfo(
     fullname: undefined as undefined | string,
     groupId: undefined as undefined | number,
   }
-  const details = UserDetailsSchema.parse(userDetails.data)
+  const { error: detailsError, data: details, success: detailsOk } = UserDetailsSchema.safeParse(userDetails.data)
+  if (!detailsOk) {
+    log.warn(`Failed to parse user details from lk.ssau.ru`, {
+      user: user.id,
+      object: userDetails.data as object,
+    })
+    return {
+      ok: false,
+      error: `invalid response: ${detailsError}`,
+      message: "Failed to parse user details from lk.ssau.ru",
+    }
+  }
   upd.staffId = details.staffId
   upd.fullname = details.fullName
   const userGroups = await axios.get(
@@ -468,11 +480,23 @@ async function updateUserInfo(
       },
     },
   )
-  const groups = UserGroupsSchema.parse(userGroups.data)
+  const { success: groupsOk, data: groups, error: groupsError } = UserGroupsSchema.safeParse(userGroups.data)
+  if (!groupsOk) {
+    log.warn(`Failed to parse user groups from lk.ssau.ru`, {
+      user: user.id,
+      object: userGroups.data as object,
+    })
+    return {
+      ok: false,
+      error: `invalid response: ${groupsError}`,
+      message: "Failed to parse user groups from lk.ssau.ru",
+    }
+  }
   const group = groups[0] // I HOPE the first one will always be the main one... Though there might be more
   await ensureGroupExists(group)
   // Keep already set group
   if (opts?.overrideGroup || !user.groupId) upd.groupId = group.id
+  else delete upd.groupId
   Object.assign(user, upd)
   await db.user.update({ where: { id: user.id }, data: upd })
   return { ok: true as const, data: user }
