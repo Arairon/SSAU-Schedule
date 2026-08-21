@@ -69,19 +69,6 @@ export const auth = new Elysia()
       cookie: { accessToken, refreshToken },
       set,
     }): Promise<{ auth: AuthData }> => {
-      // TODO: Remove
-      log.debug("auth.resolve called", {
-        object: {
-          headers: {
-            authorization: headers.authorization ?? null,
-          },
-          cookies: {
-            accessToken: accessToken.value,
-            refreshToken: refreshToken.value,
-          },
-        },
-        objectPretty: true,
-      })
       const accessTokenCookieOptions = {
         path: "/api/v0",
         httpOnly: true,

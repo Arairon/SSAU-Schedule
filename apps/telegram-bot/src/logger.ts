@@ -1,6 +1,7 @@
 import winston, { format } from "winston"
 import "winston-daily-rotate-file"
 import { env } from "./env"
+import { processObjectForLogging } from "@ssau-schedule/shared/utils"
 
 const ansicyan = "\x1b[36m"
 const ansigray = "\x1b[38;5;248m"
@@ -18,12 +19,13 @@ const formatPretty = format.combine(
       const user = (info.user as string | number | bigint).toString()
       const tag = (info.tag ?? "") as string
       const extraSpace = tag && user ? " " : ""
+      const object = processObjectForLogging(info.object, (info.objectPretty as boolean) ? 2 : 0)
       return `\
 ${ansilightgray}${info.timestamp as string}${ansiclear} | \
 ${info.level.padEnd(16, " ")} \
 [${tag}${extraSpace}${user.padStart(12 - (tag.length ? tag.length + 1 : 0), " ")}]: \
 ${ansicyan}${info.message as string}${ansiclear}\
-${info.object ? `\n${ansigray}${JSON.stringify(info.object, null, info.objectPretty ? 2 : 0)}${ansiclear}` : ""}\
+${object ? `\n${ansigray}${object}${ansiclear}` : ""}\
 `
     }
     return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${(info.tag as string) || "unk"}]: ${info.message as string}`

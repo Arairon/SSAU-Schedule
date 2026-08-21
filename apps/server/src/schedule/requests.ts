@@ -140,10 +140,11 @@ async function updateWeekIfNeeded(
         groupId,
         loggingTag: opts.loggingTag,
       })
-    } catch {
+    } catch (error) {
       log.warn(`Failed to update week.`, {
         user: user.id,
         tag: opts.loggingTag,
+        object: { error },
       })
       updateState({
         state: "error",

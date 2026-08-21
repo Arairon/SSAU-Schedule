@@ -4,6 +4,7 @@ import z from "zod";
 export function getPersonShortname(fullname: string) {
   if (!fullname) return "";
   const [surname, name, secondname] = fullname.split(" ");
+  if (!name) return surname;
   return `${surname} ${name[0]}.` + (secondname ? secondname[0] + "." : "");
 }
 
@@ -29,8 +30,8 @@ export function md5(string: string) {
 }
 export type ReturnObj<T = void> =
   | ([T] extends [void]
-      ? { ok: true; message?: string }
-      : { ok: true; data: T; message?: string })
+    ? { ok: true; message?: string }
+    : { ok: true; data: T; message?: string })
   | { ok: false; error: string; message?: string };
 
 export const DayString: { normal: string; in: string }[] = [
@@ -90,3 +91,80 @@ export function detectImageMimeType(image: Buffer): "image/png" | "image/jpeg" {
 
   return "image/jpeg";
 }
+
+export function processObjectForLogging(obj: unknown, space = 0): string | null {
+  if (obj === null || obj === undefined) return null;
+  const seen = new WeakSet();
+
+  return JSON.stringify(
+    obj,
+    (key, val) => {
+      if (val && typeof val === "object") {
+        if (seen.has(val)) {
+          return "[Circular]";
+        }
+        seen.add(val);
+      }
+
+      if (val instanceof Error) {
+        const errorObj = {
+          _type: val.constructor.name,
+          message: val.message,
+          name: val.name,
+          stack: val.stack,
+          info: {} as Record<string, unknown>,
+        };
+
+        Object.getOwnPropertyNames(val).forEach((prop) => {
+          if (!(prop in errorObj)) {
+            try {
+              errorObj.info[prop] = (val as unknown as Record<string, unknown>)[prop];
+            } catch {
+              // Skip properties that throw on access
+            }
+          }
+        });
+
+        return errorObj;
+      }
+
+      if (val instanceof Date) {
+        return { _type: "Date", iso: val.toISOString() };
+      }
+
+      if (val instanceof RegExp) {
+        return { _type: "RegExp", source: val.source, flags: val.flags };
+      }
+
+      if (val instanceof Map) {
+        return { _type: "Map", entries: Array.from(val.entries()) };
+      }
+
+      if (val instanceof Set) {
+        return { _type: "Set", values: Array.from(val) };
+      }
+
+      if (typeof val === "function") {
+        return { _type: "Function", name: val.name || "anonymous" };
+      }
+
+      if (val === undefined) {
+        return { _type: "undefined" };
+      }
+
+      if (typeof val === "bigint") {
+        return { _type: "BigInt", value: val.toString() };
+      }
+
+      // Handle symbols as keys in objects (rare but possible)
+      if (typeof val === "symbol") {
+        return val.toString();
+      }
+
+      return val;
+    },
+    space
+  );
+}
+
+
