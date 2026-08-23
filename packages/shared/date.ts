@@ -1,20 +1,35 @@
-export const FIRST_STUDY_DAY = new Date("1970-01-01T00:00:00.000"); // No Z for TZ compliance
+const FIRST_STUDY_DAY = new Date("1970-01-01T00:00:00.000"); // No Z for TZ compliance
 
-function init_first_day() {
+function getFirstStudyDay(year?: number) {
   const today = new Date();
-  const year =
-    today.getMonth() < 7 ? today.getFullYear() - 1 : today.getFullYear();
-  FIRST_STUDY_DAY.setFullYear(year);
-  FIRST_STUDY_DAY.setMonth(8, 1);
-  if (FIRST_STUDY_DAY.getDay() === 7) FIRST_STUDY_DAY.setDate(2);
+  let targetYear = year ?? today.getFullYear();
+  if (!year) {
+    if (today.getMonth() < 7) {
+      targetYear -= 1; // if earlier than august - use previous year
+    }
+  }
+  const firstStudyDay = new Date();
+  firstStudyDay.setFullYear(targetYear);
+  firstStudyDay.setMonth(8, 1);
+  if (firstStudyDay.getDay() === 7) firstStudyDay.setDate(2); // If September 1st is Sunday, move to September 2nd (Monday)
+  return firstStudyDay
 }
-init_first_day();
+
+function initFirstStudyDay() {
+  FIRST_STUDY_DAY.setTime(getFirstStudyDay().getTime());
+}
+
+initFirstStudyDay();
 
 export function getCurrentYearId() {
   const today = new Date();
   let year = today.getFullYear();
   if (today.getMonth() < 7) year -= 1; // if earlier than august - use previous year
   return year - 2011; // Constant. Blame SSAU
+}
+
+export function getRealYearFromId(yearId: number) {
+  return yearId + 2011; // Constant. Blame SSAU
 }
 
 export function getWeekFromDate(date: Date) {
@@ -33,19 +48,20 @@ export function getWeekFromDate(date: Date) {
       ((dt.getTime() - week1.getTime()) / 86400_000 - // 1 day
         3 +
         ((week1.getDay() + 6) % 7)) /
-        7,
+      7,
     );
   if (weekNumber > 52) return 52;
   if (weekNumber < 1) return 1;
   return weekNumber;
 }
 
+// TODO: Year support. Everywhere.
 export function getLessonDate(weekNumber: number, weekDay: number) {
-  const dayOne = FIRST_STUDY_DAY.getTime();
+  const dayOne = new Date(FIRST_STUDY_DAY);
   const delta =
     86400_000 *
-    ((weekNumber - 1) * 7 + weekDay - 1 + FIRST_STUDY_DAY.getDay() - 1);
-  const date = new Date(dayOne + delta);
+    ((weekNumber - 1) * 7 + weekDay - 1 - (FIRST_STUDY_DAY.getDay() - 1));
+  const date = new Date(dayOne.getTime() + delta);
   return date;
 }
 

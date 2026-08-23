@@ -249,7 +249,7 @@ export async function generateTimetable(
     await db.week.update({
       where: { id: week.id },
       data: {
-        timetable,
+        timetable: timetable as object, // Prisma doesn't like the type, but it's simply JSON
         timetableHash: timetable.hash,
         cachedUntil: new Date(Date.now() + 3600_000), // 1 hour
         // No longer invalidating images if they've been generated using the same timetable. Checked by hash. Instead update them
@@ -456,11 +456,11 @@ export function getTimetablesDiff(
     conferenceUrl: lesson.conferenceUrl,
     customized: lesson.customized
       ? {
-          hidden: lesson.customized.hidden,
-          disabled: lesson.customized.disabled,
-          comment: lesson.customized.comment,
-          customizedBy: lesson.customized.customizedBy,
-        }
+        hidden: lesson.customized.hidden,
+        disabled: lesson.customized.disabled,
+        comment: lesson.customized.comment,
+        customizedBy: lesson.customized.customizedBy,
+      }
       : null,
   })
 
