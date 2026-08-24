@@ -173,9 +173,9 @@ export async function sendTimetable(
 
     const group = groupId
       ? (await api.group
-          .id({ id: groupId ?? user.groupId! })
-          .get()
-          .then((res) => res.data))!
+        .id({ id: groupId ?? user.groupId! })
+        .get()
+        .then((res) => res.data))!
       : null
 
     const preferences = getUserPreferences(user)
@@ -496,9 +496,9 @@ export async function initSchedule(bot: Bot<Context>) {
       ?.at(1)
     const groupIds = group
       ? await api.ssau.findGroupOrOptions
-          .get({ query: { name: group } })
-          .then((res) => res.data)
-          .catch(() => null)
+        .get({ query: { name: group } })
+        .then((res) => res.data)
+        .catch(() => null)
       : undefined
     let groupId: number | undefined = undefined
     if (group || groupIds) {
@@ -599,6 +599,66 @@ ${day.lessons.map(generateTextLesson).join("\n-----\n")}
       )
     },
   )
+
+  // day.month as an alternative to /today
+  bot.hears(/^(\d\d?)[\.\/-](\d?\d?)/, async (ctx) => {
+    if (!ctx.from || !ctx.message) return
+    const user = await getUser(ctx, { required: true })
+    if (!user) return
+    const match = ctx.match
+    if (!match || match.length < 3) return ctx.reply("Ошибка: неверный формат даты")
+    const now = new Date()
+    const day = Number(match[1])
+    const month = Number(match[2]) || now.getMonth() + 1
+    if (Number.isNaN(day) || Number.isNaN(month)) {
+      return ctx.reply("Ошибка: неверный формат даты")
+    }
+    const date = new Date(now.getFullYear(), month - 1, day)
+    const dateStr = date.toLocaleDateString("ru-RU", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+    })
+    const week = getWeekFromDate(date)
+    //return sendTimetable(ctx, { week })
+    const timetable = (await api.schedule.json
+      .get({ query: { userId: user.id, week } })
+      .then((res) => res.data))!
+    const daySchedule = timetable.days.at(date.getDay() - 1)
+    const args = ctx.message.text!.split(" ").slice(1)
+    if (
+      args.includes("admin") &&
+      ctx.from.id === env.SCHED_BOT_ADMIN_TGID
+    ) {
+      let msg = JSON.stringify(daySchedule, undefined, 2)
+      while (msg.length > 1000) {
+        await ctx.reply(msg.slice(0, 1000), {
+          link_preview_options: { is_disabled: true },
+        })
+        msg = msg.slice(1000)
+      }
+      return ctx.reply(msg, {
+        link_preview_options: { is_disabled: true },
+      })
+    }
+
+    if (args.includes("week")) {
+      return sendTimetable(ctx, { week })
+    }
+
+    if (!daySchedule?.lessons.length) {
+      return ctx.reply(`${dateStr} (Неделя ${week}): занятий нет :D`)
+    }
+
+    return ctx.reply(
+      `\
+${dateStr} (Неделя ${week}):
+
+${daySchedule.lessons.map(generateTextLesson).join("\n-----\n")}
+`,
+      { link_preview_options: { is_disabled: true } },
+    )
+  })
 
   commands.command("now", "Ближайшая пара", async (ctx) => {
     if (!ctx.from || !ctx.message) return
