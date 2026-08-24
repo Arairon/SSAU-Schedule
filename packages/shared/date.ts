@@ -8,7 +8,7 @@ function getFirstStudyDay(year?: number) {
       targetYear -= 1; // if earlier than august - use previous year
     }
   }
-  const firstStudyDay = new Date();
+  const firstStudyDay = new Date("1970-01-01T00:00:00.000");
   firstStudyDay.setFullYear(targetYear);
   firstStudyDay.setMonth(8, 1);
   if (firstStudyDay.getDay() === 7) firstStudyDay.setDate(2); // If September 1st is Sunday, move to September 2nd (Monday)
