@@ -19,9 +19,11 @@ import {
   ensureFlowExists,
   ensureGroupExists,
   ensureTeacherExists,
+  scheduleMessage,
 } from "@/server/lib/misc"
 import { TimeSlotMap } from "@ssau-schedule/shared/timeSlotMap"
 import { db } from "@/server/db"
+import { sendScheduledNotifications } from "../lib/tasks"
 
 Object.assign(axios.defaults.headers, {
   "Cache-Control": "no-cache",
@@ -48,14 +50,30 @@ export async function updateWeekForUser(
     { user: user.id, tag: opts?.loggingTag },
   )
 
-  let lkUser = null as User | null
-  if (user.authCookie) {
-    lkUser = user
-  } else {
-    lkUser = await lk.getProxyUser()
+  let lkUser = (user.authCookie ? user : lk.getProxyUser()) as User | null
+
+  if (!lkUser) {
+    log.warn(`User ${user.id} has no auth and no proxy user available`, {
+      user: user.id,
+      tag: opts?.loggingTag,
+    })
+    throw new Error("Auth error")
   }
 
-  if (!lkUser || !(await lk.ensureAuth(lkUser))) throw new Error("Auth error")
+  let attemptsLeft = 3;
+  while (!(await lk.ensureAuth(lkUser))) {
+    lkUser = await lk.getProxyUser()
+    if (!lkUser) {
+      log.warn(`No proxy user available for ${user.id}`, { user: user.id, tag: opts?.loggingTag })
+      throw new Error("Auth error")
+    }
+    attemptsLeft--
+    log.debug(`Failed to auth user ${lkUser.id}, trying another account. Attempts left: ${attemptsLeft}`, { user: user.id, tag: opts?.loggingTag })
+    if (attemptsLeft <= 0) {
+      log.warn(`Failed to auth user ${lkUser.id} after multiple attempts`, { user: user.id, tag: opts?.loggingTag })
+      throw new Error("Auth error")
+    }
+  }
 
   const isUsingProxyUser = lkUser.id !== user.id
   if (isUsingProxyUser) {
@@ -63,6 +81,12 @@ export async function updateWeekForUser(
       user: user.id,
       tag: opts?.loggingTag,
     })
+    if (user.authCookie) {
+      log.warn(`User lost session, scheduling a notification`, { user: user.id, tag: opts?.loggingTag })
+      void scheduleMessage(user.tgId, new Date(),
+        `⚠️ Произошла ошибка при попытке обновить сессию. Пожалуйста, авторизуйтесь заново через /login чтобы восстановить доступ к ИОТам`
+      ).then(() => sendScheduledNotifications())
+    }
   }
 
   const res = await axios.get(
@@ -104,13 +128,13 @@ export async function updateWeekForUser(
   // Process week
   const knownLessons = someoneElsesGroup
     ? await getWeekLessons(user, weekNumber, opts.groupId, {
-        ignoreIet: true,
-        ignorePreferences: true,
-      })
+      ignoreIet: true,
+      ignorePreferences: true,
+    })
     : await getWeekLessons(user, weekNumber, undefined, {
-        ignoreIet: false, // Get known lessons regardless of iet. They will be filtered out later
-        ignorePreferences: true,
-      })
+      ignoreIet: false, // Get known lessons regardless of iet. They will be filtered out later
+      ignorePreferences: true,
+    })
   const updatedTeachers: number[] = []
   const updatedGroups: number[] = []
   const updatedFlows: number[] = []
@@ -196,23 +220,23 @@ export async function updateWeekForUser(
         week:
           lessonInfo.week !== week.number // Create placeholder for other weeks
             ? {
-                connectOrCreate: {
-                  where: {
-                    owner_groupId_year_number: {
-                      owner: week.owner,
-                      groupId: week.groupId,
-                      year: week.year,
-                      number: lessonInfo.week,
-                    },
-                  },
-                  create: {
+              connectOrCreate: {
+                where: {
+                  owner_groupId_year_number: {
                     owner: week.owner,
                     groupId: week.groupId,
                     year: week.year,
                     number: lessonInfo.week,
                   },
                 },
-              }
+                create: {
+                  owner: week.owner,
+                  groupId: week.groupId,
+                  year: week.year,
+                  number: lessonInfo.week,
+                },
+              },
+            }
             : undefined, // Current week is handled separately with lessonsInThisWeek
       }
       const lesson = Object.assign({}, weekInfo, info)
@@ -311,23 +335,23 @@ export async function updateWeekForUser(
           week:
             lessonInfo.week !== week.number // Create placeholder for other weeks
               ? {
-                  connectOrCreate: {
-                    where: {
-                      owner_groupId_year_number: {
-                        owner: week.owner,
-                        groupId: week.groupId,
-                        year: week.year,
-                        number: lessonInfo.week,
-                      },
-                    },
-                    create: {
+                connectOrCreate: {
+                  where: {
+                    owner_groupId_year_number: {
                       owner: week.owner,
                       groupId: week.groupId,
                       year: week.year,
                       number: lessonInfo.week,
                     },
                   },
-                }
+                  create: {
+                    owner: week.owner,
+                    groupId: week.groupId,
+                    year: week.year,
+                    number: lessonInfo.week,
+                  },
+                },
+              }
               : undefined, // Current week is handled separately with lessonsInThisWeek
         }
         const lesson = Object.assign({}, individualInfo, info)

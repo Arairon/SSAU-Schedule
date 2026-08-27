@@ -3,7 +3,7 @@ import axios, { type AxiosError } from "axios"
 import { type User } from "@/server/generated/prisma/client"
 import { creds } from "@/server/ssau/credentials"
 import { db } from "@/server/db"
-import { UserDetailsSchema, UserGroupsSchema } from "@/server/ssau/schemas/lk"
+import { UserDetailsSchema, type UserDetailsType, UserGroupsSchema } from "@/server/ssau/schemas/lk"
 import log from "@/server/logger"
 import { type ReturnObj } from "@ssau-schedule/shared/utils"
 import { ensureGroupExists } from "../lib/misc"
@@ -253,51 +253,6 @@ async function updateSsauNextAction() {
   log.info(`Updated SSAU Next-Action: ${nextAction}`, { tag: "init" })
 }
 
-/*
-// Archived. Old auth
-async function getTokenUsingCredentials(
-  username: string,
-  password: string,
-): Promise<ReturnObj<string>> {
-  const resp = await axios.post(
-    "https://lk.ssau.ru/account/login",
-    [{ login: username, password }, ["/"]],
-    {
-      headers: { "next-action": "1252ba737dc8b273d570c2ab86b99d4a56d85f35" },
-      withCredentials: true,
-      validateStatus: () => true,
-    },
-  );
-  if (resp.status === 200) {
-    // OK is invalid username/password. Yes. This makes a LOT of sense
-    return {
-      ok: false,
-      error: "refused",
-      message: "Invalid username or password",
-    };
-  }
-  if (resp.status === 303) {
-    // Successful login
-    if (!resp.headers["set-cookie"]?.length)
-      return {
-        ok: false,
-        error: "no cookie",
-        message: "Unable to get auth token from cookies",
-      };
-    const cookie = resp.headers["set-cookie"].find((cookie) =>
-      cookie.includes("auth="),
-    );
-    if (!cookie)
-      return {
-        ok: false,
-        error: "no cookie",
-        message: "Unable to get auth token from cookies",
-      };
-    return { ok: true, data: cookie };
-  }
-  return { ok: false, error: "failed", message: "Unable to complete request" };
-}
-*/
 
 async function relog(user: User) {
   log.debug("Relogging user", { user: user.id })
@@ -313,38 +268,140 @@ async function relog(user: User) {
   return loginRes
 }
 
-async function updateCookie(user: User) {
+// // Archived code. SSAU's auth is now a mess, so no longer using proper sessions and auth cookies.
+// async function updateCookie(user: User) {
+//   if (!user.authCookie)
+//     return {
+//       ok: false,
+//       error: "no cookie",
+//       message: "User does not have cookie saved",
+//     }
+//   log.debug("Updating cookie...", { user: user.id })
+//   let resp
+//   // TODO: Change endpoint to check auth. Maybe use get-timetable...
+//   try {
+//     resp = await axios.head("https://lk.ssau.ru/", {
+//       withCredentials: true,
+//       headers: {
+//         Cookie: user.authCookie,
+//       },
+//       maxRedirects: 0,
+//       timeout: 15_000,
+//       validateStatus: (s) => [307, 200].includes(s),
+//     })
+//   } catch (e) {
+//     log.warn(
+//       "Failed to update cookie: failed to get cookie.\n" +
+//       (e ? JSON.stringify(e) : ""),
+//       {
+//         user: user.id,
+//       },
+//     )
+//     return {
+//       ok: false,
+//       error: "invalid auth",
+//       message: "Unable to refresh session",
+//     }
+//   }
+//   if (!resp.headers["set-cookie"]?.length) {
+//     log.debug(
+//       "Cookie update returned nothing. Assuming cookie is still valid",
+//       { user: user.id },
+//     )
+//     return { ok: true }
+//     // return { // Used back when ssau auth behaved normally.
+//     //   ok: false,
+//     //   error: "no cookie",
+//     //   message: "Unable to refresh session",
+//     // };
+//   }
+//   const cookie = resp.headers["set-cookie"].find((cookie) =>
+//     cookie.includes("auth="),
+//   )
+//   // \/ leftover from normal auth
+//   if (!cookie) {
+//     log.warn("Failed to update cookie: No cookie", { user: user.id })
+//     return {
+//       ok: false,
+//       error: "invalid auth",
+//       message: "Unable to refresh session",
+//     }
+//   }
+//   if (cookie.includes("auth=;")) {
+//     log.warn(`Received empty cookie. Assuming validity and extending session`, {
+//       user: user.id,
+//       object: { cookie },
+//     })
+//     await db.user.update({
+//       where: { id: user.id },
+//       data: {
+//         authCookieExpiresAt: new Date(Date.now() + 330_000), // add 30sec to avoid losing auth
+//         sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
+//       },
+//     })
+//     return { ok: true }
+//   }
+//   const cookieUpd = getCookie(cookie)
+//   if (!cookieUpd) {
+//     log.warn("Failed to update cookie: Invalid cookie", { user: user.id })
+//     return {
+//       ok: false,
+//       error: "invalid cookie",
+//       message: "lk.ssau.ru returned an invalid cookie",
+//     }
+//   }
+//   Object.assign(user, cookieUpd)
+//   await db.user.update({ where: { id: user.id }, data: cookieUpd })
+//   log.debug(`Updated cookie`, { user: user.id })
+//   return { ok: true }
+// }
+
+// async function ensureAuth(user: User) {
+//   if (!user.authCookie || Date.now() > user.sessionExpiresAt.getTime()) {
+//     const res = await relog(user)
+//     if (res.ok) return true
+//     return false
+//   } else if (Date.now() > user.authCookieExpiresAt.getTime()) {
+//     const res = await updateCookie(user)
+//     if (res.ok) return true
+//     else {
+//       const res = await relog(user)
+//       if (res.ok) return true
+//       return false
+//     }
+//   } else return true
+// }
+
+async function checkAuth(user: User) {
   if (!user.authCookie)
     return {
       ok: false,
       error: "no cookie",
       message: "User does not have cookie saved",
     }
-  log.debug("Updating cookie...", { user: user.id })
+  log.debug("Checking auth...", { user: user.id })
   let resp
-  // TODO: Change endpoint to check auth. Maybe use get-timetable...
   try {
-    resp = await axios.head("https://lk.ssau.ru/", {
+    resp = await axios.head("https://lk.ssau.ru/api/proxy/current-user-details", {
       withCredentials: true,
       headers: {
         Cookie: user.authCookie,
       },
       maxRedirects: 0,
       timeout: 15_000,
-      validateStatus: (s) => [307, 200].includes(s),
+      validateStatus: (s) => s === 200 || s === 401,
     })
   } catch (e) {
     log.warn(
-      "Failed to update cookie: failed to get cookie.\n" +
-      (e ? JSON.stringify(e) : ""),
+      "Failed to check auth. Invalid response.",
       {
         user: user.id,
+        object: e as object,
       },
     )
     return {
       ok: false,
       error: "invalid auth",
-      message: "Unable to refresh session",
     }
   }
   if (!resp.headers["set-cookie"]?.length) {
@@ -353,60 +410,38 @@ async function updateCookie(user: User) {
       { user: user.id },
     )
     return { ok: true }
-    // return { // Used back when ssau auth behaved normally.
-    //   ok: false,
-    //   error: "no cookie",
-    //   message: "Unable to refresh session",
-    // };
   }
-  const cookie = resp.headers["set-cookie"].find((cookie) =>
-    cookie.includes("auth="),
-  )
-  // \/ leftover from normal auth
-  if (!cookie) {
-    log.warn("Failed to update cookie: No cookie", { user: user.id })
-    return {
-      ok: false,
-      error: "invalid auth",
-      message: "Unable to refresh session",
-    }
-  }
-  if (cookie.includes("auth=;")) {
-    log.warn(`Received empty cookie. Assuming validity and extending session`, {
+
+  if (resp.status === 200) {
+    log.debug(`Auth confirmed, extending session`, {
       user: user.id,
-      object: { cookie },
     })
     await db.user.update({
       where: { id: user.id },
       data: {
-        authCookieExpiresAt: new Date(Date.now() + 330_000), // add 30sec to avoid losing auth
+        authCookieExpiresAt: new Date(Date.now() + 86400_000), // 1 day
         sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
       },
     })
     return { ok: true }
   }
-  const cookieUpd = getCookie(cookie)
-  if (!cookieUpd) {
-    log.warn("Failed to update cookie: Invalid cookie", { user: user.id })
-    return {
-      ok: false,
-      error: "invalid cookie",
-      message: "lk.ssau.ru returned an invalid cookie",
-    }
+
+  log.warn("Auth check failed, erasing cookie", { user: user.id })
+  await db.user.update({ where: { id: user.id }, data: { authCookie: null } })
+  return {
+    ok: false,
+    error: "invalid cookie",
+    message: "lk.ssau.ru API refused the cookie. It may have expired or been revoked.",
   }
-  Object.assign(user, cookieUpd)
-  await db.user.update({ where: { id: user.id }, data: cookieUpd })
-  log.debug(`Updated cookie`, { user: user.id })
-  return { ok: true }
 }
 
 async function ensureAuth(user: User) {
-  if (!user.authCookie || Date.now() > user.sessionExpiresAt.getTime()) {
+  if (!user.authCookie) {
     const res = await relog(user)
     if (res.ok) return true
     return false
   } else if (Date.now() > user.authCookieExpiresAt.getTime()) {
-    const res = await updateCookie(user)
+    const res = await checkAuth(user)
     if (res.ok) return true
     else {
       const res = await relog(user)
@@ -423,17 +458,7 @@ async function axiosReqForbiddenHandler(err: AxiosError, user: User) {
   }
 }
 
-async function updateUserInfo(
-  user: User,
-  opts?: { overrideGroup?: boolean },
-): Promise<ReturnObj<User>> {
-  log.info("Updating user info", { user: user.id })
-  if (!(await ensureAuth(user)))
-    return {
-      ok: false as const,
-      error: "Unauthorized",
-      message: "Failed to get access to lk.ssau.ru",
-    }
+async function getUserDetails(user: User): Promise<ReturnObj<UserDetailsType>> {
   let userDetails
   try {
     userDetails = await axios.get(
@@ -453,11 +478,6 @@ async function updateUserInfo(
       message: "Failed to get access to lk.ssau.ru",
     }
   }
-  const upd = {
-    staffId: undefined as undefined | number,
-    fullname: undefined as undefined | string,
-    groupId: undefined as undefined | number,
-  }
   const { error: detailsError, data: details, success: detailsOk } = UserDetailsSchema.safeParse(userDetails.data)
   if (!detailsOk) {
     log.warn(`Failed to parse user details from lk.ssau.ru`, {
@@ -470,8 +490,30 @@ async function updateUserInfo(
       message: "Failed to parse user details from lk.ssau.ru",
     }
   }
-  upd.staffId = details.staffId
-  upd.fullname = details.fullName
+  return { ok: true, data: details }
+}
+
+async function updateUserInfo(
+  user: User,
+  opts?: { overrideGroup?: boolean },
+): Promise<ReturnObj<User>> {
+  log.info("Updating user info", { user: user.id })
+  if (!(await ensureAuth(user)))
+    return {
+      ok: false as const,
+      error: "Unauthorized",
+      message: "Failed to get access to lk.ssau.ru",
+    }
+
+  const detailsRes = await getUserDetails(user)
+  if (!detailsRes.ok) return detailsRes
+  const details = detailsRes.data
+
+  const upd = {
+    staffId: details.staffId as undefined | number,
+    fullname: details.fullName as undefined | string,
+    groupId: undefined as undefined | number,
+  }
   const userGroups = await axios.get(
     "https://lk.ssau.ru/api/proxy/personal/groups",
     {

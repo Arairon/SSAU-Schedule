@@ -16,6 +16,7 @@ export const UserDetailsSchema = z.object({
     code: z.string(),
   }),
 })
+export type UserDetailsType = z.infer<typeof UserDetailsSchema>
 
 export const UserGroupSchema = z.object({
   id: z.coerce.number(),
