@@ -287,7 +287,7 @@ export async function sendTimetable(
               break
             case "error":
               error = message ?? "Произошла ошибка при получении расписания."
-              return // prevent updateTempMsg
+              break // prevent updateTempMsg
           }
           if (text) {
             log.debug(
