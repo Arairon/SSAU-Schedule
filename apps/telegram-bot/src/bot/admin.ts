@@ -7,6 +7,7 @@ import { formatBigInt } from "@ssau-schedule/shared/utils"
 import { api } from "@/bot/serverClient"
 import type { MessageEntity } from "grammy/types"
 import { getUser } from "./misc"
+import { getVersionString } from "@ssau-schedule/shared/version"
 
 export type ScheduledMessage = {
   chatId: string
@@ -277,15 +278,32 @@ export async function initAdmin(bot: Bot<Context>) {
       return ctx.reply(`\
 Вы: ${user.fullname ?? "Неизвестный Пользователь"}
 Ваша группа: ${user.group?.name ?? "Отсутствует"} ${user.subgroup ? `(Подгруппа: ${user.subgroup})` : ""}
-${
-  user.authCookie
-    ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
-    : `Вы не вошли в ЛК`
-}
+${user.authCookie
+          ? `Сессия в ЛК активна ${user.username && user.password ? "(Данные для входа сохранены)" : ""}`
+          : `Вы не вошли в ЛК`
+        }
 `)
       // Уведомлений в очереди: ${notificationsCount}${notificationsCount ? `\n  - ${notifications.map((i) => `${i.source}: ${i._count._all}`).join("\n  - ")}` : ""}
     },
   )
+
+  commands.command("version", "Returns bot version info", async (ctx) => {
+    if (!ctx.from || !ctx.message) return
+    const serverVersionInfo = await api.version.get({
+      headers: { "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET },
+    }).then((res) => res.data)
+    const serverVersion = serverVersionInfo ? getVersionString({ format: "long", versionInfo: serverVersionInfo }) : "[Ошибка получения версии сервера]"
+    const botVersion = getVersionString({ format: "long" })
+
+    return ctx.reply(`\
+Версия бота:
+${botVersion}
+Версия сервера:
+${serverVersion}
+`)
+
+
+  })
 
   bot.use(commands)
   return commands

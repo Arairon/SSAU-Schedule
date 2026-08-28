@@ -7,15 +7,27 @@ const version = {
   patch: 0,
 }
 
-export function getVersionInfo() {
-  if (process.env.NODE_ENV === "development") {
+type VersionInfo = {
+  major: number
+  minor: number
+  patch: number
+  commitHash: string | null
+  buildDate: string
+  env: "development" | "production"
+}
+
+const startTime = new Date()
+
+export function getVersionInfo(): VersionInfo {
+  if (import.meta.env.NODE_ENV === "development") {
     return {
       ...version,
       commitHash: getCommitHash() || BUILD_INFO.commitHash,
-      buildDate: new Date().toISOString(),
+      buildDate: startTime.toISOString(),
       env: "development",
     }
   }
+
   return {
     ...BUILD_INFO,
     ...version,
@@ -23,8 +35,9 @@ export function getVersionInfo() {
   }
 }
 
-export function getVersionString({ format = "default" }: { format?: "default" | "short" | "long" } = {}) {
-  const { major, minor, patch, commitHash, buildDate, env } = getVersionInfo()
+export function getVersionString({ format = "default", versionInfo = undefined }: { format?: "default" | "short" | "long", versionInfo?: VersionInfo } = {}) {
+  const { major, minor, patch, commitHash, buildDate: rawBuildDate, env } = versionInfo ?? getVersionInfo()
+  const buildDate = rawBuildDate ? new Date(rawBuildDate).toISOString() : "1970-01-01T00:00:00.000Z"
   const commit = commitHash ? `-${commitHash}` : "-unknown"
   const dev = env === "development" ? "-dev" : ""
   if (format === "short") {
