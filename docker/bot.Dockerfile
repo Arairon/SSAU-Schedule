@@ -14,6 +14,12 @@ RUN bun install --frozen-lockfile;
 
 FROM deps AS bot_builder
 
+ARG GIT_COMMIT_SHA
+ARG GIT_BRANCH
+
+ENV GIT_COMMIT_SHA=${GIT_COMMIT_SHA}
+ENV GIT_BRANCH=${GIT_BRANCH}
+
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -21,6 +27,7 @@ COPY apps/telegram-bot ./apps/telegram-bot
 COPY apps/server ./apps/server
 COPY packages/shared ./packages/shared
 COPY packages/contracts ./packages/contracts
+RUN bun run prebuild;
 
 WORKDIR /app/apps/telegram-bot
 RUN bun run build;

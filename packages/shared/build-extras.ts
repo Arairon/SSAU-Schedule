@@ -30,6 +30,7 @@ async function main() {
     const versionFile = Bun.file("./generated/version.ts");
     if (await versionFile.exists()) {
       console.log("Commit hash not found, but version file already exists. Skipping generation.");
+      versionFile.text().then(console.log)
       return
     } else {
       console.log("Commit hash not found and no version file exists. Commit hash will be 'unknown'.");

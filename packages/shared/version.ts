@@ -19,7 +19,7 @@ export function getVersionInfo() {
   if (process.env.NODE_ENV === "development") {
     return {
       ...version,
-      commitHash: getCommitHash(),
+      commitHash: getCommitHash() || BUILD_INFO.commitHash,
       buildDate: new Date().toISOString(),
       env: "development",
     }
@@ -33,7 +33,7 @@ export function getVersionInfo() {
 
 export function getVersionString({ format = "default" }: { format?: "default" | "short" | "long" } = {}) {
   const { major, minor, patch, commitHash, buildDate, env } = getVersionInfo()
-  const commit = commitHash ? `-${commitHash}` : ""
+  const commit = commitHash ? `-${commitHash}` : "-unknown"
   const dev = env === "development" ? "-dev" : ""
   if (format === "short") {
     return `${major}.${minor}.${patch}${dev}`

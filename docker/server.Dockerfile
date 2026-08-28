@@ -14,6 +14,12 @@ RUN bun install --frozen-lockfile
 
 FROM oven/bun:1.3.5-alpine AS builder
 
+ARG GIT_COMMIT_SHA
+ARG GIT_BRANCH
+
+ENV GIT_COMMIT_SHA=${GIT_COMMIT_SHA}
+ENV GIT_BRANCH=${GIT_BRANCH}
+
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules

@@ -34,6 +34,9 @@ jobs:
           context: "{{defaultContext}}"
           file: ${{ matrix.dockerfile }}
           push: true
+          build-args: |
+            GIT_COMMIT_SHA=${{ github.sha }}
+            GIT_BRANCH=${{ github.ref_name }}
           cache-from: |
             type=gha,scope=${{ matrix.service }}-main
             type=gha,scope=${{ matrix.service }}-release
