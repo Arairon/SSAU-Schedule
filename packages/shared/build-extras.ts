@@ -1,4 +1,4 @@
-import { getCommitHash } from "./version";
+import { getCommitHash } from "./git";
 
 type BuildInfo = {
   commitHash: string | null;

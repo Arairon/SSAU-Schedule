@@ -1,18 +1,10 @@
 import { BUILD_INFO } from "./generated/version"
+import { getCommitHash } from "./git"
 
 const version = {
   major: 0,
   minor: 1,
   patch: 0,
-}
-
-export function getCommitHash() {
-  try {
-    const { stdout } = Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"]);
-    return stdout.toString().trim();
-  } catch {
-    return process.env.GIT_COMMIT_SHA?.slice(0, 7) || null;
-  }
 }
 
 export function getVersionInfo() {
