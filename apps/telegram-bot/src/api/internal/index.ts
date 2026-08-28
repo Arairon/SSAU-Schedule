@@ -4,6 +4,7 @@ import z from "zod"
 import { app as routesDispatch } from "./dispatch"
 import log from "@/bot/logger"
 import { bot } from "@/bot/bot"
+import { getVersionInfo } from "@ssau-schedule/shared/version"
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {
@@ -24,14 +25,27 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
   (app) =>
     app
       .get("/health", () => "ok")
-      .post("/serverOnline", () => {
-        log.info("Server has come online", { tag: "API", user: "server" })
+      .get("/version", () => {
+        return getVersionInfo()
+      })
+      .post("/serverOnline", ({ body }) => {
+        log.info("Server has come online", { tag: "API", user: "server", object: body })
         if (env.SCHED_BOT_ADMIN_TGID && env.NODE_ENV === "production") {
           void bot.api.sendMessage(
             env.SCHED_BOT_ADMIN_TGID,
-            "Сервер запущен!\nЕсли вы видите это не в момент запуска, то значит сервер крашнулся :D",
+            `\
+Сервер запущен!
+Если вы видите это не в момент запуска, то значит сервер крашнулся :D
+Версия: ${body.version}\
+`,
           )
         }
+      }, {
+        body: z.object({
+          version: z.string().default("unknown"),
+        }).default({
+          version: "unknown",
+        })
       })
       .use(routesDispatch),
 )

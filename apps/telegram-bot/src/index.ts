@@ -2,12 +2,14 @@ import { Elysia } from "elysia"
 
 import { env } from "@/bot/env"
 import log from "@/bot/logger"
+import { getVersionInfo, getVersionString } from "@ssau-schedule/shared/version"
 
 import init_bot, { handleWebhookUpdate } from "@/bot/bot"
 import { apiApp } from "./api"
 import cors from "@elysiajs/cors"
 import { api } from "./serverClient"
 import type { Update } from "grammy/types"
+
 
 let requestIdCounter = 0
 
@@ -134,6 +136,15 @@ function init_bot_webhook() {
 }
 
 async function start() {
+  log.info("SSAU Schedule telegram bot starting", {
+    user: "server", tag: "init",
+    object: {
+      version: getVersionString(),
+      buildDate: getVersionInfo().buildDate,
+    },
+    objectPretty: true
+  })
+
   const tls = await getTlsOptions()
 
   app.listen(
@@ -174,11 +185,11 @@ async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
 
     if (!success) {
       log.warn(
-        "Unable to connect to schedule server" +
-          (e ? ": " + JSON.stringify(e) : ""),
+        "Unable to connect to schedule server",
         {
           tag: "init",
           user: "Elysia",
+          object: e,
         },
       )
       await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -189,7 +200,9 @@ async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
     user: "Elysia",
   })
   if (opts.sendOnline) {
-    await api.botOnline.post(undefined, {
+    await api.botOnline.post({
+      version: getVersionString(),
+    }, {
       headers: {
         "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
       },

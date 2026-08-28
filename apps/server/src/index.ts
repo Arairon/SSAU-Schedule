@@ -9,6 +9,7 @@ import { apiApp } from "./api"
 import { ToadScheduler } from "toad-scheduler"
 import { botApi } from "./lib/botApiClient"
 import { scheduleMessage } from "./lib/misc"
+import { getVersionInfo, getVersionString } from "@ssau-schedule/shared/version"
 
 //TODO: Elysia.cron
 
@@ -124,10 +125,11 @@ async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
 
     if (!success) {
       log.warn(
-        "Unable to connect to bot server" + (e ? ": " + JSON.stringify(e) : ""),
+        "Unable to connect to bot server",
         {
           tag: "init",
           user: "Elysia",
+          object: e
         },
       )
       await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -138,7 +140,9 @@ async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
     user: "Elysia",
   })
   if (opts.sendOnline) {
-    await botApi.serverOnline.post(undefined, {
+    await botApi.serverOnline.post({
+      version: getVersionString(),
+    }, {
       headers: {
         "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
       },
@@ -149,6 +153,14 @@ async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
 async function start() {
   // await init_redis(server);
   // await init_bot();
+  log.info("SSAU Schedule server starting", {
+    user: "server", tag: "init",
+    object: {
+      version: getVersionString(),
+      buildDate: getVersionInfo().buildDate,
+    },
+    objectPretty: true
+  })
 
   app.listen(env.SCHED_SERVER_PORT, () => {
     log.info(

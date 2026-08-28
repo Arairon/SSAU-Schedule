@@ -20,6 +20,7 @@ import { accountCommands, initAccount } from "./account"
 import { type BotCommand } from "grammy/types"
 
 import type { Update } from "grammy/types"
+import { getVersionString } from "@ssau-schedule/shared/version"
 
 // function getWebhookUrl(path: string): string {
 //   if (env.SCHED_BOT_WEBHOOK_URL) return env.SCHED_BOT_WEBHOOK_URL;
@@ -138,7 +139,11 @@ async function initBot(bot: GrammyBot<Context>) {
       try {
         void bot.api.sendMessage(
           env.SCHED_BOT_ADMIN_TGID,
-          "Бот запущен!\nЕсли вы видите это не в момент запуска, то значит я крашнулся :D",
+          `\
+Бот запущен!
+Если вы видите это не в момент запуска, то значит сервер крашнулся :D
+Версия: ${getVersionString({ format: "long" })}\
+          `,
         )
       } catch {
         log.error("Failed to notify admin about bot start")

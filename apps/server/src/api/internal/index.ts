@@ -12,6 +12,7 @@ import { app as routesGroup } from "./group"
 import { app as routesTeacher } from "./teacher"
 import { app as routesDebug } from "./debug"
 import log from "@/server/logger"
+import { getVersionInfo } from "@ssau-schedule/shared/version"
 
 export const app = new Elysia({ prefix: "/internal" }).guard(
   {
@@ -32,8 +33,11 @@ export const app = new Elysia({ prefix: "/internal" }).guard(
   (app) =>
     app
       .get("/health", () => "ok")
-      .post("/botOnline", () => {
-        log.info("Bot has come online", { tag: "API", user: "bot" })
+      .get("/version", () => {
+        return getVersionInfo()
+      })
+      .post("/botOnline", ({ body }) => {
+        log.info("Bot has come online", { tag: "API", user: "bot", object: body as object })
       })
       .group("/schedule", (app) => app.use(routesSchedule))
       .group("/user", (app) => app.use(routesUser))
