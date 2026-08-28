@@ -135,7 +135,9 @@ export async function dailyUpdate() {
   const today = new Date(Date.now() + 42200_000) // add half a day to ensure 'today' and not 'tonight'
   today.setHours(7, 0) // 7 AM in Europe/Samara
   // const year = getCurrentYearId();
-  const weekNumber = getWeekFromDate(now) + (now.getDay() === 0 ? 1 : 0) // if sunday - update next week
+  const rawWeekNumber = getWeekFromDate(now, { unclamped: true }) + (now.getDay() === 0 ? 1 : 0) // sunday is considered next week
+  const shouldScheduleDailyNotifications = rawWeekNumber >= 1 && rawWeekNumber <= 52
+  const weekNumber = Math.min(Math.max(rawWeekNumber, 1), 52) // clamp to 1-52
   await db.week.updateMany({ data: { cachedUntil: now } }) // Invalidate week caches to avoid confusion
   const users = await db.user.findMany({
     where: {
@@ -247,7 +249,10 @@ export async function dailyUpdate() {
         await scheduleLessonChangeNotifications(user, diff)
       }
 
-      await scheduleDailyNotificationsForUser(user, weekNumber)
+      if (shouldScheduleDailyNotifications) {
+        // DailyUpd bumps week number to 1 even if it's 0, which will cause double notifications on the first week of the year.
+        await scheduleDailyNotificationsForUser(user, weekNumber)
+      }
 
       await sleep(3000) // To prevent any fun stuff on ssau's end
     } catch (e) {
@@ -339,6 +344,16 @@ export async function scheduleDailyNotificationsForUser(
     // sunday or no lessons
     return { count: 0 }
   }
+
+  console.log("DEBUG")
+  console.dir({
+    week,
+    weekNumber,
+    day: today.getDay(),
+    today,
+    dayTable: day,
+    timetable
+  }, { depth: 3 })
 
   const notifications: ScheduledMessage[] = []
 

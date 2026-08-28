@@ -32,7 +32,7 @@ export function getRealYearFromId(yearId: number) {
   return yearId + 2011; // Constant. Blame SSAU
 }
 
-export function getWeekFromDate(date: Date) {
+export function getWeekFromDate(date: Date, options?: { unclamped?: boolean }) {
   const dt = new Date(date);
   dt.setHours(0, 0, 0, 0);
   // Thursday in current week decides the year.
@@ -50,6 +50,7 @@ export function getWeekFromDate(date: Date) {
         ((week1.getDay() + 6) % 7)) /
       7,
     );
+  if (options?.unclamped) return weekNumber;
   if (weekNumber > 52) return 52;
   if (weekNumber < 1) return 1;
   return weekNumber;

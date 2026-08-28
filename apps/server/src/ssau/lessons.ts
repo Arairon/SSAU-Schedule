@@ -50,7 +50,8 @@ export async function updateWeekForUser(
     { user: user.id, tag: opts?.loggingTag },
   )
 
-  let lkUser = (user.authCookie ? user : lk.getProxyUser()) as User | null
+  const userIsAuthed = !!user.authCookie
+  let lkUser = (userIsAuthed ? user : lk.getProxyUser()) as User | null
 
   if (!lkUser) {
     log.warn(`User ${user.id} has no auth and no proxy user available`, {
@@ -62,13 +63,13 @@ export async function updateWeekForUser(
 
   let attemptsLeft = 3;
   while (!(await lk.ensureAuth(lkUser))) {
+    log.debug(`Failed to auth user ${lkUser.id}, trying another account. Attempts left: ${attemptsLeft}`, { user: user.id, tag: opts?.loggingTag })
     lkUser = await lk.getProxyUser()
     if (!lkUser) {
       log.warn(`No proxy user available for ${user.id}`, { user: user.id, tag: opts?.loggingTag })
       throw new Error("Auth error")
     }
     attemptsLeft--
-    log.debug(`Failed to auth user ${lkUser.id}, trying another account. Attempts left: ${attemptsLeft}`, { user: user.id, tag: opts?.loggingTag })
     if (attemptsLeft <= 0) {
       log.warn(`Failed to auth user ${lkUser.id} after multiple attempts`, { user: user.id, tag: opts?.loggingTag })
       throw new Error("Auth error")
@@ -81,7 +82,7 @@ export async function updateWeekForUser(
       user: user.id,
       tag: opts?.loggingTag,
     })
-    if (user.authCookie) {
+    if (userIsAuthed && !user.authCookie) { // User was authed, but cookie was invalid and got erased by ensureAuth
       log.warn(`User lost session, scheduling a notification`, { user: user.id, tag: opts?.loggingTag })
       void scheduleMessage(user.tgId, new Date(),
         `⚠️ Произошла ошибка при попытке обновить сессию. Пожалуйста, авторизуйтесь заново через /login чтобы восстановить доступ к ИОТам`

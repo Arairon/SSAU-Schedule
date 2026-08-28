@@ -409,17 +409,20 @@ async function checkAuth(user: User) {
     log.debug(`Auth confirmed, extending session`, {
       user: user.id,
     })
+    const upd = {
+      authCookieExpiresAt: new Date(Date.now() + 3600_000), // 1 hour without any other checkAuth calls
+      sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
+    }
+    Object.assign(user, upd) // Update user object in memory
     await db.user.update({
       where: { id: user.id },
-      data: {
-        authCookieExpiresAt: new Date(Date.now() + 3600_000), // 1 hour without any other checkAuth calls
-        sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
-      },
+      data: upd,
     })
     return { ok: true }
   }
 
   log.warn("Auth check failed, erasing cookie", { user: user.id })
+  user.authCookie = null
   await db.user.update({ where: { id: user.id }, data: { authCookie: null } })
   return {
     ok: false,

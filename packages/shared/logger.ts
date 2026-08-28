@@ -14,20 +14,17 @@ const formatPretty = format.combine(
   }),
   // format.align(),
   format.printf((info) => {
-    if (info.user !== undefined) {
-      const user = (info.user as string | number | bigint).toString()
-      const tag = (info.tag ?? "") as string
-      const extraSpace = tag && user ? " " : ""
-      const object = processObjectForLogging(info.object, (info.objectPretty as boolean) ? 2 : 0)
-      return `\
+    const user = (info.user as string | number | bigint ?? "").toString()
+    const tag = (info.tag ?? "") as string
+    const extraSpace = tag && user ? " " : ""
+    const object = processObjectForLogging(info.object, (info.objectPretty as boolean) ? 2 : 0)
+    return `\
 ${ansilightgray}${info.timestamp as string}${ansiclear} | \
 ${info.level.padEnd(16, " ")} \
 [${tag}${extraSpace}${user.padStart(12 - (tag.length ? tag.length + 1 : 0), " ")}]: \
 ${ansicyan}${info.message as string}${ansiclear}\
 ${object ? `\n${ansigray}${object}${ansiclear}` : ""}\
 `
-    }
-    return `${info.timestamp as string} | ${info.level.padEnd(16, " ")} [${(info.tag as string) || "unk"}]: ${info.message as string}`
   }),
 )
 
