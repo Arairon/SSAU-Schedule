@@ -404,13 +404,6 @@ async function checkAuth(user: User) {
       error: "invalid auth",
     }
   }
-  if (!resp.headers["set-cookie"]?.length) {
-    log.debug(
-      "Cookie update returned nothing. Assuming cookie is still valid",
-      { user: user.id },
-    )
-    return { ok: true }
-  }
 
   if (resp.status === 200) {
     log.debug(`Auth confirmed, extending session`, {
@@ -419,7 +412,7 @@ async function checkAuth(user: User) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        authCookieExpiresAt: new Date(Date.now() + 86400_000), // 1 day
+        authCookieExpiresAt: new Date(Date.now() + 3600_000), // 1 hour without any other checkAuth calls
         sessionExpiresAt: new Date(Date.now() + 604800_000), // 7 days
       },
     })
