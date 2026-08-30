@@ -51,7 +51,7 @@ export async function updateWeekForUser(
   )
 
   const userIsAuthed = !!user.authCookie
-  let lkUser = (userIsAuthed ? user : lk.getProxyUser()) as User | null
+  let lkUser = (userIsAuthed ? user : await lk.getProxyUser())
 
   if (!lkUser) {
     log.warn(`User ${user.id} has no auth and no proxy user available`, {
