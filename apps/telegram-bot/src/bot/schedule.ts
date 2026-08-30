@@ -166,9 +166,7 @@ export async function sendTimetable(
 
     if (!groupId && !user.groupId && !teacherMode) {
       await answerCallbackQueryIfPresent(ctx)?.catch(() => undefined)
-      return ctx.reply(
-        'Вы не указали группу в запросе. За вашим пользователем не закреплена группа.\nНастройте группу через /options или укажите группу в запросе через "/schedule 6101-090301D"',
-      )
+      return ctx.reply("За вами не закреплена группа, я не знаю какое расписание вам отправить :D\nПожалуйста настройте группу через /options или отправьте номер группы в чат")
     }
 
     const group = groupId
@@ -571,10 +569,17 @@ export async function initSchedule(bot: Bot<Context>) {
       if (!ctx.from || !ctx.message) return
       const user = await getUser(ctx, { required: true })
       if (!user) return
+      if (!user.groupId) {
+        return ctx.reply("За вами не закреплена группа, я не знаю какое расписание вам отправить :D\nПожалуйста настройте группу через /options")
+      }
       const now = new Date()
       const timetable = (await api.schedule.json
         .get({ query: { userId: user.id, week: 0 } })
-        .then((res) => res.data))!
+        .then((res) => res?.data))
+      if (!timetable) {
+        log.error(`Failed to get timetable for today`, { user: ctx.from.id })
+        return ctx.reply(`Произошла ошибка при получении расписания.`)
+      }
       const day = timetable.days.at(now.getDay() - 1)
 
       if (
@@ -605,6 +610,9 @@ ${day.lessons.map(generateTextLesson).join("\n-----\n")}
     if (!ctx.from || !ctx.message) return
     const user = await getUser(ctx, { required: true })
     if (!user) return
+    if (!user.groupId) {
+      return ctx.reply("За вами не закреплена группа, я не знаю какое расписание вам отправить :D\nПожалуйста настройте группу через /options")
+    }
     const match = ctx.match
     if (!match || match.length < 3) return ctx.reply("Ошибка: неверный формат даты")
     const now = new Date()
@@ -619,11 +627,18 @@ ${day.lessons.map(generateTextLesson).join("\n-----\n")}
       day: "2-digit",
       month: "2-digit",
     })
-    const week = getWeekFromDate(date)
+    const week = getWeekFromDate(date, { unclamped: true })
+    if (week < 1 || week > 52) {
+      return ctx.reply(`Вне учебного года пар уж точно нет :D\n(Неделя ${week})`)
+    }
     //return sendTimetable(ctx, { week })
     const timetable = (await api.schedule.json
       .get({ query: { userId: user.id, week } })
-      .then((res) => res.data))!
+      .then((res) => res?.data))
+    if (!timetable) {
+      log.error(`Failed to get timetable for week ${week}`, { user: ctx.from.id })
+      return ctx.reply(`Произошла ошибка при получении расписания.`)
+    }
     const daySchedule = timetable.days.at(date.getDay() - 1)
     const args = ctx.message.text!.split(" ").slice(1)
     if (
@@ -664,10 +679,17 @@ ${daySchedule.lessons.map(generateTextLesson).join("\n-----\n")}
     if (!ctx.from || !ctx.message) return
     const user = await getUser(ctx, { required: true })
     if (!user) return
+    if (!user.groupId) {
+      return ctx.reply("За вами не закреплена группа, я не знаю какое расписание вам отправить :D\nПожалуйста настройте группу через /options")
+    }
     const now = new Date()
     const timetable = (await api.schedule.json
       .get({ query: { userId: user.id, week: 0 } })
-      .then((res) => res.data))!
+      .then((res) => res?.data))
+    if (!timetable) {
+      log.error(`Failed to get timetable for now`, { user: ctx.from.id })
+      return ctx.reply(`Произошла ошибка при получении расписания.`)
+    }
     const day = timetable.days.at(now.getDay() - 1)
     if (!day?.lessons.length || now.getDay() === 0) {
       return ctx.reply("Сегодня занятий нет :D")
@@ -690,6 +712,9 @@ ${generateTextLesson(lesson)}
     if (!ctx.from || !ctx.message) return
     const user = await getUser(ctx, { required: true })
     if (!user) return
+    if (!user.groupId) {
+      return ctx.reply("За вами не закреплена группа, я не знаю какое расписание вам отправить :D\nПожалуйста настройте группу через /options")
+    }
 
     // Exams and Consultations
     const exams = await api.schedule.exams
