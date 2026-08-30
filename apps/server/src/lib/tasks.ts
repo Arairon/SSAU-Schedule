@@ -252,6 +252,8 @@ export async function dailyUpdate() {
       if (shouldScheduleDailyNotifications) {
         // DailyUpd bumps week number to 1 even if it's 0, which will cause double notifications on the first week of the year.
         await scheduleDailyNotificationsForUser(user, weekNumber)
+      } else {
+        log.debug(`Skipping daily notifications because week number is actually ${rawWeekNumber} and not ${weekNumber}`, { user: user.id, tag: "dUpd" })
       }
 
       await sleep(3000) // To prevent any fun stuff on ssau's end

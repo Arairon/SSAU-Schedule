@@ -70,6 +70,7 @@ export async function getWeekLessons(
   week: number,
   groupId?: number,
   opts?: {
+    year?: number // TODO: Year support. Everywhere.
     ignoreIet?: boolean
     ignorePreferences?: boolean
     ignoreCustomizations?: boolean
@@ -111,47 +112,47 @@ export async function getWeekLessons(
   const customLessons = opts?.ignoreCustomizations
     ? []
     : await db.customLesson.findMany({
-        where: {
-          AND: [
-            {
-              OR: [
-                {
-                  weekNumber: week,
-                },
-                {
-                  lessonId: { in: lessonIds },
-                },
-              ],
-            },
-            {
-              OR: [
-                // Owner always sees their own custom lessons
-                { userId: user.id },
-                // Viewer sees shared lessons if they match a target AND trust the owner
-                {
-                  AND: [
-                    {
-                      OR: [
-                        { targetUsers: { some: { id: user.id } } },
-                        { targetGroups: { some: { id: user.groupId ?? -1 } } },
-                        {
-                          targetFlows: {
-                            some: { user: { some: { id: user.id } } },
-                          },
+      where: {
+        AND: [
+          {
+            OR: [
+              {
+                weekNumber: week,
+              },
+              {
+                lessonId: { in: lessonIds },
+              },
+            ],
+          },
+          {
+            OR: [
+              // Owner always sees their own custom lessons
+              { userId: user.id },
+              // Viewer sees shared lessons if they match a target AND trust the owner
+              {
+                AND: [
+                  {
+                    OR: [
+                      { targetUsers: { some: { id: user.id } } },
+                      { targetGroups: { some: { id: user.groupId ?? -1 } } },
+                      {
+                        targetFlows: {
+                          some: { user: { some: { id: user.id } } },
                         },
-                      ],
-                    },
-                    { userId: { in: trustedLessonCustomizers } },
-                  ],
-                },
-              ],
-            },
-          ],
-          // type: militaryFilter, // breaks on null
-          isEnabled: true, // TODO: Allow viewing disabled customizations or figure out a better way
-        },
-        include: { groups: true, teacher: true, user: true, flows: true },
-      })
+                      },
+                    ],
+                  },
+                  { userId: { in: trustedLessonCustomizers } },
+                ],
+              },
+            ],
+          },
+        ],
+        // type: militaryFilter, // breaks on null
+        isEnabled: true, // TODO: Allow viewing disabled customizations or figure out a better way
+      },
+      include: { groups: true, teacher: true, user: true, flows: true },
+    })
 
   const customLessonTargetIds = customLessons
     .map((i) => i.lessonId)

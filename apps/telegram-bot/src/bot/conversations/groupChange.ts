@@ -10,6 +10,8 @@ const GROUP_CHANGE_CANCEL = "group_change_cancel"
 const GROUP_CHANGE_FROM_LK = "group_change_from_lk"
 const GROUP_CHANGE_SELECT_PREFIX = "group_change_select_"
 
+// TODO: Rework all conversations. Use proper state machines. No loops or commands mid-conversation
+
 function getMainKeyboard(hasLkAccess: boolean) {
   const keyboard = new InlineKeyboard()
   if (hasLkAccess) {
