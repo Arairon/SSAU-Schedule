@@ -83,7 +83,7 @@ async function updateWeekIfNeeded(
     loggingTag?: string
   },
   updateState: (update: RequestStateUpdate<"updatingWeek" | "error">) => void,
-) {
+): Promise<UpdateWeekResult> {
   if (opts.ignoreUpdate) {
     log.debug(
       `Ignoring updates and generating purely based on current db info`,
@@ -92,7 +92,7 @@ async function updateWeekIfNeeded(
         tag: opts.loggingTag,
       },
     )
-    return
+    return { updated: false, reason: "ignoreUpdate" }
   }
 
   if (opts.forceUpdate) {
@@ -110,6 +110,7 @@ async function updateWeekIfNeeded(
         groupId,
         loggingTag: opts.loggingTag,
       })
+      return { updated: true, reason: "forceUpdate" }
     } catch (e) {
       log.warn(`Failed to update week during forceUpdate.`, {
         user: user.id,
@@ -121,8 +122,8 @@ async function updateWeekIfNeeded(
         message:
           "Не удалось обновить расписание. Используется устаревшее расписание из базы данных.",
       })
+      return { updated: false, reason: "error" }
     }
-    return
   }
 
   if (Date.now() - week.updatedAt.getTime() > 86400_000) {
@@ -141,6 +142,7 @@ async function updateWeekIfNeeded(
         groupId,
         loggingTag: opts.loggingTag,
       })
+      return { updated: true, reason: "weekTooOld" }
     } catch (error) {
       log.warn(`Failed to update week.`, {
         user: user.id,
@@ -152,15 +154,23 @@ async function updateWeekIfNeeded(
         message:
           "Не удалось обновить расписание. Используется устаревшее расписание из базы данных.",
       })
+      return { updated: false, reason: "error" }
     }
-    return
   }
 
   log.debug("Week updatedAt looks good. Not updating from ssau", {
     user: user.id,
     tag: opts.loggingTag,
   })
+  return { updated: false, reason: "weekUpToDate" }
 }
+
+type UpdateWeekResult = {
+  updated: boolean
+  reason: string
+}
+
+type TimetableWithDiff = Timetable & { diff?: TimetableDiff }
 
 export async function getTimetable(
   user: User,
@@ -181,7 +191,7 @@ export async function getTimetable(
       >,
     ) => void
   },
-): Promise<Timetable & { diff?: TimetableDiff }> {
+): Promise<TimetableWithDiff & { requestInfo: { weekUpdate: UpdateWeekResult } }> {
   const now = new Date()
   const weekNumber = weekN || getWeekFromDate(now)
   const year = (opts?.year ?? 0) || getCurrentYearId()
@@ -214,11 +224,11 @@ export async function getTimetable(
       loggingTag: opts?.loggingTag,
     })
     if (cachedTimetable) {
-      return cachedTimetable
+      return { ...cachedTimetable, requestInfo: { weekUpdate: { updated: false, reason: "cached" } } }
     }
   }
 
-  await updateWeekIfNeeded(
+  const weekUpdate = await updateWeekIfNeeded(
     user,
     week,
     weekNumber,
@@ -246,6 +256,9 @@ export async function getTimetable(
       week.timetable && week.timetableHash !== timetable.hash
         ? (getTimetablesDiff(week.timetable, timetable) ?? undefined)
         : undefined,
+    requestInfo: {
+      weekUpdate,
+    }
   }
 }
 
@@ -264,14 +277,21 @@ async function getTimetableWithImage(
     ignoreSubgroup?: boolean
     loggingTag?: string // An optional tag to add to all logs for this request.
     onUpdate?: (
-      update: RequestStateUpdate<
-        "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
-      >,
+      update:
+        | RequestStateUpdate<
+          "updatingWeek" | "generatingTimetable" | "generatingImage" | "error"
+        >
+      // Possible idea for future
+      // | RequestStateUpdateWithData<"foundOldImage", { tgId: string, timetableHash: string, stylemap: string }>,
     ) => void
   },
 ): Promise<{
-  timetable: Timetable & { diff?: TimetableDiff }
+  timetable: TimetableWithDiff
   image: Omit<WeekImage, "data"> & { data: Buffer }
+  requestInfo: {
+    weekUpdate: UpdateWeekResult,
+    imageFromCache: boolean
+  }
 }> {
   const year = (opts?.year ?? 0) || getCurrentYearId()
   const groupId = opts?.groupId ?? user.groupId
@@ -307,7 +327,15 @@ async function getTimetableWithImage(
 
   log.info(
     `Requested Image ${stylemap}/${week.groupId}/${week.year}/${week.number}`,
-    { user: user.id, tag: opts?.loggingTag },
+    {
+      user: user.id, tag: opts?.loggingTag,
+      object: {
+        opts: {
+          ...opts,
+          onUpdate: !!opts?.onUpdate,
+        }
+      }
+    },
   )
 
   const timetable = await getTimetable(user, week.number, {
@@ -348,6 +376,10 @@ async function getTimetableWithImage(
         image: Object.assign(existingImage, {
           data: Buffer.from(existingImage.data, "base64"),
         }),
+        requestInfo: {
+          weekUpdate: timetable.requestInfo.weekUpdate,
+          imageFromCache: true
+        }
       }
     } else {
       log.debug(
@@ -395,6 +427,10 @@ async function getTimetableWithImage(
           : undefined,
     },
     image: Object.assign(createdImage, { data: image }),
+    requestInfo: {
+      weekUpdate: timetable.requestInfo.weekUpdate,
+      imageFromCache: false
+    }
   }
 }
 
@@ -429,7 +465,7 @@ async function pregenerateImagesForUser(
     await getTimetableWithImage(
       user,
       week.number,
-      Object.assign({}, opts, { ignoreUpdates: true }),
+      Object.assign({}, opts, { ignoreUpdate: true }),
     )
     generatedCount += 1
   }

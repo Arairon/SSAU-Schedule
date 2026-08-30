@@ -138,46 +138,48 @@ export async function dailyUpdate() {
   const rawWeekNumber = getWeekFromDate(now, { unclamped: true }) + (now.getDay() === 0 ? 1 : 0) // sunday is considered next week
   const shouldScheduleDailyNotifications = rawWeekNumber >= 1 && rawWeekNumber <= 52
   const weekNumber = Math.min(Math.max(rawWeekNumber, 1), 52) // clamp to 1-52
-  await db.week.updateMany({ data: { cachedUntil: now } }) // Invalidate week caches to avoid confusion
+  // await db.week.updateMany({ data: { cachedUntil: now } }) // Invalidate week caches to avoid confusion
   const users = await db.user.findMany({
     where: {
       groupId: { not: null },
     },
     orderBy: { id: "asc" },
   })
-  log.info(`Running week update for ${users.length} users`, {
+
+  log.info(`Starting dailyUpdate`, {
     user: "dailyUpdate",
+    object: {
+      userCount: users.length,
+      weekNumber,
+    },
+    objectPretty: true
   })
 
   const newLessons: TimetableLesson[] = []
   const removedLessons: TimetableLesson[] = []
 
-  // TODO: Also check updates for common weeks
-  // on todays weeknumber
+  // Authed users go first, since unauthed users will likely use common weeks
+  users.sort((a, b) => {
+    if (a.authCookie && !b.authCookie) return -1
+    if (!a.authCookie && b.authCookie) return 1
+    return 0
+  })
+
   for (const user of users) {
     try {
       log.info(`Running daily update for user ${user.tgId}`, {
         user: user.id,
         tag: "dUpd",
+        object: {
+          user: {
+            id: user.id,
+            tgId: user.tgId,
+            isAuthed: !!user.authCookie,
+            groupId: user.groupId,
+          }
+        }
       })
-      // const user = await db.user.findUnique({
-      //   where: { id: week.owner },
-      //   include: { ics: true },
-      // });
-      // if (!user) {
-      //   log.error(`Found orphaned week #${week.id}`, {
-      //     user: "dailyUpdate",
-      //   });
-      //   continue;
-      // }
-
-      // // Handled in isAuthed
-      // if (!user.authCookie) {
-      //   log.debug(`Skipping unauthenticated user #${user.id}`, {
-      //     user: "dailyUpdate",
-      //   });
-      //   continue;
-      // }
+      const userUpdateStart = Date.now()
 
       // // Needs reworking
       // const isActive = user.lastActive > monthAgo;
@@ -189,35 +191,38 @@ export async function dailyUpdate() {
       // }
 
       let isAuthed = false
-      try {
-        isAuthed = await lk.ensureAuth(user)
-        if (!isAuthed) {
-          log.warn(
-            `Failed to ensure auth for user ${user.id}. Probably a lost session`,
-            { user: "dailyUpdate" },
-          )
+      if (user.authCookie) {
+        try {
+          isAuthed = await lk.ensureAuth(user)
+          if (!isAuthed) {
+            log.warn(
+              `Failed to ensure auth for user ${user.id}. Probably a lost session`,
+              { user: "dailyUpdate" },
+            )
+            // await scheduleDailyNotificationsForUser(user, weekNumber);
+            // continue;
+          }
+        } catch (e) {
+          log.error(`Failed to ensure auth for user ${user.id}`, {
+            user: "dailyUpdate",
+            object: e as object,
+          })
           // await scheduleDailyNotificationsForUser(user, weekNumber);
           // continue;
         }
-      } catch (e) {
-        log.error(`Failed to ensure auth for user ${user.id}`, {
-          user: "dailyUpdate",
-          object: e as object,
-        })
-        // await scheduleDailyNotificationsForUser(user, weekNumber);
-        // continue;
       }
+
 
       // Update current and next weeks
       const currentWeek = await schedule.getTimetableWithImage(
         user,
         weekNumber,
-        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed, loggingTag: "dUpd" },
+        { forceUpdate: isAuthed, loggingTag: "dUpd" },
       )
       const nextWeek = await schedule.getTimetableWithImage(
         user,
         weekNumber + 1,
-        { forceUpdate: isAuthed, ignoreUpdate: !isAuthed, loggingTag: "dUpd" },
+        { forceUpdate: isAuthed, loggingTag: "dUpd" },
       )
 
       await schedule.pregenerateImagesForUser(user, weekNumber + 2, 6, {
@@ -256,12 +261,18 @@ export async function dailyUpdate() {
         log.debug(`Skipping daily notifications because week number is actually ${rawWeekNumber} and not ${weekNumber}`, { user: user.id, tag: "dUpd" })
       }
 
-      await sleep(3000) // To prevent any fun stuff on ssau's end
+      log.debug(`Finished daily update for user ${user.tgId}. Took ${formatBigInt(Date.now() - userUpdateStart)}ms`, {
+        user: user.id,
+      })
+
+      if (isAuthed)
+        await sleep(3000) // To prevent any fun stuff on ssau's end
     } catch (e) {
       log.error(
-        `Failed to run daily update for user #${user.id}: ${e as Error}`,
+        `Failed to run daily update for user #${user.id}:`,
         {
           user: "dailyUpdate",
+          object: e as Error,
         },
       )
     }
@@ -579,6 +590,8 @@ export async function uploadWeekImagesWithoutTgId() {
   let failed = 0
   let lastProcessedId = 0
   let totalImageMs = 0
+
+  log.info(`Starting uploadWeekImagesWithoutTgId`, { user: "uploadWeekImagesWithoutTgId" })
 
   while (true) {
     const weekImages = await db.weekImage.findMany({

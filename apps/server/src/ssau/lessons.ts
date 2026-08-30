@@ -13,7 +13,7 @@ import { getWeek, getWeekLessons } from "@/server/lib/week"
 import log from "@/server/logger"
 import axios from "axios"
 import { WeekResponseSchema } from "./schemas/schedule"
-import { formatSentence } from "@ssau-schedule/shared/utils"
+import { formatBigInt, formatSentence } from "@ssau-schedule/shared/utils"
 import { getLessonTypeEnum } from "./types"
 import {
   ensureFlowExists,
@@ -527,7 +527,7 @@ export async function updateWeekForUser(
     (i) => i.weekNumber === week.number || i.weekNumber === week.number + 1,
   )
   log.debug(
-    `Updated week. Added: [${filteredNewLessons.map((i) => i.id).join()}] (${newLessons.length}) Removed: [${filteredRemovedLessons.map((i) => i.id).join()}] (${removedLessons.length})`,
+    `Updated week. Took ${formatBigInt(Date.now() - now.getTime())}ms. Added: [${filteredNewLessons.map((i) => i.id).join()}] (${newLessons.length}) Removed: [${filteredRemovedLessons.map((i) => i.id).join()}] (${removedLessons.length})`,
     { user: user.id, tag: opts?.loggingTag },
   )
 

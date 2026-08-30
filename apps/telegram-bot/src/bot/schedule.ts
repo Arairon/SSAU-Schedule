@@ -343,7 +343,7 @@ export async function sendTimetable(
     }
 
     try {
-      const currentWeek = getWeekFromDate(new Date())
+      const currentWeek = getWeekFromDate(new Date(), { unclamped: true })
       let weekNumberModifier = ""
       if (timetable.week === currentWeek) weekNumberModifier = " (текущая)"
       else if (timetable.week === currentWeek + 1)
