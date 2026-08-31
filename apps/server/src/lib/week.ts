@@ -21,14 +21,13 @@ export async function getWeek(
     groupId?: number
     year?: number
     nonPersonal?: boolean
-    update?: boolean
   },
 ): Promise<WeekObject> {
   const now = new Date()
   const owner =
     (opts?.nonPersonal // User asked for common week
       || (opts?.groupId && opts.groupId !== user.groupId) // User asked for a different group -> common week
-      || !user.authCookie) // User is not authed -> common week // TODO: Figure out if unauthed users deserve custom lessons :]
+    )
       ? 0
       : user.id
   const groupId = opts?.groupId ?? user.groupId
@@ -41,8 +40,6 @@ export async function getWeek(
     throw new Error(`Groupless user getDbWeek`)
   }
 
-  const upd = opts?.update ? now : undefined
-
   const week = await db.week.upsert({
     where: {
       owner_groupId_year_number: {
@@ -52,9 +49,26 @@ export async function getWeek(
         number: weekNumber,
       },
     },
-    create: { owner, groupId, year, number: weekNumber, updatedAt: upd },
-    update: upd ? { updatedAt: upd } : {},
+    create: { owner, groupId, year, number: weekNumber },
+    update: {},
   })
+
+  if (!user.authCookie) {
+    const commonWeek = await db.week.findUnique({
+      where: {
+        owner_groupId_year_number: {
+          owner: 0,
+          groupId: groupId,
+          year: year,
+          number: weekNumber,
+        },
+      },
+    })
+    if (commonWeek) {
+      // If the user is not logged in, then their source of truth is the common week, so we use its updatedAt to avoid unnecessary updates.
+      week.updatedAt = commonWeek.updatedAt
+    }
+  }
 
   if (week.timetable) {
     const { timetable, ...data } = week
