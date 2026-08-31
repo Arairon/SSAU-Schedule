@@ -53,7 +53,7 @@ export async function getWeek(
     update: {},
   })
 
-  if (!user.authCookie) {
+  if (owner !== 0 && !user.authCookie) {
     const commonWeek = await db.week.findUnique({
       where: {
         owner_groupId_year_number: {
