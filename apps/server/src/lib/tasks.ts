@@ -11,7 +11,7 @@ import {
   generateTextLesson,
 } from "@ssau-schedule/shared/misc"
 import { DayString, getUserPreferences } from "@ssau-schedule/shared/utils"
-import type { User } from "@/server/generated/prisma/client"
+import { LessonType, type User } from "@/server/generated/prisma/client"
 import { lk } from "../ssau/lk"
 import type {
   TimetableDiff,
@@ -349,7 +349,10 @@ export async function scheduleDailyNotificationsForUser(
     loggingTag: "dNf",
   })
   timetable.days.map(
-    (d) => (d.lessons = d.lessons.filter((i) => !i.customized?.hidden)),
+    (d) => (d.lessons = d.lessons.filter((i) =>
+      !i.customized?.hidden
+        && preferences.showMilitary ? true : i.type !== LessonType.Military
+    )),
   )
   const day = timetable.days[today.getDay() - 1]
 
@@ -357,16 +360,6 @@ export async function scheduleDailyNotificationsForUser(
     // sunday or no lessons
     return { count: 0 }
   }
-
-  console.log("DEBUG")
-  console.dir({
-    week,
-    weekNumber,
-    day: today.getDay(),
-    today,
-    dayTable: day,
-    timetable
-  }, { depth: 3 })
 
   const notifications: ScheduledMessage[] = []
 
