@@ -1,5 +1,5 @@
 import type { User, WeekImage } from "@/server/generated/prisma/client"
-import { getWeek } from "@/server/lib/week"
+import { getWeek, type WeekObject } from "@/server/lib/week"
 import log from "@/server/logger"
 import { updateWeekForUser } from "@/server/ssau/lessons"
 import { lk } from "@/server/ssau/lk"
@@ -191,7 +191,7 @@ export async function getTimetable(
       >,
     ) => void
   },
-): Promise<TimetableWithDiff & { requestInfo: { weekUpdate: UpdateWeekResult } }> {
+): Promise<TimetableWithDiff & { requestInfo: { week: WeekObject & { timetable: null } } }> {
   const now = new Date()
   const weekNumber = weekN || getWeekFromDate(now)
   const year = (opts?.year ?? 0) || getCurrentYearId()
@@ -224,7 +224,7 @@ export async function getTimetable(
       loggingTag: opts?.loggingTag,
     })
     if (cachedTimetable) {
-      return { ...cachedTimetable, requestInfo: { weekUpdate: { updated: false, reason: "cached" } } }
+      return { ...cachedTimetable, requestInfo: { week: { ...week, timetable: null } } }
     }
   }
 
@@ -237,6 +237,10 @@ export async function getTimetable(
     opts ?? {},
     updateState,
   )
+
+  if (weekUpdate.updated) {
+    week.updatedAt = new Date()
+  }
 
   updateState({
     state: "generatingTimetable",
@@ -256,9 +260,7 @@ export async function getTimetable(
       week.timetable && week.timetableHash !== timetable.hash
         ? (getTimetablesDiff(week.timetable, timetable) ?? undefined)
         : undefined,
-    requestInfo: {
-      weekUpdate,
-    }
+    requestInfo: { week: { ...week, timetable: null } }
   }
 }
 
@@ -289,7 +291,7 @@ async function getTimetableWithImage(
   timetable: TimetableWithDiff
   image: Omit<WeekImage, "data"> & { data: Buffer }
   requestInfo: {
-    weekUpdate: UpdateWeekResult,
+    week: WeekObject & { timetable: null },
     imageFromCache: boolean
   }
 }> {
@@ -377,7 +379,7 @@ async function getTimetableWithImage(
           data: Buffer.from(existingImage.data, "base64"),
         }),
         requestInfo: {
-          weekUpdate: timetable.requestInfo.weekUpdate,
+          week: timetable.requestInfo.week,
           imageFromCache: true
         }
       }
@@ -428,7 +430,7 @@ async function getTimetableWithImage(
     },
     image: Object.assign(createdImage, { data: image }),
     requestInfo: {
-      weekUpdate: timetable.requestInfo.weekUpdate,
+      week: timetable.requestInfo.week,
       imageFromCache: false
     }
   }

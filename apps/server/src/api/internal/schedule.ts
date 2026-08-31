@@ -45,22 +45,35 @@ type scheduleImageRequestUpdateCallback = (
   >,
 ) => void
 
+type TimetableWithImageResponse = {
+  timetable: Timetable & { diff?: TimetableDiff }
+  image: {
+    id: number
+    tgId: string | null
+    data: string
+    timetableHash: string
+    stylemap: string
+  },
+  requestInfo: {
+    week: {
+      number: number
+      groupId: number
+      year: number
+      id: number
+      createdAt: Date
+      updatedAt: Date
+      timetableHash: string | null
+      owner: number
+      cachedUntil: Date
+      db_updatedAt: Date
+    },
+    imageFromCache: boolean
+  }
+}
+
 type ImageGenerator = AsyncGenerator<
   | Parameters<scheduleImageRequestUpdateCallback>[0]
-  | {
-    timetable: Timetable & { diff?: TimetableDiff }
-    image: {
-      id: number
-      tgId: string | null
-      data: string
-      timetableHash: string
-      stylemap: string
-    },
-    requestInfo: {
-      weekUpdate: { updated: boolean, reason: string },
-      imageFromCache: boolean
-    }
-  }
+  | TimetableWithImageResponse
 >
 
 async function* streamedScheduleResponse(ctx: {
@@ -114,7 +127,7 @@ export const app = new Elysia()
       })
       if (!user) return status(404, "User not found")
 
-      const { timetable, image } = await schedule.getTimetableWithImage(
+      const { timetable, image, requestInfo } = await schedule.getTimetableWithImage(
         user,
         query.week,
         query,
@@ -122,16 +135,8 @@ export const app = new Elysia()
       return {
         timetable,
         image: Object.assign(image, { data: image.data.toString("base64") }),
-      } as {
-        timetable: Timetable & { diff: TimetableDiff | null }
-        image: {
-          id: number
-          tgId: string | null
-          data: string // base64
-          timetableHash: string
-          stylemap: string
-        }
-      }
+        requestInfo
+      } as TimetableWithImageResponse
     },
     {
       query: scheduleRequestQuerySchema.extend({
@@ -153,16 +158,7 @@ export const app = new Elysia()
       yield* streamWithUpdates<
         Parameters<scheduleImageRequestUpdateCallback>[0],
         Awaited<ReturnType<typeof schedule.getTimetableWithImage>>,
-        {
-          timetable: Timetable & { diff?: TimetableDiff }
-          image: {
-            id: number
-            tgId: string | null
-            data: string
-            timetableHash: string
-            stylemap: string
-          }
-        }
+        TimetableWithImageResponse
       >(
         (onUpdate) =>
           schedule.getTimetableWithImage(user, query.week, {
@@ -174,6 +170,7 @@ export const app = new Elysia()
           image: Object.assign(result.image, {
             data: result.image.data.toString("base64"),
           }),
+          requestInfo: result.requestInfo
         }),
       ) as ImageGenerator
     },

@@ -1,5 +1,4 @@
 import { db } from "@/server/db"
-import type { WeekImage } from "@/server/generated/prisma/client"
 import { streamWithUpdates } from "@/server/lib/apiUpdateStream"
 import { stringBool } from "@/server/lib/misc"
 import {
@@ -52,18 +51,21 @@ type teacherScheduleImageRequestUpdateCallback = (
   >,
 ) => void
 
+type TeacherTimetableWithImageResponse = {
+  timetable: TeacherTimetable & { diff?: TimetableDiff }
+  image: {
+    id: number
+    tgId: string | null
+    data: string
+    timetableHash: string
+    stylemap: string
+  },
+  requestInfo: null
+}
+
 type ImageGenerator = AsyncGenerator<
   | Parameters<teacherScheduleImageRequestUpdateCallback>[0]
-  | {
-      timetable: TeacherTimetable & { diff?: TimetableDiff }
-      image: {
-        id: number
-        tgId: string | null
-        data: string
-        timetableHash: string
-        stylemap: string
-      }
-    }
+  | TeacherTimetableWithImageResponse
 >
 
 export const app = new Elysia()
@@ -109,10 +111,8 @@ export const app = new Elysia()
         image: Object.assign(image, {
           data: image.data.toString("base64"),
         }),
-      } as {
-        timetable: TeacherTimetable
-        image: WeekImage
-      }
+        requestInfo: null
+      } as TeacherTimetableWithImageResponse
     },
     {
       query: scheduleRequestQuerySchema,
@@ -185,16 +185,7 @@ export const app = new Elysia()
       yield* streamWithUpdates<
         Parameters<teacherScheduleImageRequestUpdateCallback>[0],
         Awaited<ReturnType<typeof schedule.getTeacherTimetableWithImage>>,
-        {
-          timetable: TeacherTimetable & { diff?: TimetableDiff }
-          image: {
-            id: number
-            tgId: string | null
-            data: string
-            timetableHash: string
-            stylemap: string
-          }
-        }
+        TeacherTimetableWithImageResponse
       >(
         (onUpdate) =>
           schedule.getTeacherTimetableWithImage(
@@ -211,6 +202,7 @@ export const app = new Elysia()
           image: Object.assign(result.image, {
             data: result.image.data.toString("base64"),
           }),
+          requestInfo: null
         }),
       ) as ImageGenerator
     },

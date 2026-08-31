@@ -21,10 +21,6 @@ import { CommandGroup } from "@grammyjs/commands"
 import { uploadScheduleImage } from "./imageUploading"
 import { api } from "@/bot/serverClient"
 import { getUser } from "./misc"
-import type {
-  TeacherTimetableWithImage,
-  TimetableWithImage,
-} from "@ssau-schedule/shared/timetable"
 
 function answerCallbackQueryOrReply(ctx: Context, text: string) {
   if (ctx.callbackQuery) {
@@ -227,15 +223,14 @@ export async function sendTimetable(
       }
     }
 
-    let timetableData: TimetableWithImage | TeacherTimetableWithImage | null =
-      null
+    const endpoint = teacherMode
+      ? api.teacher.schedule.image.stream
+      : api.schedule.image.stream
+
+    let timetableData: (Awaited<ReturnType<typeof api.teacher.schedule.image.get>>)["data"] | (Awaited<ReturnType<typeof api.schedule.image.get>>)["data"] = null
     let error = ""
 
     try {
-      const endpoint = teacherMode
-        ? api.teacher.schedule.image.stream
-        : api.schedule.image.stream
-
       const { data, error: reqError } = await endpoint.get({
         query: {
           userId: user?.id ?? undefined,
@@ -316,6 +311,10 @@ export async function sendTimetable(
         `)
     }
     const { timetable, image } = timetableData
+    const weekInfo = timetableData.requestInfo?.week
+
+    // allow force update if last update was more than 1 hour ago
+    const allowForceUpdate = weekInfo && Date.now() - weekInfo.updatedAt.getTime() > 3600_000
 
     const buttonsQuery =
       `schedule_button_view_` +
@@ -323,7 +322,7 @@ export async function sendTimetable(
 
     const buttonsMarkup = new InlineKeyboard()
       .text("⬅️", `${buttonsQuery}/${timetable.week - 1}`)
-      .text("🔄", `${buttonsQuery}/${timetable.week}`)
+      .text("🔄", `${buttonsQuery}/${timetable.week}${allowForceUpdate ? "/force" : ""}`)
       .text("➡️", `${buttonsQuery}/${timetable.week + 1}`)
       .row()
 

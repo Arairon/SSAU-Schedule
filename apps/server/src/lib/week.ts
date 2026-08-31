@@ -10,6 +10,10 @@ import { lk } from "@/server/ssau/lk"
 import { getCurrentYearId, getWeekFromDate } from "@ssau-schedule/shared/date"
 import { getUserPreferences } from "@ssau-schedule/shared/utils"
 
+export type WeekObject = Omit<Week, "timetable"> & {
+  timetable: Timetable | null
+}
+
 export async function getWeek(
   user: User,
   weekN: number,
@@ -19,11 +23,7 @@ export async function getWeek(
     nonPersonal?: boolean
     update?: boolean
   },
-): Promise<
-  Omit<Week, "timetable"> & {
-    timetable: Timetable | null
-  }
-> {
+): Promise<WeekObject> {
   const now = new Date()
   const owner =
     (opts?.nonPersonal // User asked for common week
