@@ -192,7 +192,7 @@ async function initBot(bot: GrammyBot<Context>) {
   await initAdmin(bot)
   await initFeedback(bot)
 
-  const hiddenCommands = ["config", "logout", "login", "start", "app"] // and the whole admin group
+  const hiddenCommands = ["config", "logout", "login", "start", "app", "themes"] // and the whole admin group
   const publicCommands: BotCommand[] = []
   for (const commandGroup of [
     accountCommands,

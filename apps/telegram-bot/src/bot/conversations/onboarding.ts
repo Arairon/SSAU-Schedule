@@ -439,7 +439,7 @@ async function askTheme(
   await ctx.api.editMessageText(
     msg.chat.id,
     msg.message_id,
-    "Быстрые настройки\n\n2/3: Выберите тему",
+    "Быстрые настройки\n\n2/3: Выберите тему\nПосмотреть примеры: /themes",
     { reply_markup: getThemesKeyboard() },
   )
 

@@ -4,6 +4,7 @@ import z from "zod"
 import { db } from "@/server/db"
 import { schedule } from "@/server/schedule/requests"
 import type {
+  DrawableTimetable,
   Timetable,
   TimetableDiff,
   TimetableLesson,
@@ -17,6 +18,7 @@ import { getWeekFromDate } from "@ssau-schedule/shared/date"
 import { streamWithUpdates } from "@/server/lib/apiUpdateStream"
 import { generateTimetableImageHtml } from "@/server/schedule/image"
 import { stringBool } from "@/server/lib/misc"
+import { getExampleTimetableImage } from "@/server/schedule/examples"
 
 const scheduleRequestQuerySchema = z.object({
   userId: z.coerce.number().int(),
@@ -287,3 +289,22 @@ export const app = new Elysia()
       }),
     },
   )
+  .get("/example", async ({ query }) => {
+    const { stylemap } = query
+
+    const image = await getExampleTimetableImage(stylemap)
+    return image as { // unnecessary type assertion, calms down Elysia's type inference
+      timetable: DrawableTimetable,
+      image: {
+        id: number
+        tgId: string | null
+        data: string // base64
+        timetableHash: string
+        stylemap: string
+      }
+    }
+  }, {
+    query: z.object({
+      stylemap: z.string().default("default"),
+    })
+  })

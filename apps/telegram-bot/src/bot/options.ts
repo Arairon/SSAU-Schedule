@@ -7,6 +7,7 @@ import { InlineKeyboard, type Bot } from "grammy"
 import { type Context } from "./types"
 import { api } from "@/bot/serverClient"
 import { getUser } from "./misc"
+import { uploadScheduleImage } from "./imageUploading"
 
 // function getCurrentOptionsText(user: User) {
 //   const preferences = Object.assign(
@@ -24,7 +25,7 @@ import { getUser } from "./misc"
 
 const menuText: Record<string, string> = {
   "": "",
-  themes: "Выберите новую тему",
+  themes: "Выберите новую тему\nПосмотреть примеры: /themes",
   group: "Группа и подгруппы",
   notifications: "Уведомления (Применяются только со следующего дня)",
   notifications_daystart:
@@ -807,6 +808,52 @@ export async function initOptions(bot: Bot<Context>) {
     ctx.session.options.updText = `Ваш аккаунт теперь недоступен для анонимных запросов`
     ctx.session.options.menu = ""
     return updateOptionsMsg(ctx)
+  })
+
+  commands.command("themes", "Посмотреть примеры тем", async (ctx) => {
+    if (!ctx.from || !ctx.message) return
+    await ctx.deleteMessage()
+    const images = []
+    for (const key of Object.keys(stylemaps)) {
+      const res = await api.schedule.example.get({
+        query: {
+          stylemap: key,
+        },
+      }).then((res) => res?.data)
+      if (!res) {
+        log.warn(`Failed to get example for stylemap ${key}`, { user: ctx.from.id })
+        continue
+      }
+      const image = res.image
+      if (!image.tgId) {
+        const uploadCaption = `requested by ${ctx.from.id} for #0\n${image.timetableHash}/${image.stylemap}`
+        const uploaded = await uploadScheduleImage({
+          api: ctx.api,
+          image: {
+            ...image,
+            data: Buffer.from(image.data, "base64"),
+          },
+          caption: uploadCaption,
+          userId: ctx.from.id,
+        })
+        image.tgId = uploaded.fileId
+      }
+      images.push(image)
+    }
+
+    if (!images.length) return ctx.reply("Не удалось получить примеры тем")
+
+    const caption = `\
+Примеры тем:
+${Object.values(stylemaps).map(i => i.description).join("\n")}\
+`
+    return ctx.replyWithMediaGroup(
+      images.map((img, index) => ({
+        type: "photo",
+        media: img.tgId!,
+        caption: index === 0 ? caption : undefined,
+      })),
+    )
   })
 
   bot.use(commands)
