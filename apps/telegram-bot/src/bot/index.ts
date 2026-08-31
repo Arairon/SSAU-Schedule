@@ -86,7 +86,6 @@ function createBot(): GrammyBot<Context> {
 export function getDefaultSession(): Session {
   return {
     sceneData: {},
-    loggedIn: false,
     options: {
       message: 0,
       menu: "",

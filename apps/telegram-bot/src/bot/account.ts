@@ -122,7 +122,6 @@ export async function initAccount(bot: Bot<Context>) {
     const user = await getUser(ctx)
     if (user === false) return // getUser уже отправил сообщение об ошибке
     if (user) {
-      ctx.session.loggedIn = true
       if (user.username && user.password) {
         await ctx.reply(`
 Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.

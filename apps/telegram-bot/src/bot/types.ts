@@ -15,7 +15,6 @@ export type ScheduleViewer = {
 
 export interface Session {
   sceneData: any //eslint-disable-line @typescript-eslint/no-explicit-any
-  loggedIn: boolean
   options: {
     message: number
     menu: string
