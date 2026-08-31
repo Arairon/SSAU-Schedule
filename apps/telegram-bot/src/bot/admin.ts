@@ -163,9 +163,19 @@ export async function initAdmin(bot: Bot<Context>) {
           .post()
           .then((res) => res.data)
         return ctx.reply(`Отменена отправка ${result?.count} сообщений`)
+      } else if (arg === "weeks") {
+        if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID)
+          return ctx.reply("Нет, спасибо.")
+        const result = await api.cache.week.invalidate
+          .patch({ all: true, hard: true })
+          .then((res) => res.data)
+        return ctx.reply(
+          `Сброшены все ${result?.updated} недели. <i>Как жестоко...</i>`,
+          { parse_mode: "HTML" },
+        )
       }
 
-      return ctx.reply("Опции: cache, images, notifs")
+      return ctx.reply("Опции: cache, images, notifs, weeks")
     },
   )
 

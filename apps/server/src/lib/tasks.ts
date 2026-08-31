@@ -138,7 +138,7 @@ export async function dailyUpdate() {
   const rawWeekNumber = getWeekFromDate(now, { unclamped: true }) + (now.getDay() === 0 ? 1 : 0) // sunday is considered next week
   const shouldScheduleDailyNotifications = rawWeekNumber >= 1 && rawWeekNumber <= 52
   const weekNumber = Math.min(Math.max(rawWeekNumber, 1), 52) // clamp to 1-52
-  // await db.week.updateMany({ data: { cachedUntil: now } }) // Invalidate week caches to avoid confusion
+  await db.week.updateMany({ data: { cachedUntil: now } }) // Invalidate week timetable caches to avoid confusion
   const users = await db.user.findMany({
     where: {
       groupId: { not: null },

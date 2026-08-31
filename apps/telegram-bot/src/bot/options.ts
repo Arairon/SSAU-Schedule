@@ -572,6 +572,7 @@ export async function initOptions(bot: Bot<Context>) {
       subgroup: target,
     })
     await api.cache["user-ics"].invalidate.patch({ userId: user.id })
+    await api.cache.week.invalidate.patch({ owner: user.id })
     //if (ctx.session.scheduleViewer.message && ctx.session.scheduleViewer.week)
     //  void sendTimetable(ctx, ctx.session.scheduleViewer.week);
     ctx.session.options.updText = `Подгруппа изменена на "${target || "Обе"}"`

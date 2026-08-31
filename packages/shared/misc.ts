@@ -167,7 +167,7 @@ export function formatTimetableDiff(
   };
   changes.sort((a, b) => {
     const timeDiff =
-      a.lesson.beginTime.getTime() - b.lesson.beginTime.getTime();
+      new Date(a.lesson.beginTime).getTime() - new Date(b.lesson.beginTime).getTime();
     if (timeDiff !== 0) return timeDiff;
 
     return typePriority[a.type] - typePriority[b.type];

@@ -159,7 +159,7 @@ async function loginConversation(
   }
   if (loginRes?.success) {
     await conversation.external(() => {
-      void api.cache.week.invalidate.patch({ owner: userId })
+      void api.cache.week.invalidate.patch({ owner: user.id })
     })
     const user = loginRes.user
     await ctx.api

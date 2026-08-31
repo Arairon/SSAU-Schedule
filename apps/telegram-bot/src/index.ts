@@ -33,7 +33,7 @@ const app = new Elysia()
       },
     )
   })
-  .onError(({ request, error, set, path, server }) => {
+  .onError(({ request, error, set, path, server, body, query, params }) => {
     const requestId = set.headers["x-request-id"]
     const e = {
       status: "status" in error ? error.status : "000",
@@ -45,7 +45,12 @@ const app = new Elysia()
         user: requestId,
         tag: "API",
         object: {
-          request,
+          request: {
+            request,
+            body,
+            query,
+            params
+          },
           error,
           ip: server?.requestIP(request),
         },
