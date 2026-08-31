@@ -28,7 +28,8 @@ export async function getWeek(
   const owner =
     (opts?.nonPersonal // User asked for common week
       || (opts?.groupId && opts.groupId !== user.groupId) // User asked for a different group -> common week
-      || !user.authCookie) // User is not authed -> common week // TODO: Figure out if unauthed users deserve custom lessons :]
+    )
+      // || !user.authCookie) // User is not authed -> common week // TODO: Figure out if unauthed users deserve custom lessons :]
       ? 0
       : user.id
   const groupId = opts?.groupId ?? user.groupId
