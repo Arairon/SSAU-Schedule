@@ -1,10 +1,11 @@
-import { InlineKeyboard, type Bot } from "grammy"
+import { GrammyError, InlineKeyboard, type Bot } from "grammy"
 import type { Context } from "./types"
 
 import log from "@/bot/logger"
 import {
   formatBigInt,
   formatSentence,
+  formatTimeDelta,
   getPersonShortname,
 } from "@ssau-schedule/shared/utils"
 import { getWeekFromDate } from "@ssau-schedule/shared/date"
@@ -28,7 +29,11 @@ function answerCallbackQueryOrReply(ctx: Context, text: string) {
   }
 
   if (!ctx.chat) return
-  return ctx.reply(text)
+  return ctx.reply(text).then((m) => {
+    setTimeout(() => {
+      void ctx.api.deleteMessage(ctx.chat!.id, m.message_id).catch()
+    }, 5000)
+  })
 }
 
 function answerCallbackQueryIfPresent(ctx: Context, text?: string) {
@@ -322,7 +327,7 @@ export async function sendTimetable(
 
     const buttonsMarkup = new InlineKeyboard()
       .text("⬅️", `${buttonsQuery}/${timetable.week - 1}`)
-      .text("🔄", `${buttonsQuery}/${timetable.week}${allowForceUpdate ? "/force" : ""}`)
+      .text(allowForceUpdate ? "🔃" : "🔄", `${buttonsQuery}/${timetable.week}${allowForceUpdate ? "/force" : ""}`)
       .text("➡️", `${buttonsQuery}/${timetable.week + 1}`)
       .row()
 
@@ -350,6 +355,13 @@ export async function sendTimetable(
       else if (timetable.week === currentWeek - 1)
         weekNumberModifier = " (предыдущая)"
 
+      const nerdStats = ctx.session.nerdMode ? `\
+🔃 ${weekInfo ? formatTimeDelta(Date.now() - weekInfo.updatedAt.getTime()) : "N/A"} ago | \
+${weekInfo?.id ?? -1}${user.authCookie ? "" : "*"} | ${(teacherMode ? `t${teacherId}` : `g${weekInfo?.groupId ?? groupId}`)} | \
+${weekInfo ? formatTimeDelta(weekInfo.cachedUntil.getTime() - Date.now()) : "N/A"} cache
+` : ""
+
+
       const captionLines = [
         `📆 ${timetable.week} неделя${weekNumberModifier}`,
         group ? `👥 ${group.name}` : "",
@@ -357,6 +369,7 @@ export async function sendTimetable(
           ? `👤 ${getPersonShortname(timetable.teacherName ?? "Неизвестный Преподаватель")}`
           : "",
         error ? `⚠️ ${error}` : "",
+        nerdStats,
         timetable.diff
           ? `📝 Изменения в расписании!\n${formatTimetableDiff(timetable.diff, "short", 8)}`
           : "",
@@ -428,10 +441,16 @@ export async function sendTimetable(
         await sendPhoto(uploaded.fileId)
       }
     } catch (error) {
-      log.debug(`Error: unchanged or errored. Ignoring.`, {
-        user: userId,
-        object: error as object,
-      })
+      if (error instanceof GrammyError && error.message.includes("message is not modified")) {
+        log.debug(`Error: message is not modified. Ignoring.`, {
+          user: userId,
+        })
+      } else {
+        log.warn(`Error during schedule viewer update`, {
+          user: userId,
+          object: error as object,
+        })
+      }
       await answerCallbackQueryOrReply(ctx, "Ничего не изменилось")
     }
     const endTime = process.hrtime.bigint()

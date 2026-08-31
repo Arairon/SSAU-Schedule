@@ -857,6 +857,17 @@ ${Object.values(stylemaps).map(i => i.description).join("\n")}\
     )
   })
 
+  commands.command("nerdmode", "Включить/выключить режим для гиков", async (ctx) => {
+    if (!ctx.from || !ctx.message) return
+    await ctx.deleteMessage()
+    ctx.session.nerdMode = !ctx.session.nerdMode
+    return ctx.reply(`Режим для гиков ${ctx.session.nerdMode ? "включён" : "выключен"}`).then(msg => {
+      setTimeout(() => {
+        void ctx.api.deleteMessage(ctx.chat.id, msg.message_id).catch()
+      }, 5000)
+    })
+  })
+
   bot.use(commands)
   return commands
 }

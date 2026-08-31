@@ -101,6 +101,7 @@ export function getDefaultSession(): Session {
       teacherId: undefined,
       mode: null,
     },
+    nerdMode: false,
   }
 }
 
@@ -191,8 +192,8 @@ async function initBot(bot: GrammyBot<Context>) {
   await initAdmin(bot)
   await initFeedback(bot)
 
-  const hiddenCommands = ["config", "logout", "login", "start", "app", "themes"] // and the whole admin group
-  const publicCommands: BotCommand[] = []
+  const publicCommands = ["schedule", "options", "today", "now", "ics", "exams", "bug"]
+  const commands: BotCommand[] = []
   for (const commandGroup of [
     accountCommands,
     scheduleCommands,
@@ -201,11 +202,11 @@ async function initBot(bot: GrammyBot<Context>) {
     feedbackCommands,
   ]) {
     for (const command of commandGroup.commands) {
-      if (hiddenCommands.includes(command.stringName)) continue
-      publicCommands.push({
-        command: command.stringName,
-        description: command.description,
-      })
+      if (publicCommands.includes(command.stringName))
+        commands.push({
+          command: command.stringName,
+          description: command.description,
+        })
     }
   }
   void Promise.all([
@@ -216,7 +217,7 @@ async function initBot(bot: GrammyBot<Context>) {
       ],
       { scope: { type: "all_group_chats" } },
     ),
-    bot.api.setMyCommands(publicCommands, {
+    bot.api.setMyCommands(commands, {
       scope: { type: "all_private_chats" },
     }),
   ])

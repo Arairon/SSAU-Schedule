@@ -23,6 +23,7 @@ export interface Session {
   }
   startedScheduleUpdateAt: Date | null
   scheduleViewer: ScheduleViewer
+  nerdMode: boolean
 }
 
 export type Context = ConversationFlavor<GrammyContext & SessionFlavor<Session>>
