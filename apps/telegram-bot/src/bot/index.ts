@@ -93,20 +93,24 @@ async function initBot(bot: GrammyBot<Context>) {
     }
   }, 3000)
 
-  //bot.use(stage.middleware());
-
-  await initLogin(bot)
-  await initGroupChange(bot)
-  await initOnboarding(bot)
-
-  // Do not place before initLogin. Otherwise it will log user's credentials.
   bot.use((ctx: Context, next) => {
     if (
       ctx.message &&
-      "text" in ctx.message &&
-      !ctx.conversation.active().LK_LOGIN
-    )
-      log.debug(`${ctx.message.text}`, { user: ctx?.from?.id ?? -1 })
+      "text" in ctx.message
+    ) {
+      const convos = ctx.conversation.active()
+      if (convos.LK_LOGIN || convos.ONBOARDING) {
+        log.debug(`*hidden* [convo: ${Object.keys(convos).join(", ")}]`, {
+          user: ctx?.from?.id ?? -1,
+        })
+      } else {
+        log.debug(`${ctx.message.text}`, { user: ctx?.from?.id ?? -1 })
+      }
+    } else if (ctx.callbackQuery) {
+      log.debug(`<cb> ${ctx.callbackQuery.data}`, {
+        user: ctx?.from?.id ?? -1,
+      })
+    }
     return next()
   })
 
@@ -127,6 +131,10 @@ async function initBot(bot: GrammyBot<Context>) {
       )
     })
   }
+
+  await initLogin(bot)
+  await initGroupChange(bot)
+  await initOnboarding(bot)
 
   await initAccount(bot)
   await initSchedule(bot)

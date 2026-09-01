@@ -605,7 +605,9 @@ async function onboardingConversation(
     )
   }
 
-  log.debug("Running onboarding conversation", { user: tgUserId })
+  await conversation.external(() => {
+    log.debug("Running onboarding conversation", { user: tgUserId })
+  })
 
   const msg = await ctx.reply("Приветствую!")
 
@@ -765,10 +767,8 @@ ${mode === "authed"
 Изменить всё можно через /options
 Получить расписание: /schedule
 Получить расписание на конкретную неделю: 
-  - /schedule [номер недели] 
   - [номер недели] в чат
 Расписание для других групп: 
-  - /schedule [название группы]
   - [название группы] в чат
 Получить календарь для других приложений: /ics
 Спасибо, что используете бота!

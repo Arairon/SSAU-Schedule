@@ -6,9 +6,19 @@ import log from "@/bot/logger"
 import { getPersonShortname } from "@ssau-schedule/shared/utils"
 import { api } from "@/bot/serverClient"
 
+type LoginConversationOptions = {
+  msg?: {
+    chat: {
+      id: number
+    },
+    message_id: number,
+  }
+}
+
 async function loginConversation(
   conversation: Conversation,
   ctx: GrammyContext,
+  opts: LoginConversationOptions | null = null
 ) {
   const userId = ctx.from?.id
   if (!userId) {
@@ -27,13 +37,18 @@ async function loginConversation(
       "Вас не существует в базе данных. Пожалуйста пропишите /start",
     )
   }
-  log.debug("Running login conversation", { user: userId })
+  await conversation.external(() => {
+    log.debug("Running login conversation", { user: userId })
+  })
 
-  const msg = await ctx.reply(`
-Вход в личный кабинет
-(Для отмены используйте /cancel)
-Введите логин:
-    `)
+  const msg = opts?.msg ?? (await ctx.reply("Вход в личный кабинет\nВведите логин:"))
+  if (opts?.msg) {
+    await ctx.api.editMessageText(
+      msg.chat.id,
+      msg.message_id,
+      "Вход в личный кабинет\nВведите логин:",
+    )
+  }
 
   // User input
   const usernameMsg = await conversation.waitFor("message:text")
@@ -49,6 +64,9 @@ async function loginConversation(
     usernameMsg.message.message_id,
   )
 
+  await conversation.external(() => {
+    log.debug(`Entered login: ${username}`, { user: userId })
+  })
   await ctx.api.editMessageText(
     msg.chat.id,
     msg.message_id,
@@ -68,10 +86,14 @@ async function loginConversation(
       `Вход в личный кабинет отменён`,
     )
   const password = passwordMsg.message.text
+
   await ctx.api.deleteMessage(
     passwordMsg.chat.id,
     passwordMsg.message.message_id,
   )
+  await conversation.external(() => {
+    log.debug(`Entered password`, { user: userId })
+  })
   await ctx.api.editMessageText(
     msg.chat.id,
     msg.message_id,
@@ -93,6 +115,9 @@ async function loginConversation(
       }),
   )
   if (!loginRes) {
+    await conversation.external(() => {
+      log.error(`Login failed: No response from server`, { user: userId })
+    })
     return ctx.api
       .editMessageText(
         msg.chat.id,
@@ -109,6 +134,9 @@ async function loginConversation(
   }
 
   while (!loginRes?.success) {
+    await conversation.external(() => {
+      log.warn(`Login failed: ${loginRes?.error}`, { user: userId })
+    })
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -134,6 +162,9 @@ async function loginConversation(
       passwordMsg.chat.id,
       passwordMsg.message.message_id,
     )
+    await conversation.external(() => {
+      log.debug(`Entered password`, { user: userId })
+    })
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -158,10 +189,13 @@ async function loginConversation(
     )
   }
   if (loginRes?.success) {
+    const user = loginRes.user
     await conversation.external(() => {
       void api.cache.week.invalidate.patch({ owner: user.id })
     })
-    const user = loginRes.user
+    await conversation.external(() => {
+      log.debug(`Login successful`, { user: userId })
+    })
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -227,5 +261,5 @@ async function loginConversation(
 }
 
 export async function initLogin(bot: Bot<Context>) {
-  bot.use(createConversation(loginConversation, { id: "LK_LOGIN" }))
+  bot.use(createConversation<Context, GrammyContext>(loginConversation, { id: "LK_LOGIN" }))
 }
