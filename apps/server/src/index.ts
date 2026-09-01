@@ -146,7 +146,7 @@ async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
   })
   if (opts.sendOnline) {
     await botApi.serverOnline.post({
-      version: getVersionString(),
+      version: getVersionString({ format: "long" }),
     }, {
       headers: {
         "x-internal-api-secret": env.SCHED_SERVER_INTERNAL_API_SECRET,
