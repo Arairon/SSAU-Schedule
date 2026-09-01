@@ -119,8 +119,9 @@ async function sendErrorMessage(ctx: Context, comment?: string) {
 
 export async function handleError(ctx: Context, error: Error) {
   void sendErrorMessage(ctx)
-  log.error(`Bot threw an error: E: ${JSON.stringify(error)}`, {
+  log.error(`Bot threw an error`, {
     user: ctx?.from?.id ?? ctx.chat?.id ?? "unknown",
+    object: error
   })
   if (env.NODE_ENV === "development") throw error
 }
@@ -173,9 +174,10 @@ async function initBot(bot: GrammyBot<Context>) {
       const ctx = err.ctx
       const error = err.error
       log.error(
-        `[BOT] ${JSON.stringify(err)}\n${err.name}\n${err.stack ?? "Stack unavailable"}`,
+        `[BOT] Error: ${err.name}`,
         {
           user: ctx?.from?.id ?? -1,
+          object: err,
         },
       )
       return ctx.api.sendMessage(

@@ -5,6 +5,7 @@ import type { Context } from "../types"
 import log from "@/bot/logger"
 import { api } from "@/bot/serverClient"
 import { getUser } from "../misc"
+import { bot } from ".."
 
 const GROUP_CHANGE_CANCEL = "group_change_cancel"
 const GROUP_CHANGE_FROM_LK = "group_change_from_lk"
@@ -81,7 +82,7 @@ async function groupChangeConversation(
   let selectableGroups: { id: number; name: string }[] = []
 
   const msg = await ctx.reply(
-    `Смена группы\n\nВведите полное или частичное название группы (например: 6101-090301D).\nДля отмены в любой момент используйте /cancel.`,
+    `Смена группы\n\nВведите полное или частичное название группы (например: 6101-090301D).`,
     {
       reply_markup: getMainKeyboard(hasLkAccess),
     },
@@ -108,7 +109,11 @@ async function groupChangeConversation(
         msg.chat.id,
         msg.message_id,
         "Смена группы отменена\nВернуться в меню: /options",
-      )
+      ).then(() => {
+        setTimeout(() => {
+          void bot.api.deleteMessage(msg.chat.id, msg.message_id).catch()
+        }, 5_000)
+      })
     }
 
     if (callbackData === GROUP_CHANGE_FROM_LK) {
@@ -193,8 +198,13 @@ async function groupChangeConversation(
       return ctx.api.editMessageText(
         msg.chat.id,
         msg.message_id,
-        `Группа успешно изменена на '${lkResult.updatedUser.group?.name ?? "Неизвестно"}'\nВернуться в меню: /options`,
-      )
+        `Группа успешно изменена на '${lkResult.updatedUser.group?.name ?? "Неизвестно"}'`,
+        { reply_markup: new InlineKeyboard().text("Вернуться в меню", "open_options") },
+      ).then(() => {
+        setTimeout(() => {
+          void bot.api.deleteMessage(msg.chat.id, msg.message_id).catch()
+        }, 5_000)
+      })
     }
 
     if (callbackData?.startsWith(GROUP_CHANGE_SELECT_PREFIX)) {
@@ -228,7 +238,12 @@ async function groupChangeConversation(
         msg.chat.id,
         msg.message_id,
         `Группа успешно изменена на '${updatedUser.group?.name ?? selectedGroup.name}'`,
-      )
+        { reply_markup: new InlineKeyboard().text("Вернуться в меню", "open_options") },
+      ).then(() => {
+        setTimeout(() => {
+          void bot.api.deleteMessage(msg.chat.id, msg.message_id).catch()
+        }, 5_000)
+      })
     }
 
     if (!messageText) {
@@ -279,7 +294,12 @@ async function groupChangeConversation(
         msg.chat.id,
         msg.message_id,
         `Группа успешно изменена на '${updatedUser.group?.name ?? groups[0].name}'`,
-      )
+        { reply_markup: new InlineKeyboard().text("Вернуться в меню", "open_options") },
+      ).then(() => {
+        setTimeout(() => {
+          void bot.api.deleteMessage(msg.chat.id, msg.message_id).catch()
+        }, 5_000)
+      })
     }
 
     selectableGroups = groups.slice(0, 9).map((group) => ({
