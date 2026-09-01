@@ -120,43 +120,6 @@ export const app = new Elysia()
       ),
     },
   )
-  // .post(
-  //   "/image",
-  //   async ({ body: image }) => {
-  //     let result:
-  //       | { id: number; success: true; tgId: string }
-  //       | { id: number; success: false; error: string };
-  //     await uploadScheduleImage({
-  //       image: { ...image, data: Buffer.from(image.data, "base64") },
-  //       caption: image.caption || `${image.timetableHash}/${image.stylemap}`,
-  //     })
-  //       .then(
-  //         (res) => (result = { id: image.id, success: true, tgId: res.fileId }),
-  //       )
-  //       .catch((e) => {
-  //         log.error(
-  //           `Failed to upload image #${image.id} to Telegram. Err: ${e as Error}`,
-  //           {
-  //             user: "images",
-  //             tag: "Ely",
-  //           },
-  //         );
-  //         result = { id: image.id, success: false, error: String(e) };
-  //       });
-  //     return result!;
-  //   },
-  //   {
-  //     body: z.object({
-  //       id: z.number(),
-  //       data: z.string(), // base64
-  //       tgId: z.string().nullable(),
-  //       caption: z.string().default(""),
-  //       timetableHash: z.string(),
-  //       stylemap: z.string(),
-  //       validUntil: z.coerce.date(),
-  //     }),
-  //   },
-  // )
   .post(
     "/images",
     async ({ body }) => {

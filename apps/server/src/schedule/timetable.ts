@@ -333,42 +333,6 @@ export function flattenTimetable<T extends DrawableLesson>(timetable: {
   )
 }
 
-// // Was used for hashing
-// function normalizeTimetableLesson(
-//   lesson: TimetableLesson,
-// ): NormalizedTimetableLesson {
-//   const normalizeStringArray = (values: string[]) => [...values].sort();
-
-//   return {
-//     id: lesson.id,
-//     infoId: lesson.infoId,
-//     type: lesson.type,
-//     discipline: lesson.discipline,
-//     teacher: {
-//       name: lesson.teacher.name,
-//       id: lesson.teacher.id,
-//     },
-//     isOnline: lesson.isOnline,
-//     isIet: lesson.isIet,
-//     building: lesson.building,
-//     room: lesson.room,
-//     subgroup: lesson.subgroup,
-//     groups: normalizeStringArray(lesson.groups),
-//     flows: normalizeStringArray(lesson.flows),
-//     dayTimeSlot: lesson.dayTimeSlot,
-//     beginTime: new Date(lesson.beginTime).getTime(),
-//     endTime: new Date(lesson.endTime).getTime(),
-//     conferenceUrl: lesson.conferenceUrl,
-//     customized: lesson.customized
-//       ? {
-//         hidden: lesson.customized.hidden,
-//         disabled: lesson.customized.disabled,
-//         comment: lesson.customized.comment,
-//         customizedBy: lesson.customized.customizedBy,
-//       }
-//       : null,
-//   };
-// }
 
 function normalizeDrawableLesson(lesson: DrawableLesson): DrawableLesson {
   return {

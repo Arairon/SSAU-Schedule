@@ -1,8 +1,6 @@
 import { Bot as GrammyBot, InputFile, type GrammyError, session } from "grammy"
 import { run } from "@grammyjs/runner"
 import { conversations } from "@grammyjs/conversations"
-// import { HttpsProxyAgent } from "https-proxy-agent";
-// import { SocksProxyAgent } from "socks-proxy-agent";
 
 import { env } from "@/bot/env"
 import { type Context, type Session } from "./types"
@@ -22,65 +20,8 @@ import { type BotCommand } from "grammy/types"
 import type { Update } from "grammy/types"
 import { getVersionString } from "@ssau-schedule/shared/version"
 
-// function getWebhookUrl(path: string): string {
-//   if (env.SCHED_BOT_WEBHOOK_URL) return env.SCHED_BOT_WEBHOOK_URL;
-//   return `https://${env.SCHED_BOT_DOMAIN}${path}`;
-// }
-
-// function resolveProxyKind(proxyUrl: URL): "socks" | "https" {
-//   const protocol = proxyUrl.protocol.replace(":", "").toLowerCase();
-//   const configuredType = env.SCHED_BOT_PROXY_TYPE;
-
-//   if (configuredType === "socks") {
-//     if (!protocol.startsWith("socks")) {
-//       throw new Error(
-//         "SCHED_BOT_PROXY_TYPE=socks requires a socks:// proxy URL",
-//       );
-//     }
-//     return "socks";
-//   }
-
-//   if (configuredType === "https") {
-//     if (!["http", "https"].includes(protocol)) {
-//       throw new Error(
-//         "SCHED_BOT_PROXY_TYPE=https requires a http:// or https:// proxy URL",
-//       );
-//     }
-//     return "https";
-//   }
-
-//   if (protocol.startsWith("socks")) return "socks";
-//   if (["http", "https"].includes(protocol)) return "https";
-
-//   throw new Error(
-//     `Unsupported SCHED_BOT_PROXY_URL protocol: ${proxyUrl.protocol}`,
-//   );
-// }
-
 function createBot(): GrammyBot<Context> {
-  // if (!env.SCHED_BOT_PROXY_URL) {
   return new GrammyBot<Context>(env.SCHED_BOT_TOKEN)
-  // }
-
-  // const proxyUrl = new URL(env.SCHED_BOT_PROXY_URL);
-  // const proxyKind = resolveProxyKind(proxyUrl);
-  // const proxyAgent =
-  //   proxyKind === "socks"
-  //     ? new SocksProxyAgent(proxyUrl)
-  //     : new HttpsProxyAgent(proxyUrl);
-
-  // log.info(`Telegram API proxy enabled (${proxyUrl})`, {
-  //   user: "sys",
-  // });
-
-  // return new GrammyBot<Context>(env.SCHED_BOT_TOKEN, {
-  //   client: {
-  //     baseFetchConfig: {
-  //       agent: proxyAgent,
-  //       compress: true,
-  //     },
-  //   },
-  // });
 }
 
 export function getDefaultSession(): Session {
@@ -240,13 +181,6 @@ async function initBot(bot: GrammyBot<Context>) {
     })
   })
 
-  // bot.on(message("photo"), async (ctx) => {
-  //   ctx.session.messages.push({ photo: ctx.message });
-  // });
-
-  // bot.on(message("video"), async (ctx) => {
-  //   ctx.session.messages.push({ video: ctx.message });
-  // });
 }
 
 export const bot = createBot()

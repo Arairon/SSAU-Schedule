@@ -65,28 +65,6 @@ export async function initAccount(bot: Bot<Context>) {
       })
     }
     return start(ctx, userId as unknown as bigint)
-    //     const existingUser = await getUser(ctx)
-    //     if (existingUser === false) return // getUser уже отправил сообщение об ошибке
-    //     if (!existingUser) {
-    //       return start(ctx, userId as unknown as bigint)
-    //     } else {
-    //       return ctx.reply(
-    //         `\
-    // Вы уверены что хотите сбросить все настройки?
-    // Если вы хотите поменять настройки - используйте /options
-    // ${existingUser.authCookie
-    //           ? "Если вы хотите просто выйти из аккаунта - используйте /logout"
-    //           : "Если вы хотите войти в личный кабинет - используйте /login"
-    //         }
-    // Будет сброшено всё: Календари, настроки, данные для входа, группы и т.п.
-    //         `,
-    //         {
-    //           reply_markup: new InlineKeyboard()
-    //             .text("Отмена", "start_reset_cancel")
-    //             .text("Да, сбросить", "start_reset_confirm"),
-    //         },
-    //       )
-    //     }
   })
 
   bot.callbackQuery("start_onboarding", async (ctx) => {
@@ -138,8 +116,6 @@ export async function initAccount(bot: Bot<Context>) {
       }
     }
     return ctx.conversation.enter("LK_LOGIN")
-    //void ctx.deleteMessage(ctx.message.message_id);
-    //return ctx.scene.enter("LK_LOGIN");
   })
 
   commands.command("logout", "Выход из личного кабинета", async (ctx) => {

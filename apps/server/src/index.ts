@@ -156,8 +156,6 @@ async function connectionCheck(opts: { sendOnline?: boolean } = {}) {
 }
 
 async function start() {
-  // await init_redis(server);
-  // await init_bot();
   log.info("SSAU Schedule server starting", {
     user: "server", tag: "init",
     object: {

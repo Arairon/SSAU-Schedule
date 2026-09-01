@@ -51,24 +51,6 @@ async function uploadViaRelay(opts: {
   const target = getImageDumpChatId()
   const mimeType = detectImageMimeType(opts.image)
 
-  // const attempts = [
-  //   () =>
-  //     relayImageByFile({
-  //       target,
-  //       image: opts.image,
-  //       mimeType,
-  //       filename: "schedule.jpg",
-  //     }),
-  //   () =>
-  //     relayImageByBase64({
-  //       target,
-  //       imageBase64: opts.image.toString("base64"),
-  //       mimeType,
-  //       filename: "schedule.jpg",
-  //     }),
-  //   () => relayImageByUrl({ target, url: opts.imageUrl }),
-  // ];
-
   try {
     const sent = await relayImageByFile({
       target,

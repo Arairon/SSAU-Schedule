@@ -19,12 +19,6 @@ import type {
 import Elysia from "elysia"
 import z from "zod"
 
-// const stringBool = z
-//   .string()
-//   .toLowerCase()
-//   .transform((val) => val === "true")
-//   .optional();
-
 const scheduleRequestQuerySchema = z.object({
   userId: z.coerce.number().int(),
   week: z.coerce.number().int().default(0),

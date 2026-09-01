@@ -9,20 +9,6 @@ import { api } from "@/bot/serverClient"
 import { getUser } from "./misc"
 import { uploadScheduleImage } from "./imageUploading"
 
-// function getCurrentOptionsText(user: User) {
-//   const preferences = Object.assign(
-//     {},
-//     UserPreferencesDefaults,
-//     user.preferences,
-//   );
-//   return fmt`
-// Тема: ${STYLEMAPS[preferences.theme ?? "default"].description}
-// Подгруппа: ${user.subgroup || "Обе"}
-// Отображать ИОТы: ${preferences.showIet ? "Да" : "Нет"}
-// Отображать Военку: ${preferences.showMilitary ? "Да" : "Нет"}
-//   `;
-// }
-
 const menuText: Record<string, string> = {
   "": "",
   themes: "Выберите новую тему\nПосмотреть примеры: /themes",
