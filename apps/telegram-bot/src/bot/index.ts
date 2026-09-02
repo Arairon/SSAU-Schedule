@@ -94,18 +94,14 @@ async function initBot(bot: GrammyBot<Context>) {
   }, 3000)
 
   bot.use((ctx: Context, next) => {
-    if (
-      ctx.message &&
-      "text" in ctx.message
-    ) {
-      const convos = ctx.conversation.active()
-      if (convos.LK_LOGIN || convos.ONBOARDING) {
-        log.debug(`*hidden* [convo: ${Object.keys(convos).join(", ")}]`, {
-          user: ctx?.from?.id ?? -1,
-        })
-      } else {
-        log.debug(`${ctx.message.text}`, { user: ctx?.from?.id ?? -1 })
-      }
+    const convos = ctx.conversation.active()
+    if (Object.keys(convos).length > 0) {
+      return next()
+    }
+    if (ctx.message && "text" in ctx.message) {
+      log.debug(`${ctx.message.text}`, {
+        user: ctx?.from?.id ?? -1
+      })
     } else if (ctx.callbackQuery) {
       log.debug(`<cb> ${ctx.callbackQuery.data}`, {
         user: ctx?.from?.id ?? -1,

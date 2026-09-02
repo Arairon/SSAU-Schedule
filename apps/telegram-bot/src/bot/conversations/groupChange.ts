@@ -6,12 +6,11 @@ import log from "@/bot/logger"
 import { api } from "@/bot/serverClient"
 import { getUser } from "../misc"
 import { bot } from ".."
+import { wait } from "./utils"
 
 const GROUP_CHANGE_CANCEL = "group_change_cancel"
 const GROUP_CHANGE_FROM_LK = "group_change_from_lk"
 const GROUP_CHANGE_SELECT_PREFIX = "group_change_select_"
-
-// TODO: Rework all conversations. Use proper state machines. No loops or commands mid-conversation
 
 function getMainKeyboard(hasLkAccess: boolean) {
   const keyboard = new InlineKeyboard()
@@ -89,21 +88,15 @@ async function groupChangeConversation(
   )
 
   while (true) {
-    const update = await conversation.wait()
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (!update) continue
 
-    const callbackData =
-      update.callbackQuery && "data" in update.callbackQuery
-        ? update.callbackQuery.data
-        : null
-    const messageText =
-      update.message && "text" in update.message
-        ? update.message.text?.trim()
-        : undefined
+    const { data, text, ctx: updCtx } = update
 
-    if (callbackData === GROUP_CHANGE_CANCEL || messageText === "/cancel") {
+    if (data === GROUP_CHANGE_CANCEL || text === "/cancel") {
       log.debug("Group change cancelled", { user: tgUserId })
-      if (callbackData) {
-        await update.answerCallbackQuery().catch()
+      if (data) {
+        await updCtx.answerCallbackQuery().catch()
       }
       return ctx.api.editMessageText(
         msg.chat.id,
@@ -116,8 +109,8 @@ async function groupChangeConversation(
       })
     }
 
-    if (callbackData === GROUP_CHANGE_FROM_LK) {
-      await update.answerCallbackQuery().catch()
+    if (data === GROUP_CHANGE_FROM_LK) {
+      await updCtx.answerCallbackQuery().catch()
 
       if (!hasLkAccess) {
         log.warn("Group change from LK requested by non-auth user", {
@@ -207,10 +200,10 @@ async function groupChangeConversation(
       })
     }
 
-    if (callbackData?.startsWith(GROUP_CHANGE_SELECT_PREFIX)) {
-      await update.answerCallbackQuery().catch()
+    if (data?.startsWith(GROUP_CHANGE_SELECT_PREFIX)) {
+      await updCtx.answerCallbackQuery().catch()
 
-      const rawGroupId = callbackData.slice(GROUP_CHANGE_SELECT_PREFIX.length)
+      const rawGroupId = data.slice(GROUP_CHANGE_SELECT_PREFIX.length)
       const groupId = Number(rawGroupId)
       const selectedGroup = selectableGroups.find(
         (group) => group.id === groupId,
@@ -246,13 +239,13 @@ async function groupChangeConversation(
       })
     }
 
-    if (!messageText) {
+    if (!text) {
       continue
     }
 
-    if (update.chat && update.message) {
-      await update.api
-        .deleteMessage(update.chat.id, update.message.message_id)
+    if (updCtx.chat && updCtx.message) {
+      await updCtx.api
+        .deleteMessage(updCtx.chat.id, updCtx.message.message_id)
         .catch(() => {
           /* ignore */
         })
@@ -261,7 +254,7 @@ async function groupChangeConversation(
     await ctx.api.editMessageText(
       msg.chat.id,
       msg.message_id,
-      `Ищем группу по запросу '${messageText}'...`,
+      `Ищем группу по запросу '${text}'...`,
       { reply_markup: getMainKeyboard(hasLkAccess) },
     )
 
@@ -269,7 +262,7 @@ async function groupChangeConversation(
       api.ssau.findGroupOrOptions
         .get({
           query: {
-            name: messageText,
+            name: text,
           },
         })
         .then((res) => res.data),

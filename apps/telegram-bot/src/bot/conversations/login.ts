@@ -5,6 +5,7 @@ import type { Context } from "../types"
 import log from "@/bot/logger"
 import { getPersonShortname } from "@ssau-schedule/shared/utils"
 import { api } from "@/bot/serverClient"
+import { promptForText } from "./utils"
 
 type LoginConversationOptions = {
   msg?: {
@@ -15,16 +16,17 @@ type LoginConversationOptions = {
   }
 }
 
-async function loginConversation(
+export async function loginConversation(
   conversation: Conversation,
   ctx: GrammyContext,
   opts: LoginConversationOptions | null = null
 ) {
   const userId = ctx.from?.id
   if (!userId) {
-    return ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
+    await ctx.reply(`У вас нет ID пользователя. <i>Что вы такое..?</i>`, {
       parse_mode: "HTML",
     })
+    return { ok: false, cancelled: true }
   }
   const user = await conversation.external(() =>
     api.user
@@ -33,67 +35,43 @@ async function loginConversation(
       .then((res) => res.data),
   )
   if (!user) {
-    return ctx.reply(
+    await ctx.reply(
       "Вас не существует в базе данных. Пожалуйста пропишите /start",
     )
+    return { ok: false, cancelled: true }
   }
   await conversation.external(() => {
     log.debug("Running login conversation", { user: userId })
   })
 
   const msg = opts?.msg ?? (await ctx.reply("Вход в личный кабинет\nВведите логин:"))
-  if (opts?.msg) {
+
+  // User input
+
+  const username = await promptForText(conversation, ctx, msg, opts?.msg ? "Вход в личный кабинет\nВведите логин:" : null, { retryUntilCaught: true })
+  if (!username) {
     await ctx.api.editMessageText(
       msg.chat.id,
       msg.message_id,
-      "Вход в личный кабинет\nВведите логин:",
+      `Вход в личный кабинет отменён`,
     )
+    return { ok: false, cancelled: true }
   }
 
-  // User input
-  const usernameMsg = await conversation.waitFor("message:text")
-  if (!usernameMsg.message.text || usernameMsg.message.text === "/cancel")
-    return ctx.api.editMessageText(
-      msg.chat.id,
-      msg.message_id,
-      `Вход в личный кабинет отменён`,
-    )
-  const username = usernameMsg.message.text
-  await ctx.api.deleteMessage(
-    usernameMsg.chat.id,
-    usernameMsg.message.message_id,
-  )
-
-  await conversation.external(() => {
-    log.debug(`Entered login: ${username}`, { user: userId })
-  })
-  await ctx.api.editMessageText(
-    msg.chat.id,
-    msg.message_id,
-    `
+  const password = await promptForText(conversation, ctx, msg, `\
 Вход в личный кабинет
 Логин: ${username}
-Введите пароль:
-    `,
-  )
+Введите пароль:`, { muffleLog: true, retryUntilCaught: true })
 
-  // User input
-  const passwordMsg = await conversation.waitFor("message:text")
-  if (!passwordMsg.message.text || passwordMsg.message.text === "/cancel")
-    return ctx.api.editMessageText(
+  if (!password) {
+    await ctx.api.editMessageText(
       msg.chat.id,
       msg.message_id,
       `Вход в личный кабинет отменён`,
     )
-  const password = passwordMsg.message.text
+    return { ok: false, cancelled: true }
+  }
 
-  await ctx.api.deleteMessage(
-    passwordMsg.chat.id,
-    passwordMsg.message.message_id,
-  )
-  await conversation.external(() => {
-    log.debug(`Entered password`, { user: userId })
-  })
   await ctx.api.editMessageText(
     msg.chat.id,
     msg.message_id,
@@ -118,7 +96,7 @@ async function loginConversation(
     await conversation.external(() => {
       log.error(`Login failed: No response from server`, { user: userId })
     })
-    return ctx.api
+    await ctx.api
       .editMessageText(
         msg.chat.id,
         msg.message_id,
@@ -150,21 +128,21 @@ async function loginConversation(
     `,
       )
       .catch() // Ignore "message is not modified" error
-    const passwordMsg = await conversation.waitFor("message:text")
-    if (!passwordMsg.message.text || passwordMsg.message.text === "/cancel")
-      return ctx.api.editMessageText(
+    const password = await promptForText(conversation, ctx, msg, `\
+Вход в личный кабинет
+Логин: ${username}
+Пароль: \*\*\*\*\*\*\*\*
+Ошибка входа: "${loginRes?.error}"
+Можете попробовать ввести пароль ещё раз или отменить вход через /cancel`,
+      { muffleLog: true, retryUntilCaught: true })
+    if (!password) {
+      await ctx.api.editMessageText(
         msg.chat.id,
         msg.message_id,
         `Вход в личный кабинет отменён`,
       )
-    const password = passwordMsg.message.text
-    await ctx.api.deleteMessage(
-      passwordMsg.chat.id,
-      passwordMsg.message.message_id,
-    )
-    await conversation.external(() => {
-      log.debug(`Entered password`, { user: userId })
-    })
+      return { ok: false, cancelled: true }
+    }
     await ctx.api
       .editMessageText(
         msg.chat.id,
@@ -218,9 +196,9 @@ async function loginConversation(
     const saveAnswer = await conversation.waitForCallbackQuery(
       /login_complete_save/,
       {
-        otherwise: (ctx) => {
+        otherwise: async (ctx) => {
           log.debug("Logged in without saving", { user: userId })
-          return ctx.api.editMessageText(
+          await ctx.api.editMessageText(
             msg.chat.id,
             msg.message_id,
             `
@@ -253,11 +231,12 @@ async function loginConversation(
       )
     } else {
       log.debug("Login successful, credentials not saved", { user: userId })
-      return // Handled in "otherwise"
     }
+    return { ok: true }
   } else {
     // This should never happen
   }
+  return { ok: false, cancelled: false }
 }
 
 export async function initLogin(bot: Bot<Context>) {

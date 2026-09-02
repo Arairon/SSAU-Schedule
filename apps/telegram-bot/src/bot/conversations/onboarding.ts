@@ -5,10 +5,12 @@ import type { Context } from "../types"
 import log from "@/bot/logger"
 import { getUserPreferences } from "@ssau-schedule/shared/utils"
 import { stylemaps } from "@ssau-schedule/shared/themes/index"
-import { getPersonShortname } from "@ssau-schedule/shared/utils"
 import { changeUserGroupById } from "./groupChange"
 import { api } from "@/bot/serverClient"
+import { wait } from "./utils"
+import { loginConversation } from "./login"
 
+const ONBOARD_PREFIX = "onboard_"
 const ONBOARD_CANCEL = "onboard_cancel"
 const ONBOARD_MODE_AUTHED = "onboard_mode_authed"
 const ONBOARD_MODE_UNAUTHED = "onboard_mode_unauthed"
@@ -29,28 +31,11 @@ const ONBOARD_NOTIFY_DISABLE = "onboard_notify_disable"
 const ONBOARD_PROXY_ALLOW = "onboard_proxy_allow"
 const ONBOARD_PROXY_DENY = "onboard_proxy_deny"
 
-const ONBOARD_LOGIN_SAVE = "onboard_login_save"
-const ONBOARD_LOGIN_DONTSAVE = "onboard_login_dontsave"
-
 const notificationDefaults = {
   notifyBeforeLessons: 30 * 60,
   notifyAboutNextLesson: true,
   notifyAboutNextDay: true,
   notifyAboutNextWeek: true,
-}
-
-function getCallbackData(update: GrammyContext): string | null {
-  if (update.callbackQuery && "data" in update.callbackQuery) {
-    return update.callbackQuery.data ?? null
-  }
-  return null
-}
-
-function getMessageText(update: GrammyContext): string | null {
-  if (update.message && "text" in update.message && update.message.text) {
-    return update.message.text.trim()
-  }
-  return null
 }
 
 async function cancelOnboarding(
@@ -103,14 +88,17 @@ ${proxyUserExists
   )
 
   while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    if (text === "/cancel") return null
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (update?.text === "/cancel") return null
+    if (!update?.data) continue
+    const data = update.data
 
-    const data = getCallbackData(update)
-    if (!data) continue
+    if (!data.startsWith(ONBOARD_PREFIX)) {
+      await update.ctx.answerCallbackQuery("Действие недоступно во время стартового диалога").catch()
+      continue
+    }
 
-    await update.answerCallbackQuery().catch()
+    await update.ctx.answerCallbackQuery().catch()
 
     if (data === ONBOARD_CANCEL) return null
     if (data === ONBOARD_MODE_AUTHED) return "authed"
@@ -118,158 +106,6 @@ ${proxyUserExists
   }
 }
 
-async function promptForText(
-  conversation: Conversation,
-  ctx: GrammyContext,
-  msg: { chat: { id: number }; message_id: number },
-  prompt: string,
-): Promise<string | null> {
-  await ctx.api.editMessageText(msg.chat.id, msg.message_id, prompt)
-
-  while (true) {
-    const input = await conversation.waitFor("message:text")
-    const text = input.message.text?.trim()
-    if (!text) continue
-
-    await input.api
-      .deleteMessage(input.chat.id, input.message.message_id)
-      .catch()
-
-    if (text === "/cancel") return null
-    return text
-  }
-}
-
-async function runLkLogin(
-  conversation: Conversation,
-  ctx: GrammyContext,
-  msg: { chat: { id: number }; message_id: number },
-  userId: number,
-) {
-  const user = await conversation.external(() =>
-    api.user
-      .id({ id: userId })
-      .get()
-      .then((res) => res.data),
-  )
-  if (!user) return { ok: false as const, cancelled: false as const }
-
-  const username = await promptForText(
-    conversation,
-    ctx,
-    msg,
-    `\
-Вход в личный кабинет
-Введите логин:
-`,
-  )
-  if (!username) return { ok: false as const, cancelled: true as const }
-
-  const initialPassword = await promptForText(
-    conversation,
-    ctx,
-    msg,
-    `\
-Вход в личный кабинет
-Логин: ${username}
-Введите пароль:
-    `,
-  )
-  if (!initialPassword) return { ok: false as const, cancelled: true as const }
-  let password: string = initialPassword
-
-  let loginResult = await conversation.external(() =>
-    api.user
-      .id({ id: userId })
-      .lk.login.post({ username, password, saveCredentials: false })
-      .then((res) => res.data),
-  )
-
-  while (!loginResult?.success) {
-    const nextPassword = await promptForText(
-      conversation,
-      ctx,
-      msg,
-      `\
-Вход в ЛК
-Логин: ${username}
-Пароль: \*\*\*\*\*\*\*\*
-Ошибка входа: ${loginResult?.error}
-Попробуйте ввести пароль снова или отмените вход через /cancel`,
-    )
-    if (!nextPassword) return { ok: false as const, cancelled: true as const }
-    password = nextPassword
-
-    await ctx.api
-      .editMessageText(
-        msg.chat.id,
-        msg.message_id,
-        `\
-Вход в личный кабинет
-Логин: ${username}
-Пароль: \*\*\*\*\*\*\*\*
-Пробуем войти...
-    `,
-      )
-      .catch()
-
-    loginResult = await conversation.external(() =>
-      api.user
-        .id({ id: userId })
-        .lk.login.post({ username, password, saveCredentials: false })
-        .then((res) => res.data),
-    )
-  }
-
-  const userInfo = loginResult.user
-
-  await ctx.api.editMessageText(
-    msg.chat.id,
-    msg.message_id,
-    `
-Вход в личный кабинет
-Логин: ${username}
-Пароль: \*\*\*\*\*\*\*\*
-Вход успешен! ${userInfo.fullname ? `Вы вошли как '${getPersonShortname(userInfo.fullname)}'` : ``}
-Сохранить данные для входа в базе данных?
-(Данные хранятся в зашифрованном виде и используются только если ЛК по той или иной причине прервёт сессию. Сохранять данные необязательно)
-    `,
-    {
-      reply_markup: new InlineKeyboard()
-        .text("❌ Нет", ONBOARD_LOGIN_DONTSAVE)
-        .text("✅ Да", ONBOARD_LOGIN_SAVE)
-        .row()
-        .text("Отмена", ONBOARD_CANCEL),
-    },
-  )
-
-  while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    if (text === "/cancel")
-      return { ok: false as const, cancelled: true as const }
-
-    const data = getCallbackData(update)
-    if (!data) continue
-    await update.answerCallbackQuery().catch()
-
-    if (data === ONBOARD_CANCEL) {
-      return { ok: false as const, cancelled: true as const }
-    }
-    if (data === ONBOARD_LOGIN_SAVE) {
-      await conversation.external(() =>
-        api.user
-          .id({ id: user.id })
-          .lk.saveCredentials.post({ username, password })
-          .then(() => null),
-      )
-      return { ok: true as const, savedCredentials: true as const }
-    }
-    if (data === ONBOARD_LOGIN_DONTSAVE) {
-      return { ok: true as const, savedCredentials: false as const }
-    }
-  }
-}
 
 async function askAuthedGroupMode(
   conversation: Conversation,
@@ -292,13 +128,19 @@ async function askAuthedGroupMode(
   )
 
   while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    if (text === "/cancel") return null
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (!update) continue
+    if (update.text === "/cancel")
+      return null
 
-    const data = getCallbackData(update)
+    const data = update.data
     if (!data) continue
-    await update.answerCallbackQuery().catch()
+
+    if (!data.startsWith(ONBOARD_PREFIX)) {
+      await update.ctx.answerCallbackQuery("Действие недоступно во время стартового диалога").catch()
+      continue
+    }
+    await update.ctx.answerCallbackQuery().catch()
 
     if (data === ONBOARD_CANCEL) return null
     if (data === ONBOARD_GROUP_KEEP_LK) return "keep"
@@ -335,18 +177,22 @@ async function chooseGroupManually(
   )
 
   while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    const data = getCallbackData(update)
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (!update) continue
+    const { text, data } = update
 
-    if (text === "/cancel") return null
-    if (data === ONBOARD_CANCEL) {
-      await update.answerCallbackQuery().catch()
+    if (text === "/cancel" || data === ONBOARD_CANCEL) {
+      await update.ctx.answerCallbackQuery().catch()
       return null
     }
 
+    if (data && !data.startsWith(ONBOARD_PREFIX)) {
+      await update.ctx.answerCallbackQuery("Действие недоступно во время стартового диалога").catch()
+      continue
+    }
+
     if (data?.startsWith(ONBOARD_GROUP_SELECT_PREFIX)) {
-      await update.answerCallbackQuery().catch()
+      await update.ctx.answerCallbackQuery().catch()
       const groupId = Number(data.slice(ONBOARD_GROUP_SELECT_PREFIX.length))
       if (Number.isNaN(groupId) || groupId <= 0) continue
 
@@ -361,9 +207,9 @@ async function chooseGroupManually(
 
     if (!text) continue
 
-    if (update.chat && update.message) {
-      await update.api
-        .deleteMessage(update.chat.id, update.message.message_id)
+    if (update.ctx.chat && update.ctx.message) {
+      await update.ctx.api
+        .deleteMessage(update.ctx.chat.id, update.ctx.message.message_id)
         .catch(() => {
           /* ignore */
         })
@@ -444,14 +290,18 @@ async function askTheme(
   )
 
   while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    if (text === "/cancel") return null
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (!update) continue
+    if (update.text === "/cancel")
+      return null
 
-    const data = getCallbackData(update)
+    const data = update.data
     if (!data) continue
-
-    await update.answerCallbackQuery().catch()
+    if (!data.startsWith(ONBOARD_PREFIX)) {
+      await update.ctx.answerCallbackQuery("Действие недоступно во время стартового диалога").catch()
+      continue
+    }
+    await update.ctx.answerCallbackQuery().catch()
 
     if (data === ONBOARD_CANCEL) return null
     if (!data.startsWith(ONBOARD_THEME_PREFIX)) continue
@@ -482,14 +332,18 @@ async function askSubgroup(
   )
 
   while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    if (text === "/cancel") return null
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (!update) continue
+    if (update.text === "/cancel")
+      return null
 
-    const data = getCallbackData(update)
+    const data = update.data
     if (!data) continue
-
-    await update.answerCallbackQuery().catch()
+    if (!data.startsWith(ONBOARD_PREFIX)) {
+      await update.ctx.answerCallbackQuery("Действие недоступно во время стартового диалога").catch()
+      continue
+    }
+    await update.ctx.answerCallbackQuery().catch()
 
     if (data === ONBOARD_CANCEL) return null
     if (data === ONBOARD_SUBGROUP_BOTH) return 0
@@ -528,14 +382,18 @@ async function askNotifications(
   )
 
   while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    if (text === "/cancel") return null
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (!update) continue
+    if (update.text === "/cancel")
+      return null
 
-    const data = getCallbackData(update)
+    const data = update.data
     if (!data) continue
-
-    await update.answerCallbackQuery().catch()
+    if (!data.startsWith(ONBOARD_PREFIX)) {
+      await update.ctx.answerCallbackQuery("Действие недоступно во время стартового диалога").catch()
+      continue
+    }
+    await update.ctx.answerCallbackQuery().catch()
 
     if (data === ONBOARD_CANCEL) return null
     if (data === ONBOARD_NOTIFY_ENABLE) return true
@@ -567,14 +425,18 @@ async function askProxyPermission(
   )
 
   while (true) {
-    const update = await conversation.wait()
-    const text = getMessageText(update)
-    if (text === "/cancel") return null
+    const update = await wait({ conversation, catchText: true, catchCallback: true })
+    if (!update) continue
+    if (update.text === "/cancel")
+      return null
 
-    const data = getCallbackData(update)
+    const data = update.data
     if (!data) continue
-
-    await update.answerCallbackQuery().catch()
+    if (!data.startsWith(ONBOARD_PREFIX)) {
+      await update.ctx.answerCallbackQuery("Действие недоступно во время стартового диалога").catch()
+      continue
+    }
+    await update.ctx.answerCallbackQuery().catch()
 
     if (data === ONBOARD_CANCEL) return null
     if (data === ONBOARD_PROXY_ALLOW) return true
@@ -618,7 +480,7 @@ async function onboardingConversation(
   }
 
   if (mode === "authed") {
-    const loginResult = await runLkLogin(conversation, ctx, msg, user.id)
+    const loginResult = await loginConversation(conversation, ctx, { msg })
     if (!loginResult.ok) {
       if (loginResult.cancelled) {
         await cancelOnboarding(ctx, msg.chat.id, msg.message_id)
