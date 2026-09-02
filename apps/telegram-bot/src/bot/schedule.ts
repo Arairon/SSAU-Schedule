@@ -184,7 +184,7 @@ export async function sendTimetable(
       : `g${group?.id ?? user.groupId}`
 
     log.debug(
-      `[bot.viewer] Requested schedule ${preferences.theme}/${logTarget}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
+      `[schedule] Requested schedule ${preferences.theme}/${logTarget}/${weekNumber} ${!isAuthed ? "(unauthed) " : ""}`,
       { user: userId },
     )
     const startTime = process.hrtime.bigint()
@@ -254,7 +254,7 @@ export async function sendTimetable(
         throw new Error(`API error ${data.code}: ${data.response}`)
       }
 
-      log.debug(`Started receiving schedule stream`, { user: userId })
+      // log.debug(`Started receiving schedule stream`, { user: userId })
 
       for await (const rawchunk of data) {
         // TODO: remove this mess. See https://github.com/elysiajs/elysia/issues/1559
@@ -297,7 +297,6 @@ export async function sendTimetable(
             updateTempMsg(text)
           }
         } else {
-          log.debug(`Received schedule data chunk`, { user: userId })
           timetableData = chunk
         }
       }
@@ -308,7 +307,7 @@ export async function sendTimetable(
     } catch (e) {
       log.error(`Failed to get timetable`, {
         user: userId,
-        object: String(e) as unknown as object,
+        object: e as object,
       })
       return ctx.reply(`
 Произошла неизвестная ошибка при обновлении.
@@ -455,7 +454,7 @@ ${weekInfo ? formatTimeDelta(weekInfo.cachedUntil.getTime() - Date.now()) : "N/A
     }
     const endTime = process.hrtime.bigint()
     log.debug(
-      `[bot] Image viewer update ${image.stylemap}/${logTarget}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
+      `[schedule] Image viewer update ${image.stylemap}/${logTarget}/${timetable.week}. Took ${formatBigInt(endTime - startTime)}ns`,
       { user: userId },
     )
 
