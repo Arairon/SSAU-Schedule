@@ -259,6 +259,41 @@ export async function initAdmin(bot: Bot<Context>) {
     },
   )
 
+  commands.command("whois", "Returns information about a user", async (ctx) => {
+    if (!ctx.from || !ctx.message) return
+    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return
+
+    const argument = ctx.message.text.split(/\s+/, 2)[1]?.trim()
+    if (!argument) return ctx.reply("Использование: /whois [id] или /whois #[id]")
+
+    const isDatabaseId = argument.startsWith("#")
+    const id = isDatabaseId ? argument.slice(1) : argument
+    if (!/^\d+$/.test(id)) return ctx.reply("Идентификатор должен быть числом")
+
+    const response = isDatabaseId
+      ? await api.user.id({ id: Number(id) }).get()
+      : await api.user.tgid({ id: String(id) }).get()
+    if (response.status === 404) return ctx.reply("Пользователь не найден")
+    if (response.status !== 200 || !response.data)
+      return ctx.reply("Не удалось получить информацию о пользователе")
+
+    return ctx.reply(`<pre>${JSON.stringify(response.data, null, 2)}</pre>`, {
+      parse_mode: "HTML",
+    })
+  })
+
+  commands.command("msg", "Sends a message to a Telegram user", async (ctx) => {
+    if (!ctx.from || !ctx.message) return
+    if (ctx.from.id !== env.SCHED_BOT_ADMIN_TGID) return
+
+    const match = /^\/msg\s+(\d+)\s+([\s\S]+)$/.exec(ctx.message.text)
+    if (!match) return ctx.reply("Использование: /msg [tgid] [text]")
+    const [id, text] = match.slice(1)
+
+    await ctx.api.sendMessage(id, text)
+    return ctx.reply(`Сообщение отправлено\n---\n${text}`)
+  })
+
   commands.command(
     "stats",
     "Returns various info about user/bot",
