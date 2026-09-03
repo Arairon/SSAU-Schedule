@@ -289,7 +289,9 @@ async function scheduleLessonChangeNotifications(
   diff: TimetableDiff,
 ) {
   const today = new Date()
-  if (today.getHours() <= 6) today.setHours(6)
+  if (today.getHours() <= 6) {
+    today.setHours(6, 0, 0, 0)
+  }
   if (diff.added.length + diff.removed.length === 0) {
     log.debug(`User ${user.id} has no schedule changes.`, {
       user: "scheduleChangeNotifications",
@@ -349,9 +351,14 @@ export async function scheduleDailyNotificationsForUser(
     loggingTag: "dNf",
   })
   timetable.days.map(
-    (d) => (d.lessons = d.lessons.filter((i) =>
-      !i.customized?.hidden
-        && preferences.showMilitary ? true : i.type !== LessonType.Military
+    (d) => (d.lessons = d.lessons.filter((i) => {
+      if (i.customized?.hidden) return false
+      if (i.type === LessonType.Military) {
+        if (!preferences.showMilitary) return false
+        if (i.dayTimeSlot !== 1) return false // ignore non-first military lessons, since they are just fillers
+      }
+      return true
+    }
     )),
   )
   const day = timetable.days[today.getDay() - 1]

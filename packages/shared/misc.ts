@@ -70,7 +70,7 @@ export function generateTextLesson(lesson: TimetableLesson): string {
   const subgroupStr = lesson.subgroup ? `👥 Подгруппа: ${lesson.subgroup}` : "";
   return [
     `\
-📆 ${timeslot.beginTime} - ${lesson.type === "Military" ? "♾️" : timeslot.endTime}
+📆 ${timeslot.beginTime} - ${lesson.type === "Military" ? "17:00" : timeslot.endTime}
 📖 ${lesson.discipline}
 ${LessonTypeIcon[lesson.type]} ${LessonTypeName[lesson.type]} ${lesson.isIet ? "[ИОТ]" : ""}
 🏢 ${place}
