@@ -206,7 +206,7 @@ export async function loginConversation(
 Логин: ${username}
 Пароль: \*\*\*\*\*\*\*\*
 Вход успешен! ${user.fullname ? `Вы вошли как '${getPersonShortname(user.fullname)}'` : ``}`,
-          )
+          ).catch() // Ignore "message is not modified" error
         },
       },
     )
@@ -228,7 +228,7 @@ export async function loginConversation(
 Пароль: \*\*\*\*\*\*\*\*
 Вход успешен! ${user.fullname ? `Вы вошли как '${getPersonShortname(user.fullname)}'` : ``}
 Данные для входа сохранены`,
-      )
+      ).catch() // Ignore "message is not modified" error
     } else {
       log.debug("Login successful, credentials not saved", { user: userId })
     }
