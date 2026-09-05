@@ -309,6 +309,12 @@ export async function sendTimetable(
         user: userId,
         object: e as object,
       })
+      if (error) {
+        return ctx.reply(`
+Произошла ошибка: ${error}.
+Для подробностей свяжитесь с администратором бота.
+          `)
+      }
       return ctx.reply(`
 Произошла неизвестная ошибка при обновлении.
 Для подробностей свяжитесь с администратором бота.

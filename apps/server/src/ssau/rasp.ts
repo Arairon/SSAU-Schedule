@@ -217,6 +217,9 @@ export async function getTeacherWeekFromSsauRasp({
     params: { staffId, selectedWeek },
     validateStatus: () => true,
   })
+  if (req.status === 404) {
+    return err("Teacher not found")
+  }
   if (req.status !== 200) {
     return err(new Error(`Failed to fetch data from SSAU RASP: ${req.status}`))
   }
@@ -244,6 +247,6 @@ export async function getTeacherWeekFromSsauRasp({
   return schedule
 }
 
-export async function getGroupWeekFromSsauRasp({}) {
+export async function getGroupWeekFromSsauRasp({ }) {
   return new Error("Not implemented")
 }

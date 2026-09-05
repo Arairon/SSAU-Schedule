@@ -54,7 +54,7 @@ export async function loginConversation(
       msg.chat.id,
       msg.message_id,
       `Вход в личный кабинет отменён`,
-    )
+    ).catch()
     return { ok: false, cancelled: true }
   }
 
@@ -68,7 +68,7 @@ export async function loginConversation(
       msg.chat.id,
       msg.message_id,
       `Вход в личный кабинет отменён`,
-    )
+    ).catch()
     return { ok: false, cancelled: true }
   }
 
@@ -81,7 +81,7 @@ export async function loginConversation(
 Пароль: \*\*\*\*\*\*\*\*
 Пробуем войти...
     `,
-  )
+  ).catch()
   let loginRes = await conversation.external(() =>
     api.user
       .id({ id: user.id })
@@ -140,7 +140,7 @@ export async function loginConversation(
         msg.chat.id,
         msg.message_id,
         `Вход в личный кабинет отменён`,
-      )
+      ).catch()
       return { ok: false, cancelled: true }
     }
     await ctx.api

@@ -518,18 +518,33 @@ async function getTeacherTimetable(
   })
 
   if (raspSchedule.isErr()) {
-    log.error(`Failed to fetch teacher schedule from ssau.ru/rasp`, {
-      user: user.id,
-      tag: opts?.loggingTag,
-      object: raspSchedule.error,
-    })
-    updateState({
-      state: "error",
-      message: "Не удалось получить расписание преподавателя.", // Текущее расписание взято из базы данных и может быть неактуальным. Попробуйте повторить запрос позже.
-    })
-    throw new Error(
-      `Failed to fetch teacher schedule from ssau.ru/rasp: ${raspSchedule.error.message}`,
-    )
+    if (raspSchedule.error === "Teacher not found") {
+      log.warn(`Teacher not found in ssau.ru/rasp`, {
+        user: user.id,
+        tag: opts?.loggingTag,
+        object: { teacherId, weekNumber, year },
+      })
+      updateState({
+        state: "error",
+        message: "Преподаватель не найден на ssau.ru/rasp",
+      })
+      throw new Error(
+        `Failed to fetch teacher schedule from ssau.ru/rasp: ${raspSchedule.error}`,
+      )
+    } else {
+      log.error(`Failed to fetch teacher schedule from ssau.ru/rasp`, {
+        user: user.id,
+        tag: opts?.loggingTag,
+        object: raspSchedule.error,
+      })
+      updateState({
+        state: "error",
+        message: "Не удалось получить расписание преподавателя.",
+      })
+      throw new Error(
+        `Failed to fetch teacher schedule from ssau.ru/rasp: ${raspSchedule.error.message}`,
+      )
+    }
   }
 
   const groups: Record<number, string> = {}
