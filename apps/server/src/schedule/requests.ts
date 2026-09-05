@@ -478,6 +478,65 @@ async function pregenerateImagesForUser(
   )
 }
 
+type Group = {
+  id: number
+  name: string
+}
+
+function selectGroupsToQuery(
+  lessons: ReadonlyArray<{ groups: ReadonlyArray<Group> }>,
+): Group[] {
+  const uncoveredLessons = new Set(lessons.map((_, index) => index))
+  const groupCoverage = new Map<number, {
+    group: Group
+    lessonIndexes: Set<number>
+  }>()
+
+  lessons.forEach((lesson, lessonIndex) => {
+    for (const group of lesson.groups) {
+      const coverage = groupCoverage.get(group.id)
+      if (coverage) {
+        coverage.lessonIndexes.add(lessonIndex)
+      } else {
+        groupCoverage.set(group.id, {
+          group,
+          lessonIndexes: new Set([lessonIndex]),
+        })
+      }
+    }
+  })
+
+  const selectedGroups: Group[] = []
+  while (uncoveredLessons.size > 0) {
+    let bestCoverage:
+      | { group: Group; lessonIndexes: Set<number> }
+      | undefined
+    let bestCoveredCount = 0
+
+    for (const coverage of groupCoverage.values()) {
+      let coveredCount = 0
+      for (const lessonIndex of coverage.lessonIndexes) {
+        if (uncoveredLessons.has(lessonIndex)) coveredCount += 1
+      }
+
+      if (coveredCount > bestCoveredCount) {
+        bestCoverage = coverage
+        bestCoveredCount = coveredCount
+      }
+    }
+
+    if (!bestCoverage) break
+
+    selectedGroups.push(bestCoverage.group)
+    for (const lessonIndex of bestCoverage.lessonIndexes) {
+      uncoveredLessons.delete(lessonIndex)
+    }
+    groupCoverage.delete(bestCoverage.group.id)
+  }
+
+  return selectedGroups
+}
+
 async function getTeacherTimetable(
   user: User,
   weekN: number,
@@ -547,14 +606,10 @@ async function getTeacherTimetable(
     }
   }
 
-  const groups: Record<number, string> = {}
-  for (const day of raspSchedule.value.days) {
-    for (const lesson of day.lessons) {
-      for (const group of lesson.groups) {
-        groups[group.id] = group.name
-      }
-    }
-  }
+  const lessons = raspSchedule.value.days.flatMap((day) => day.lessons)
+  const groups = Object.fromEntries(
+    selectGroupsToQuery(lessons).map((group) => [group.id, group.name]),
+  )
 
   const groupCount = Object.keys(groups).length
 
