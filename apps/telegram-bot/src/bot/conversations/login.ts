@@ -115,19 +115,6 @@ export async function loginConversation(
     await conversation.external(() => {
       log.warn(`Login failed: ${loginRes?.error}`, { user: userId })
     })
-    await ctx.api
-      .editMessageText(
-        msg.chat.id,
-        msg.message_id,
-        `
-Вход в личный кабинет
-Логин: ${username}
-Пароль: \*\*\*\*\*\*\*\*
-Ошибка входа: "${loginRes?.error}"
-Можете попробовать ввести пароль ещё раз или отменить вход через /cancel
-    `,
-      )
-      .catch() // Ignore "message is not modified" error
     const password = await promptForText(conversation, ctx, msg, `\
 Вход в личный кабинет
 Логин: ${username}
