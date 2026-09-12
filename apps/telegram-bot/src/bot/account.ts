@@ -166,7 +166,10 @@ https://${env.SCHED_SERVER_DOMAIN}/api/v0/ics/${cal.uuid}
 Содержимое файла будет обновляться вместе с расписанием и вашими настройками.
 Эту ссылку можно добавить в любой календарь, поддерживающий ics.
 На <b>айфоне</b> календарь поддерживает ics по умолчанию.
-На <b>андройде</b> можно использовать <a href="icsx5.bitfire.at">ICSx5</a> (<a href="https://play.google.com/store/apps/details?id=at.bitfire.icsdroid">GPlay</a>) или добавить ссылку в гугл календарь из браузера
+На <b>андройде</b> можно использовать <a href="icsx5.bitfire.at">ICSx5</a> \
+(<a href="https://play.google.com/store/apps/details?id=at.bitfire.icsdroid">GPlay $</a>, \
+<a href="https://github.com/bitfireAT/icsx5/">GitHub</a>, \
+<a href="https://f-droid.org/packages/at.bitfire.icsdroid/">F-Droid</a>) или добавить ссылку в гугл календарь из браузера
  `,
       { link_preview_options: { is_disabled: true }, parse_mode: "HTML" },
     )
