@@ -36,7 +36,9 @@ export async function scrapeLoginRequest(): Promise<ScrapedRequest | null> {
       button.click()
     })
 
-    await page.waitForNetworkIdle({ idleTime: 100, timeout: 1000 })
+    try {
+      await page.waitForNetworkIdle({ idleTime: 100, timeout: 1000 })
+    } catch { }
     return result
   } finally {
     await page.close()

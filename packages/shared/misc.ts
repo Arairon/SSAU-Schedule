@@ -62,6 +62,57 @@ export const LessonFieldsNames = {
   alts: "Альтернативные варианты",
 } as const satisfies Record<keyof TimetableLesson, string>;
 
+
+type GenerateTextLessonListOptions = {
+  separator?: string;
+  showWindows?: boolean;
+  groupContinous?: boolean
+}
+export function generateTextLessonList(lessons: TimetableLesson[],
+  {
+    separator = "-----",
+    showWindows = false,
+    groupContinous = false
+  }: GenerateTextLessonListOptions): string {
+  if (groupContinous)
+    lessons = groupContinousLessons(lessons)
+  if (!showWindows)
+    return lessons.map(generateTextLesson).join(`\n${separator}\n`);
+  if (!lessons.length) return ""
+  const parts: string[] = []
+  let prevTimeSlot = lessons[0].dayTimeSlot - 1
+  for (const l of lessons) {
+    console.dir({ prevTimeSlot, cur: l.dayTimeSlot })
+    if (l.dayTimeSlot - prevTimeSlot > 1) {
+      parts.push(generateTextWindowLesson(prevTimeSlot + 1, l.dayTimeSlot - prevTimeSlot - 1))
+    }
+    prevTimeSlot = l.dayTimeSlot
+    parts.push(generateTextLesson(l))
+  }
+
+  return parts.join(`\n${separator}\n`)
+}
+
+function generateTextWindowLesson(slot?: number, length?: number): string {
+  console.dir({ slot, length })
+  if (slot) {
+    /* 
+    // time diff variant
+    let beginTime = TimeSlotMap[slot - 1].beginTime
+    let endTime = TimeSlotMap[slot + (length ?? 0)].beginTime
+    */
+    let beginTime = TimeSlotMap[slot].beginTime
+    let endTime = TimeSlotMap[slot + (length ?? 1) - 1].endTime
+    return `
+📆 ${beginTime} - ${endTime}
+🏝 Окно
+`.trim()
+  }
+  return `
+🏝 Окно
+`.trim()
+}
+
 export function generateTextLesson(lesson: TimetableLesson): string {
   const timeslot = TimeSlotMap[lesson.dayTimeSlot];
   const place = lesson.isOnline

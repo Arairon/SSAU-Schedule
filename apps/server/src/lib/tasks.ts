@@ -9,6 +9,7 @@ import { scheduleMessage } from "./misc"
 import {
   formatTimetableDiff,
   generateTextLesson,
+  generateTextLessonList,
 } from "@ssau-schedule/shared/misc"
 import { DayString, getUserPreferences } from "@ssau-schedule/shared/utils"
 import { LessonType, type User } from "@/server/generated/prisma/client"
@@ -454,7 +455,7 @@ ${generateTextLesson(nextLesson)}`,
 Сегодня больше ничего нет
 Следующие занятия ${DayString[nextStudyDay.weekday].in}, ${nextStudyDay.beginTime.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}:
 
-${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----\n")}
+${generateTextLessonList(nextStudyDay.lessons, { showWindows: true })}
 `,
         source: "daily/nextDay",
       })
@@ -516,7 +517,7 @@ ${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----
 Сегодня больше ничего нет
 Следующие занятия ${DayString[nextStudyDay.weekday].in}, ${nextStudyDay.beginTime.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}:
 
-${nextStudyDay.lessons.map((lesson) => generateTextLesson(lesson)).join("\n-----\n")}
+${generateTextLessonList(nextStudyDay.lessons, { showWindows: true })}
 `,
           source: "daily/nextWeek",
         })
@@ -573,12 +574,12 @@ export async function dailyCleanup() {
   //   (await db.groupIcs.deleteMany({ where: { updatedAt: { lt: weekAgo } } }))
   //     .count,
   // );
-  results.push(
-    (await db.lesson.deleteMany({ where: { validUntil: { lt: weekAgo } } }))
-      .count,
-  )
+  // results.push(
+  //   (await db.lesson.deleteMany({ where: { validUntil: { lt: weekAgo } } }))
+  //     .count,
+  // )
 
-  log.info(`Cleanup complete: ${results.join(", ")} (im, msg, les)`, {
+  log.info(`Cleanup complete: ${results.join(", ")} (im, msg)`, {
     user: "dailyCleanup",
   })
 }
@@ -692,6 +693,13 @@ export const cronjobs = [
     },
   ),
   new CronJob(
+    { cronExpression: "0 0 * * *" }, // 0 am
+    new AsyncTask("Daily cleanup", dailyCleanup),
+    {
+      preventOverrun: true,
+    },
+  ),
+  new CronJob(
     { cronExpression: "0 2 * * *" }, // 2 am
     new AsyncTask(
       "Daily week update and notifications scheduling",
@@ -707,13 +715,6 @@ export const cronjobs = [
       "Image preupload for week images without tgId",
       uploadWeekImagesWithoutTgId,
     ),
-    {
-      preventOverrun: true,
-    },
-  ),
-  new CronJob(
-    { cronExpression: "0 0 * * *" }, // 0 am
-    new AsyncTask("Daily cleanup", dailyCleanup),
     {
       preventOverrun: true,
     },

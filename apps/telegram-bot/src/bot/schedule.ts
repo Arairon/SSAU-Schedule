@@ -14,6 +14,7 @@ import {
   formatLesson,
   formatTimetableDiff,
   generateTextLesson,
+  generateTextLessonList,
 } from "@ssau-schedule/shared/misc"
 import { getUserPreferences } from "@ssau-schedule/shared/utils"
 import { handleError } from "."
@@ -621,7 +622,7 @@ export async function initSchedule(bot: Bot<Context>) {
         `\
 Занятия сегодня:
 
-${day.lessons.map(generateTextLesson).join("\n-----\n")}
+${generateTextLessonList(day.lessons, { showWindows: true })}
 `,
         { link_preview_options: { is_disabled: true } },
       )
@@ -692,7 +693,7 @@ ${day.lessons.map(generateTextLesson).join("\n-----\n")}
       `\
 ${dateStr} (Неделя ${week}):
 
-${daySchedule.lessons.map(generateTextLesson).join("\n-----\n")}
+${generateTextLessonList(daySchedule.lessons, { showWindows: true })}
 `,
       { link_preview_options: { is_disabled: true } },
     )
