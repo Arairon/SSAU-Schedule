@@ -50,6 +50,7 @@ export async function updateWeekForUser(
     { user: user.id, tag: opts?.loggingTag },
   )
 
+  if (!user.authCookie && user.username) await lk.ensureAuth(user)
   const userIsAuthed = !!user.authCookie
   let lkUser = (userIsAuthed ? user : await lk.getProxyUser())
 
