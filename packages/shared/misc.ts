@@ -1,6 +1,7 @@
 import { formatSentence, getPersonShortname } from "./utils";
 import { TimeSlotMap } from "./timeSlotMap";
 import type { LessonType, TimetableDiff, TimetableLesson } from "./timetable";
+import { getWeekFromDate } from "./date";
 
 export const LessonTypeIcon: Record<LessonType, string> = {
   Lection: "📗",
@@ -448,4 +449,28 @@ export function groupContinousLessons(
   );
 
   return grouped;
+}
+
+export function getTargetWeekNumber(requestedNumber: number, options: {
+  incrementOnSunday?: boolean,
+  clamp?: boolean
+} = {}): number {
+  const opts = Object.assign({
+    incrementOnSunday: true,
+    clamp: true
+  }, options)
+
+  if (requestedNumber === 0) {
+    const now = new Date()
+    requestedNumber = getWeekFromDate(now)
+    if (opts.incrementOnSunday && now.getDay() === 0) {
+      requestedNumber++
+    }
+  }
+
+  if (opts.clamp) {
+    requestedNumber = Math.min(Math.max(requestedNumber, 1), 52)
+  }
+
+  return requestedNumber
 }

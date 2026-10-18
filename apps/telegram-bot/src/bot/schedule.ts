@@ -15,6 +15,7 @@ import {
   formatTimetableDiff,
   generateTextLesson,
   generateTextLessonList,
+  getTargetWeekNumber,
 } from "@ssau-schedule/shared/misc"
 import { getUserPreferences } from "@ssau-schedule/shared/utils"
 import { handleError } from "."
@@ -162,7 +163,7 @@ export async function sendTimetable(
     const user = await getUser(ctx, { required: true })
     if (!user) return
     const isAuthed = !!user.authCookie
-    const weekNumber = week === 0 ? 0 : Math.min(Math.max(week, 1), 52)
+    const weekNumber = getTargetWeekNumber(week)
 
     const teacherMode = !!teacherId
 
