@@ -83,7 +83,6 @@ export function generateTextLessonList(lessons: TimetableLesson[],
   const parts: string[] = []
   let prevTimeSlot = lessons[0].dayTimeSlot - 1
   for (const l of lessons) {
-    console.dir({ prevTimeSlot, cur: l.dayTimeSlot })
     if (l.dayTimeSlot - prevTimeSlot > 1) {
       parts.push(generateTextWindowLesson(prevTimeSlot + 1, l.dayTimeSlot - prevTimeSlot - 1))
     }
@@ -95,7 +94,6 @@ export function generateTextLessonList(lessons: TimetableLesson[],
 }
 
 function generateTextWindowLesson(slot?: number, length?: number): string {
-  console.dir({ slot, length })
   if (slot) {
     /* 
     // time diff variant
