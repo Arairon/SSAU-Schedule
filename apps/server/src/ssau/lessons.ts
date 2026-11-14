@@ -103,6 +103,7 @@ export async function updateWeekForUser(
         groupId: week.groupId,
         userType: "student",
       },
+      timeout: 30_000
     },
   )
   const {

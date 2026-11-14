@@ -130,6 +130,10 @@ export async function scheduleDailyNotificationsForAll() {
 }
 
 export async function dailyUpdate() {
+  log.info(`Starting dailyUpdate`, {
+    user: "dailyUpdate",
+  })
+
   const now = new Date()
   // const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000);
   // const monthAgo = new Date(Date.now() - 30 * 24 * 3600_000);
@@ -147,7 +151,7 @@ export async function dailyUpdate() {
     orderBy: { id: "asc" },
   })
 
-  log.info(`Starting dailyUpdate`, {
+  log.info(`Proceeding with:`, {
     user: "dailyUpdate",
     object: {
       userCount: users.length,
