@@ -41,11 +41,9 @@ ENV SCHED_SERVER_DATABASE_URL=localhost
 RUN bun run db:generate
 RUN bun run build
 
-FROM oven/bun:1.3.5-alpine AS chrome
+FROM oven/bun:1.3.5-alpine AS server_runner
 
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init
-
-FROM chrome AS server_runner
+RUN apk add --no-cache dumb-init
 
 WORKDIR /app
 
@@ -66,14 +64,14 @@ RUN cat > /app/package.json <<'JSON'
 JSON
 RUN bun install --production;
 
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/apps/server/package.json ./apps/server/package.json
-COPY --from=builder /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
-COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
-COPY --from=builder /app/apps/client/dist ./public
+COPY --from=builder --chown=bun:bun /app/package.json ./package.json
+COPY --from=builder --chown=bun:bun /app/apps/server/package.json ./apps/server/package.json
+COPY --from=builder --chown=bun:bun /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
+COPY --from=builder --chown=bun:bun /app/apps/server/prisma ./apps/server/prisma
+COPY --from=builder --chown=bun:bun /app/apps/server/dist ./apps/server/dist
+COPY --from=builder --chown=bun:bun /app/apps/client/dist ./public
 
-RUN mkdir -p /app/log && chown -R bun:bun /app
+RUN mkdir -p /app/log
 
 USER bun
 WORKDIR /app

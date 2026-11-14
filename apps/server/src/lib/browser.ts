@@ -26,9 +26,7 @@ export async function getBrowser() {
     return browser
   }
 
-  browserPromise ??= Puppeteer.launch({
-    executablePath:
-      env.SCHED_SERVER_CHROME_PATH ?? process.env.CHROME_PATH ?? undefined,
+  const launchArgs = {
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -36,19 +34,57 @@ export async function getBrowser() {
       "--disable-gpu",
       "--disable-extensions",
       "--disable-software-rasterizer",
-    ],
-    protocolTimeout: 30_000,
-  })
-    .then((instance) => {
-      browser = instance
-      instance.on("disconnected", resetBrowserState)
-      return instance
+    ]
+  }
+
+  if (env.SCHED_SERVER_BROWSERLESS_URL) {
+    const url = new URL(env.SCHED_SERVER_BROWSERLESS_URL)
+    if (url.searchParams.has("launch")) {
+      log.warn("Chrome launch params are overriden", {
+        object: {
+          old: url.searchParams.toJSON(),
+          new: launchArgs
+        }
+      })
+    }
+    url.searchParams.append("launch", encodeURIComponent(JSON.stringify(launchArgs)))
+    browserPromise ??= Puppeteer.connect({
+      browserWSEndpoint: env.SCHED_SERVER_BROWSERLESS_URL,
+      protocolTimeout: 30_000,
     })
-    .catch((error) => {
-      resetBrowserState()
-      log.error(`Puppeteer launch failed: ${String(error)}`, { user: "sys" })
-      throw error
+      .then((instance) => {
+        browser = instance
+        instance.on("disconnected", resetBrowserState)
+        return instance
+      })
+      .catch((error) => {
+        resetBrowserState()
+        log.error(`Puppeteer connection failed:`, { user: "sys", object: error })
+        throw error
+      })
+  } else {
+    browserPromise ??= Puppeteer.launch({
+      browserWSEndpoint: env.SCHED_SERVER_BROWSERLESS_URL,
+      executablePath:
+        env.SCHED_SERVER_CHROME_PATH ?? undefined,
+      args: launchArgs.args,
+      protocolTimeout: 30_000,
     })
+      .then((instance) => {
+        browser = instance
+        instance.on("disconnected", resetBrowserState)
+        return instance
+      })
+      .catch((error) => {
+        resetBrowserState()
+        log.error(`Puppeteer launch failed:`, { user: "sys", object: error })
+        throw error
+      })
+  }
 
   return browserPromise
 }
+
+getBrowser().then(() => {
+  log.debug("Browser connection is ok", { user: "puppeteer" })
+})

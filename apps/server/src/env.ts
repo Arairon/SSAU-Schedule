@@ -25,6 +25,7 @@ export const env = createEnv({
     SCHED_SERVER_PORT: z.coerce.number().int().default(3000),
     SCHED_SERVER_HOST: z.string().default("0.0.0.0"),
     SCHED_SERVER_CHROME_PATH: z.string().optional(),
+    SCHED_SERVER_BROWSERLESS_URL: z.string().startsWith("ws://", "SCHED_SERVER_BROWSERLESS_URL is supposed to be a WebSocket endpoint. ws://...").optional(),
     LOG_LEVEL: z.string().toLowerCase().default("info"),
     TZ: z.string().default("Europe/Samara"),
     NODE_ENV: z
@@ -58,3 +59,7 @@ export const env = createEnv({
    */
   emptyStringAsUndefined: true,
 })
+
+if (!env.SCHED_SERVER_CHROME_PATH && !env.SCHED_SERVER_BROWSERLESS_URL) {
+  throw new Error("$SCHED_SERVER_BROWSERLESS_URL or $SCHED_SERVER_CHROME_PATH is required. Chrome is no longer bundled together with the app. See https://github.com/browserless/browserless")
+}

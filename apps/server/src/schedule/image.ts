@@ -408,7 +408,7 @@ export async function generateTimetableImage(
       log.error(`Failed to generate a timetable image. Error: ${String(e)}`, {
         user: -1,
       })
-      log.debug(`Failed HTML: \n${html}\n---`, { user: -1 })
+      log.debug(`Failed HTML:`, { user: -1, object: JSON.stringify(html) })
       throw e
     }
   }
