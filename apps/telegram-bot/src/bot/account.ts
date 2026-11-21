@@ -102,9 +102,20 @@ export async function initAccount(bot: Bot<Context>) {
     if (user) {
       if (user.username && user.password) {
         await ctx.reply(`
-Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.
+Вы уже вошли как '${getPersonShortname(user.fullname ?? "ВременноНеизвестный Пользователь")} (${user.username})'.\
+${user.authCookie ? "" : "\nУ вас слетела сессия. Пробуем войти в лк повторно..."}
 Если вы хотите выйти - используйте /logout
       `)
+        api.user.id({ id: user.id }).lk.updateInfo.post(null, { query: { overrideGroup: false } }).then((res) => {
+          if (res.status === 200) {
+            ctx.reply("Сессия успешно обновлена")
+          } else {
+            ctx.reply(`\
+При обновлении сессии произошла ошибка. Попробуйте выйти и войти через /logout и /login.
+Если ошибка продолжает повторяться - свяжитесь с ${env.SCHED_BOT_ADMIN_CONTACT}
+`)
+          }
+        })
         return
       }
       if (user.authCookie && user.sessionExpiresAt > new Date()) {

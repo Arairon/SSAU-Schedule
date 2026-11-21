@@ -140,9 +140,9 @@ async function getTokenUsingCredentials(
 ): Promise<ReturnObj<string>> {
   const ssauVariableHeaders = getSsauVariableHeaders()
   const form = new FormData()
-  form.append("1_returnUrl", "")
-  form.append("1_login", username)
-  form.append("1_password", password)
+  form.append("_1_returnUrl", "")
+  form.append("_1_login", username)
+  form.append("_1_password", password)
   form.append("0", '[{"error":""},"$K1"]')
 
   const resp = await axios.post("https://lk.ssau.ru/account/login", form, {
@@ -171,14 +171,24 @@ async function getTokenUsingCredentials(
     maxRedirects: 0,
     validateStatus: () => true,
   })
-  if (resp.status === 200) {
-    // OK is invalid username/password. Yes. This makes a LOT of sense
-    return {
-      ok: false,
-      error: "refused",
-      message: "Invalid username or password",
+  if (resp.status === 200 || resp.status === 303) {
+    // OK is now both valid and invalid username/password. Yes. This makes a LOT of sense
+    if (typeof resp.data !== "string") {
+      log.error(`Invalid response at ssau auth`, { user: username, object: resp.data })
+      return {
+        ok: false,
+        error: "invlaid_response",
+        message: "SSAU responded weirdly. Please file a /bug report"
+      }
     }
-  } else if (resp.status === 303) {
+    if (resp.data.includes("Неверный логин")) {
+      return {
+        ok: false,
+        error: "refused",
+        message: "Invalid username or password",
+      }
+    }
+    // } else if (resp.status === 303) {
     // Successful login
     if (!resp.headers["set-cookie"]?.length)
       return {
@@ -196,9 +206,9 @@ async function getTokenUsingCredentials(
         message: "Unable to get auth token from cookies",
       }
     return { ok: true, data: cookie }
-  } else if (resp.status === 404) {
+  } else if (resp.status === 404 || resp.status === 409) {
     // Invalid Next-Action
-    if (resp.data === "Server action not found.") {
+    if (resp.data === "Server action not found." || resp.data === "Server Action unavailable.") {
       log.warn(`Failed to login: Invalid Next-Action. Response: ${resp.data}`)
 
       if (opts?.noRetry) {
@@ -263,7 +273,7 @@ async function relog(user: User) {
       message: "User does not have credentials saved",
     }
   const loginRes = await login(user)
-  if (!loginRes.ok) log.warn("Failed to relog user", { user: user.id })
+  if (!loginRes.ok) log.warn("Failed to relog user", { user: user.id, object: loginRes })
   else log.debug(`Relogged user`, { user: user.id })
   return loginRes
 }
